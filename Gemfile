@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby '3.3.0'
+ruby '3.1.0'
 
 gem 'devise', '~> 4.8'
 gem 'active_admin_import'
@@ -15,9 +15,9 @@ gem 'pg', '~> 1.2'
 # Use Puma as the app server
 gem 'puma', '~> 6.0'
 # Use SCSS for stylesheets
-gem 'sass-rails', '~> 6.0'
+gem 'sass-rails', '~> 7.0'
 # Use Uglifier as compressor for JavaScript assets
-gem 'uglifier', '~> 4.2'
+gem 'uglifier', '~> 5.4'
 # See https://github.com/rails/execjs#readme for more supported runtimes
 # gem 'mini_racer', platforms: :ruby
 
@@ -58,7 +58,7 @@ end
 
 group :test do
   # Adds support for Capybara system testing and selenium driver
-  gem 'capybara', '~> 3.35'
+  gem 'capybara', '~> 4.1'
   gem 'selenium-webdriver', '~> 4.1'
   # Easy installation and use of chromedriver to run system tests with Chrome
   gem 'webdrivers'

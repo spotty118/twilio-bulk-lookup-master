@@ -1,10 +1,5 @@
 {
   "name": "bulk_lookup",
   "private": true,
-  "scripts": {
-    "build:css": "npx sass ./app/assets/stylesheets/application.css:./app/assets/builds/application.css ./app/assets/stylesheets/active_admin.scss:./app/assets/builds/active_admin.css --no-source-map --load-path=node_modules"
-  },
-  "dependencies": {
-    "sass": "^1.69.0"
-  }
+  "dependencies": {}
 }
