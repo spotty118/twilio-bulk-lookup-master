@@ -3,29 +3,32 @@ git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
 ruby '3.3.0'
 
-gem 'devise', '~> 4.9'
+gem 'devise', '~> 4.8'
 gem 'active_admin_import'
-gem 'activeadmin', '~> 3.1'
-gem 'twilio-ruby', '~> 6.9'
-gem 'sidekiq', '~> 7.2'
+gem 'activeadmin', '~> 2.9'
+gem 'twilio-ruby', '~> 5.0'
+gem 'sidekiq', '~> 6.0'
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 7.1'
+gem 'rails', '~> 7.0'
 # Use postgresql as the database for Active Record
-gem 'pg', '~> 1.5'
+gem 'pg', '~> 1.2'
 # Use Puma as the app server
-gem 'puma', '~> 6.4'
-# Use modern asset pipeline
-gem 'cssbundling-rails'
-gem 'jsbundling-rails'
+gem 'puma', '~> 6.0'
+# Use SCSS for stylesheets
+gem 'sass-rails', '~> 6.0'
+# Use Uglifier as compressor for JavaScript assets
+gem 'uglifier', '~> 4.2'
 # See https://github.com/rails/execjs#readme for more supported runtimes
 # gem 'mini_racer', platforms: :ruby
 
+# Use CoffeeScript for .coffee assets and views
+gem 'coffee-rails', '~> 4.2'
 # Turbolinks makes navigating your web application faster. Read more: https://github.com/turbolinks/turbolinks
 gem 'turbolinks', '~> 5'
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
-gem 'jbuilder', '~> 2.11'
+gem 'jbuilder', '~> 2.5'
 # Use Redis adapter to run Action Cable in production
-gem 'redis', '~> 5.0'
+gem 'redis', '~> 4.0'
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
 
@@ -36,10 +39,7 @@ gem 'redis', '~> 5.0'
 # gem 'capistrano-rails', group: :development
 
 # Reduces boot times through caching; required in config/boot.rb
-gem 'bootsnap', '>= 1.4.4', require: false
-
-# Process manager for development
-gem 'foreman', '~> 0.88.0'
+gem 'bootsnap', '>= 1.1.0', require: false
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
@@ -49,17 +49,17 @@ end
 group :development do
   gem 'pry'
   # Access an interactive console on exception pages or by calling 'console' anywhere in the code.
-  gem 'web-console', '~> 4.2'
-  gem 'listen', '~> 3.8'
+  gem 'web-console', '>= 3.3.0'
+  gem 'listen', '>= 3.0.5', '< 3.2'
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   gem 'spring'
-  gem 'spring-watcher-listen', '~> 2.1'
+  gem 'spring-watcher-listen', '~> 2.0.0'
 end
 
 group :test do
   # Adds support for Capybara system testing and selenium driver
-  gem 'capybara', '~> 3.39'
-  gem 'selenium-webdriver', '~> 4.16'
+  gem 'capybara', '~> 3.35'
+  gem 'selenium-webdriver', '~> 4.1'
   # Easy installation and use of chromedriver to run system tests with Chrome
   gem 'webdrivers'
 end
