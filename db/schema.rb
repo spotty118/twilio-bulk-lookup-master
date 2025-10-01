@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_08_14_150939) do
+ActiveRecord::Schema[7.2].define(version: 2025_10_01_213225) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -55,6 +55,16 @@ ActiveRecord::Schema[7.2].define(version: 2025_08_14_150939) do
     t.string "device_type"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "lookup_performed_at"
+    t.index ["carrier_name", "device_type"], name: "index_contacts_on_carrier_and_device_where_completed", where: "((status)::text = 'completed'::text)"
+    t.index ["created_at"], name: "index_contacts_on_created_at_where_pending", where: "((status)::text = 'pending'::text)"
+    t.index ["error_code"], name: "index_contacts_on_error_code"
+    t.index ["formatted_phone_number"], name: "index_contacts_on_formatted_phone_number"
+    t.index ["lookup_performed_at"], name: "index_contacts_on_lookup_performed_at"
+    t.index ["status", "lookup_performed_at"], name: "index_contacts_on_status_and_lookup_performed_at"
+    t.index ["status"], name: "index_contacts_on_status"
+    t.index ["updated_at"], name: "index_contacts_on_updated_at_where_failed", where: "((status)::text = 'failed'::text)"
   end
 
   create_table "twilio_credentials", force: :cascade do |t|

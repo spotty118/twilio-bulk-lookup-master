@@ -2,93 +2,353 @@
 
 # Bulk Lookup for Twilio
 
-Twilio lookup allows you to determine if a phone number is a mobile number or a landline. This project allows you to upload a CSV, run a bulk lookup, and then download a CSV with information from the Lookup API.
+Twilio Lookup allows you to determine if a phone number is a mobile number or a landline. This project allows you to upload a CSV, run a bulk lookup, and then download a CSV with information from the Lookup API.
 
+## 🚀 Features
 
-## Heroku Prerequesites
-Before you start, you'll need the following:
+- **Bulk Phone Number Lookup**: Process thousands of phone numbers via Twilio Lookup API
+- **CSV Import/Export**: Easy data import and export in CSV, TSV, or Excel formats
+- **Background Processing**: Sidekiq-powered async job processing with Redis
+- **Admin Interface**: ActiveAdmin dashboard for managing contacts and credentials
+- **Status Tracking**: Real-time processing status for all contacts
+- **Error Handling**: Intelligent retry logic with exponential backoff
+- **Rate Limiting**: Configurable concurrency to prevent API throttling
+- **Idempotency**: Skip already-processed contacts automatically
+- **Monitoring Dashboard**: Built-in Sidekiq Web UI for job monitoring
 
-* A [Twilio Account](https://twilio.com/try-twilio)
-* A [Heroku Account](https://signup.heroku.com)
-* The [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
+## 📋 Prerequisites
 
-## Heroku Setup
+Before you start, you'll need:
+
+* A [Twilio Account](https://twilio.com/try-twilio) with API credentials
+* Ruby 3.3.5 (use [rbenv](https://github.com/rbenv/rbenv) or [rvm](https://rvm.io/))
+* PostgreSQL 9.1+
+* Redis (for background job processing)
+
+## 🏗️ Local Setup
+
+### 1. Clone and Install Dependencies
+
+```bash
+# Clone the repository
+git clone git@github.com:cweems/twilio-bulk-lookup.git
+cd twilio-bulk-lookup
+
+# Install Ruby 3.3.5 (using rbenv)
+rbenv install 3.3.5
+rbenv local 3.3.5
+
+# Install dependencies
+bundle install
+```
+
+### 2. Install and Start Redis
+
+```bash
+# macOS (using Homebrew)
+brew install redis
+brew services start redis
+
+# Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis-server
+
+# Verify Redis is running
+redis-cli ping  # Should return "PONG"
+```
+
+### 3. Database Setup
+
+```bash
+# Create and migrate database
+rails db:create
+rails db:migrate
+rails db:seed
+
+# The seed creates a default admin user:
+# Email: admin@example.com
+# Password: password
+```
+
+### 4. Configure Twilio Credentials
+
+**Option A: Environment Variables (Recommended for Production)**
+
+```bash
+# Add to .env file or export directly
+export TWILIO_ACCOUNT_SID='ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+export TWILIO_AUTH_TOKEN='your_auth_token_here'
+export REDIS_URL='redis://localhost:6379/0'
+```
+
+**Option B: Rails Encrypted Credentials**
+
+```bash
+# Edit credentials file
+EDITOR="code --wait" rails credentials:edit
+
+# Add these lines:
+twilio:
+  account_sid: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  auth_token: your_auth_token_here
+```
+
+**Option C: Admin Interface (Development Only)**
+
+After starting the app, log in and navigate to "Twilio Credentials" in the admin panel.
+
+⚠️ **Security Note**: For production, use environment variables or Rails encrypted credentials instead of storing in the database.
+
+### 5. Start the Application
+
+You'll need **three terminal windows**:
+
+**Terminal 1 - Rails Server:**
+```bash
+rails server
+```
+
+**Terminal 2 - Sidekiq Worker:**
+```bash
+bundle exec sidekiq -C config/sidekiq.yml
+```
+
+**Terminal 3 - Redis (if not running as service):**
+```bash
+redis-server
+```
+
+### 6. Access the Application
+
+- **Main App**: http://localhost:3000
+- **Admin Dashboard**: http://localhost:3000/admin
+- **Sidekiq Monitor**: http://localhost:3000/sidekiq (requires admin login)
+
+Default admin credentials (from seed):
+- Email: `admin@example.com`
+- Password: `password`
+
+## 📊 Usage
+
+### Import Contacts
+
+1. Log in to the admin dashboard
+2. Navigate to **Contacts**
+3. Click **Import Contacts**
+4. Upload a CSV file with phone numbers (column: `raw_phone_number`)
+
+Example CSV format:
+```csv
+raw_phone_number
++14155551234
++14155555678
++14155559999
+```
+
+### Run Bulk Lookup
+
+1. Go to the **Dashboard**
+2. Click **Run Lookup** button
+3. Processing will happen in the background via Sidekiq
+4. Monitor progress in the Dashboard or Sidekiq UI
+
+### Monitor Progress
+
+- **Dashboard**: Shows total contacts and processed count
+- **Sidekiq UI** (`/sidekiq`): Real-time job monitoring, retries, failures
+- **Contacts Page**: Filter by status (pending/processing/completed/failed)
+
+### Export Results
+
+1. Navigate to **Contacts**
+2. Use filters to select desired contacts
+3. Click **Download** and choose format (CSV/TSV/Excel)
+
+Exported data includes:
+- Original phone number
+- Formatted phone number
+- Carrier name
+- Device type (mobile/landline/voip)
+- Mobile network/country codes
+- Processing status
+- Error messages (if failed)
+
+## ⚙️ Configuration
+
+### Sidekiq Concurrency
+
+Edit `config/sidekiq.yml` to adjust processing speed:
+
+```yaml
+:concurrency: 5  # Number of parallel jobs (default: 5)
+```
+
+**Recommendations:**
+- **Development**: 2-5 workers
+- **Production**: 10-20 workers (monitor API rate limits)
+- Lower concurrency if hitting rate limits
+- Higher concurrency for faster processing
+
+### Processing Rate
+
+With default settings (concurrency: 5):
+- **Theoretical max**: ~25 requests/second
+- **Realistic throughput**: ~4,000 contacts/hour
+- Actual rate depends on network latency and API response time
+
+### Retry Configuration
+
+Jobs automatically retry on transient failures:
+- **Max retries**: 3 attempts
+- **Backoff**: Exponential (15s, 17s, 19s)
+- **Permanent failures**: No retry (invalid numbers, auth errors)
+
+## 🔧 Heroku Deployment
+
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
-You can also clone this repository and run the app locally. See the `Local Setup` section.
-
-1. Create your first admin user via the command line:
-
-Heroku:
+### Manual Heroku Setup
 
 ```bash
-$ heroku run rails console
-> AdminUser.create(email: 'your_email@mail.com', password: 'your_pass', password_confirmation: 'your_pass')
+# Create Heroku app
+heroku create your-app-name
+
+# Add PostgreSQL
+heroku addons:create heroku-postgresql:mini
+
+# Add Redis
+heroku addons:create heroku-redis:mini
+
+# Set Twilio credentials
+heroku config:set TWILIO_ACCOUNT_SID='ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+heroku config:set TWILIO_AUTH_TOKEN='your_auth_token_here'
+
+# Deploy
+git push heroku main
+
+# Run migrations
+heroku run rails db:migrate
+heroku run rails db:seed
+
+# Create admin user
+heroku run rails console
+> AdminUser.create(email: 'your_email@mail.com', password: 'your_secure_password', password_confirmation: 'your_secure_password')
 ```
 
-2. twilio-bulk-lookup uses Redis for queueing paralell requests. You will need to have redis installed in your environment:
+## 🛡️ Security Best Practices
 
-Heroku:
-`heroku addons:create heroku-redis:hobby-dev`
+1. **Never commit credentials** to version control
+2. **Use environment variables** for production credentials
+3. **Change default admin password** immediately
+4. **Enable HTTPS** in production (Heroku provides this automatically)
+5. **Regularly rotate** API credentials
+6. **Monitor** Sidekiq dashboard for unusual activity
 
-3. Visit your heroku application and log in using the credentials you entered above.
+## 🔍 Troubleshooting
 
-4. Add your Twilio Credentials
-![screen shot 2018-07-25 at 4 42 01 pm](https://user-images.githubusercontent.com/1418949/43279993-7b9ddb94-90c4-11e8-9d41-90b9e61b50a6.png)
-
-5. Import your CSV of Phone Numbers on the Contacts Page
-![screen shot 2018-07-25 at 4 35 10 pm](https://user-images.githubusercontent.com/1418949/43280074-b9c1f1f8-90c4-11e8-8c58-7632ebb2fd80.png)
-
-6. Click the bulk lookup button on the Dashboard Page
-![screen shot 2018-07-25 at 4 35 34 pm](https://user-images.githubusercontent.com/1418949/43280206-0b573e92-90c5-11e8-9150-6b5bbb53bb38.png)
-
-7. Wait for your lookup to process. It will take rougly 1 hour to process 4,000 contacts.
-
-8. Download your results from the Contacts Page as a CSV, TSV, or Excel.
-![screen shot 2018-07-25 at 4 45 14 pm](https://user-images.githubusercontent.com/1418949/43280272-365243bc-90c5-11e8-987f-41e79989159c.png)
-
-# Local Setup
-For one-time use or customization, local development may be a better option. Follow this sequence of commands to set up the twilio-bulk-lookup app locally:
-
-```shell
-# Use rails 2.7.5:
-rvm install 2.7.5
-rvm use 2.7.5
-
-# Clone the repository:
-git clone git@github.com:cweems/twilio-bulk-lookup.git
-
-# Install dependencies:
-bundle install
-
-# Set up database:
-rake db:create
-rake db:migrate
-rake db:seed
-
-# Install Redis using homebrew (Mac, or see https://redis.io/topics/quickstart):
-brew install redis
-
-# Start redis in a new CLI window:
-redis-server
-
-# Start the sidekiq worker in a new CLI window:
-bundle exec sidekiq -c 2
-
-# Start the application in a new CLI window:
-rails s
-
-```
-
-Open http://localhost:3000 to view the app locally.
-
-`rake db:seed` creates an admin user with the following credentials that you can use to log in:
-* email: admin@example.com
-* password: password
-
-You can also create your own local admin user like this:
+### Jobs Not Processing
 
 ```bash
-$ rails console
-> AdminUser.create(email: 'your_email@mail.com', password: 'your_pass', password_confirmation: 'your_pass')
+# Check Redis connection
+redis-cli ping
+
+# Check Sidekiq is running
+ps aux | grep sidekiq
+
+# View Sidekiq logs
+tail -f log/sidekiq.log
+
+# Restart Sidekiq
+# Stop current process (Ctrl+C) and restart:
+bundle exec sidekiq -C config/sidekiq.yml
 ```
+
+### Database Issues
+
+```bash
+# Reset database (⚠️ deletes all data)
+rails db:drop db:create db:migrate db:seed
+
+# Check migrations
+rails db:migrate:status
+```
+
+### API Errors
+
+- **Authentication Failed**: Verify `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN`
+- **Rate Limit Exceeded**: Lower Sidekiq concurrency in `config/sidekiq.yml`
+- **Invalid Number**: Check phone number format (E.164 recommended: +1234567890)
+
+## 📝 API Response Fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `raw_phone_number` | Original input | `4155551234` |
+| `formatted_phone_number` | E.164 format | `+14155551234` |
+| `carrier_name` | Carrier/provider name | `Verizon` |
+| `device_type` | Phone type | `mobile`, `landline`, `voip` |
+| `mobile_country_code` | MCC code | `310` |
+| `mobile_network_code` | MNC code | `456` |
+| `error_code` | Error message if failed | `Invalid number format` |
+| `status` | Processing status | `pending`, `processing`, `completed`, `failed` |
+
+## 🧪 Development
+
+### Running Tests
+
+```bash
+# Run all tests
+bundle exec rspec
+
+# Run specific test file
+bundle exec rspec spec/models/contact_spec.rb
+
+# Run with coverage report
+COVERAGE=true bundle exec rspec
+```
+
+### Code Quality
+
+```bash
+# Run RuboCop linter
+bundle exec rubocop
+
+# Auto-fix safe issues
+bundle exec rubocop -a
+
+# Security audit
+bundle exec brakeman
+```
+
+### Console Access
+
+```bash
+# Local
+rails console
+
+# Heroku
+heroku run rails console
+```
+
+## 📚 Additional Resources
+
+- [Twilio Lookup API Documentation](https://www.twilio.com/docs/lookup/api)
+- [Sidekiq Documentation](https://github.com/sidekiq/sidekiq/wiki)
+- [ActiveAdmin Documentation](https://activeadmin.info/documentation.html)
+- [Rails Guides](https://guides.rubyonrails.org/)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+See [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This project is not officially supported or maintained by Twilio. Use at your own risk.

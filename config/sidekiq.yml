@@ -1,0 +1,57 @@
+# Sidekiq Configuration
+# See https://github.com/sidekiq/sidekiq/wiki/Advanced-Options
+
+# Concurrency: Number of threads processing jobs simultaneously
+# Lower value reduces API rate limit issues
+:concurrency: 5
+
+# Queues with priority (higher number = higher priority)
+:queues:
+  - [default, 2]
+  - [mailers, 1]
+
+# Timeout for job execution (in seconds)
+:timeout: 30
+
+# Maximum number of retries for failed jobs
+:max_retries: 3
+
+# How long to wait between retries (exponential backoff)
+# First retry: 15 seconds
+# Second retry: 15 + (2 ** 1) = 17 seconds
+# Third retry: 15 + (2 ** 2) = 19 seconds
+:retry_base_delay: 15
+
+# Lifecycle events
+:lifecycle_events:
+  :startup:
+    - 'BulkLookup::Startup'
+  :quiet:
+    - 'BulkLookup::Quiet'
+  :shutdown:
+    - 'BulkLookup::Shutdown'
+
+# Production-specific settings
+:production:
+  :concurrency: 10
+  :timeout: 60
+
+# Development-specific settings  
+:development:
+  :concurrency: 2
+  :timeout: 30
+
+# Logging
+:log_level: info
+
+# Rate limiting configuration
+# Process jobs at a controlled rate to avoid API throttling
+# With concurrency of 5 and typical 200ms API response time,
+# theoretical max throughput is ~25 requests/second
+# Actual throughput will be lower due to network latency
+
+# Redis configuration
+:redis:
+  :url: <%= ENV['REDIS_URL'] || 'redis://localhost:6379/0' %>
+  :network_timeout: 5
+  :pool_timeout: 5
