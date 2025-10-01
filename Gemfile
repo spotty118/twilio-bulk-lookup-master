@@ -1,52 +1,67 @@
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby '3.1.0'
+ruby '3.3.5'  # Latest stable Ruby version
 
-gem 'rails', '~> 7.0.0'
-gem 'pg', '~> 1.2'
-gem 'puma', '~> 6.0'
-gem 'bootsnap', '>= 1.10.0', require: false
-gem 'concurrent-ruby', '1.3.4'
+# Core Rails gems - using Rails 7.2 for better gem compatibility
+gem 'rails', '~> 7.2.0'
+gem 'pg', '~> 1.5'
+gem 'puma', '~> 6.4'
+gem 'bootsnap', '>= 1.18.0', require: false
+gem 'sprockets-rails'  # For asset pipeline
 
+# Authentication and Admin interface
 gem 'devise', '~> 4.9'
-gem 'activeadmin', '~> 2.13'
-gem 'active_admin_import', '~> 4.0'
-gem 'inherited_resources', '~> 1.11'
-gem 'sass-rails', '~> 6.0'
+gem 'activeadmin', '~> 3.2'
+gem 'active_admin_import', '~> 5.0'
+gem 'inherited_resources', '~> 1.14'
+gem 'ransack', '~> 4.2'  # Required by ActiveAdmin
+gem 'kaminari', '~> 1.2'  # Required by ActiveAdmin
 
-gem 'twilio-ruby', '~> 5.0'
-gem 'sidekiq', '~> 6.0'
+# Asset pipeline
+gem 'sassc-rails', '~> 2.1'  # Modern Sass processor
+gem 'image_processing', '~> 1.13'  # For Active Storage variants
 
-# Use CoffeeScript for .coffee assets and views
-gem 'coffee-rails', '~> 5.0'
-# Turbolinks makes navigating your web application faster. Read more: https://github.com/turbolinks/turbolinks
-gem 'turbolinks', '~> 5'
-# Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
-gem 'jbuilder', '~> 2.5'
-# Use Redis adapter to run Action Cable in production
-gem 'redis', '~> 4.0'
+# API and background jobs
+gem 'twilio-ruby', '~> 7.2'  # Updated Twilio SDK
+gem 'sidekiq', '~> 7.3'
+
+# JSON builder and other utilities
+gem 'jbuilder', '~> 2.13'
+gem 'turbo-rails', '~> 2.0'  # Modern replacement for Turbolinks
+gem 'stimulus-rails', '~> 1.3'  # For JavaScript interactions
+gem 'coffee-rails', '~> 5.0'  # For CoffeeScript assets
+
+# Redis for background jobs and caching
+gem 'redis', '~> 5.3'
 
 group :development, :test do
-  # Call 'byebug' anywhere in the code to stop execution and get a debugger console
-  gem 'byebug', platforms: [:mri, :mingw, :x64_mingw]
+  # Modern debugging tools
+  gem 'debug', platforms: [:mri, :mingw, :x64_mingw]  # Replaces byebug
+  gem 'rspec-rails', '~> 7.0'  # Modern testing framework
+  gem 'factory_bot_rails', '~> 6.4'  # Test data factories
 end
 
 group :development do
-  gem 'pry'
-  # Access an interactive console on exception pages or by calling 'console' anywhere in the code.
-  gem 'web-console', '>= 3.3.0'
-  gem 'listen', '>= 3.0.5', '< 3.2'
-  # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
-  gem 'spring'
-  gem 'spring-watcher-listen', '~> 2.0.0'
+  # Development tools
+  gem 'web-console', '~> 4.2'
+  gem 'listen', '~> 3.9'
+  gem 'pry-rails'  # Enhanced console
+  
+  # Code quality and linting
+  gem 'rubocop', '~> 1.67', require: false
+  gem 'rubocop-rails', '~> 2.27', require: false
+  gem 'rubocop-rspec', '~> 3.2', require: false
+  gem 'brakeman', '~> 6.2', require: false  # Security analysis
 end
 
+
 group :test do
-  # Adds support for Capybara system testing and selenium driver
-  gem 'capybara', '~> 3.37'
-  gem 'selenium-webdriver', '~> 4.8'
+  # System testing
+  gem 'capybara', '~> 3.40'
+  gem 'selenium-webdriver', '~> 4.10'  # Compatible with webdrivers 5.3
+  gem 'webdrivers', '~> 5.3'  # Auto-manages driver binaries
 end
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby, :ruby]
+gem 'tzinfo-data', platforms: [:windows, :jruby]

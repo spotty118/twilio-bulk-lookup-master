@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+# Development environment setup script for Twilio Bulk Lookup
+
+set -e
+
+echo "🚀 Setting up Twilio Bulk Lookup development environment..."
+
+# Check if rbenv is installed
+if ! command -v rbenv &> /dev/null; then
+    echo "❌ rbenv is required but not installed. Please install rbenv first:"
+    echo "   brew install rbenv ruby-build"
+    exit 1
+fi
+
+# Initialize rbenv
+export PATH="$HOME/.rbenv/bin:$PATH"
+eval "$(rbenv init - zsh)"
+
+# Check if correct Ruby version is installed
+if ! rbenv versions | grep -q "3.3.5"; then
+    echo "📦 Installing Ruby 3.3.5..."
+    rbenv install 3.3.5
+fi
+
+# Set local Ruby version
+rbenv local 3.3.5
+
+echo "✅ Ruby $(ruby --version)"
+
+# Install dependencies
+echo "📦 Installing Ruby gems..."
+bundle install
+
+# Check if PostgreSQL is running
+if ! pg_isready -q; then
+    echo "🐘 Starting PostgreSQL..."
+    brew services start postgresql@17 || echo "⚠️  Please start PostgreSQL manually"
+fi
+
+# Check if Redis is running
+if ! redis-cli ping &> /dev/null; then
+    echo "🔴 Starting Redis..."
+    brew services start redis || echo "⚠️  Please start Redis manually"
+fi
+
+# Set up database
+echo "🗄️  Setting up database..."
+bundle exec rails db:create
+bundle exec rails db:migrate
+bundle exec rails db:seed
+
+echo ""
+echo "🎉 Development environment setup complete!"
+echo ""
+echo "To start the application:"
+echo "  1. Start Sidekiq: bundle exec sidekiq -c 2"
+echo "  2. Start Rails server: rails server"
+echo ""
+echo "Default admin credentials:"
+echo "  Email: admin@example.com"
+echo "  Password: password"
+echo ""

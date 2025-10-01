@@ -1,0 +1,15 @@
+=> Booting Puma
+=> Rails 7.2.2.2 application starting in development 
+=> Run `bin/rails server --help` for more startup options
+Puma starting in single mode...
+* Puma version: 6.6.1 ("Return to Forever")
+* Ruby version: ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin25]
+*  Min threads: 3
+*  Max threads: 3
+*  Environment: development
+*          PID: 79552
+* Listening on http://127.0.0.1:3001
+* Listening on http://[::1]:3001
+Use Ctrl-C to stop
+- Gracefully stopping, waiting for requests to finish
+Exiting
