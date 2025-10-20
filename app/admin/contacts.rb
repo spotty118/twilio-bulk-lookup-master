@@ -95,6 +95,20 @@ ActiveAdmin.register Contact do
   filter :is_duplicate, as: :select, collection: [['Is Duplicate', true], ['Unique', false]], label: "Duplicate Status"
   filter :data_quality_score, label: "Data Quality Score (0-100)"
   filter :completeness_percentage, label: "Data Completeness %"
+
+  # Consumer address filters
+  filter :consumer_city, label: "Consumer City"
+  filter :consumer_state, as: :select, label: "Consumer State"
+  filter :consumer_postal_code, label: "Consumer Zipcode"
+  filter :address_type, as: :select, collection: ['residential', 'apartment', 'po_box', 'business'], label: "Address Type"
+  filter :address_verified, as: :select, collection: [['Verified', true], ['Not Verified', false]], label: "Address Verified"
+  filter :address_enriched, as: :select, collection: [['Enriched', true], ['Not Enriched', false]], label: "Address Status"
+
+  # Verizon coverage filters
+  filter :verizon_5g_home_available, as: :select, collection: [['Available', true], ['Not Available', false]], label: "Verizon 5G Home"
+  filter :verizon_lte_home_available, as: :select, collection: [['Available', true], ['Not Available', false]], label: "Verizon LTE Home"
+  filter :verizon_fios_available, as: :select, collection: [['Available', true], ['Not Available', false]], label: "Verizon Fios"
+  filter :verizon_coverage_checked, as: :select, collection: [['Checked', true], ['Not Checked', false]], label: "Coverage Checked"
   
   # ========================================
   # Index View (Main Table)
