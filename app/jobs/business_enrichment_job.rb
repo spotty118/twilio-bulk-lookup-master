@@ -39,6 +39,12 @@ class BusinessEnrichmentJob < ApplicationJob
 
     if success
       Rails.logger.info("Successfully enriched contact #{contact.id} with business data")
+      
+      # Queue email enrichment after business enrichment
+      credentials = TwilioCredential.current
+      if credentials&.enable_email_enrichment
+        EmailEnrichmentJob.perform_later(contact)
+      end
     else
       Rails.logger.info("No business data found for contact #{contact.id}")
       # Mark as attempted even if no data found
