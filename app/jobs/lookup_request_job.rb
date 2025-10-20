@@ -43,29 +43,105 @@ class LookupRequestJob < ApplicationJob
       # Initialize Twilio client
       client = Twilio::REST::Client.new(credentials.account_sid, credentials.auth_token)
       
-      # Perform lookup
-      lookup_result = client.lookups
-                           .v1
-                           .phone_numbers(contact.raw_phone_number)
-                           .fetch(type: ['carrier'])
+      # Perform Twilio Lookup API v2 with configured data packages
+      # Build fields parameter from enabled packages
+      fields = credentials.data_packages
       
-      # Extract carrier information safely
-      carrier = lookup_result.carrier || {}
+      lookup_result = if fields.present?
+                        client.lookups
+                              .v2
+                              .phone_numbers(contact.raw_phone_number)
+                              .fetch(fields: fields)
+                      else
+                        # Basic lookup if no packages enabled
+                        client.lookups
+                              .v2
+                              .phone_numbers(contact.raw_phone_number)
+                              .fetch
+                      end
       
-      # Update contact with results
+      # Extract basic validation data
+      phone_number = lookup_result.phone_number
+      valid = lookup_result.valid
+      validation_errors = lookup_result.validation_errors || []
+      country_code = lookup_result.country_code
+      calling_country_code = lookup_result.calling_country_code
+      national_format = lookup_result.national_format
+      
+      # Extract Line Type Intelligence data
+      line_type_data = lookup_result.line_type_intelligence || {}
+      line_type = line_type_data['type']
+      line_type_confidence = line_type_data['confidence']
+      carrier_name = line_type_data['carrier_name']
+      mobile_network_code = line_type_data['mobile_network_code']
+      mobile_country_code = line_type_data['mobile_country_code']
+      
+      # Extract Caller Name (CNAM) data - US only
+      caller_name_data = lookup_result.caller_name || {}
+      caller_name = caller_name_data['caller_name']
+      caller_type = caller_name_data['caller_type']
+      
+      # Extract SMS Pumping Risk data
+      sms_risk_data = lookup_result.sms_pumping_risk || {}
+      sms_risk_score = sms_risk_data['sms_pumping_risk_ratio']&.to_i
+      
+      # Determine risk level based on score
+      sms_risk_level = case sms_risk_score
+                       when 0..25 then 'low'
+                       when 26..74 then 'medium'
+                       when 75..100 then 'high'
+                       else nil
+                       end
+      
+      sms_carrier_risk = sms_risk_data['carrier_risk_category']
+      sms_number_blocked = sms_risk_data['number_blocked']
+      
+      # Update contact with all v2 results
       contact.update!(
-        formatted_phone_number: lookup_result.phone_number,
-        mobile_network_code: carrier['mobile_network_code'],
-        error_code: carrier['error_code'],
-        mobile_country_code: carrier['mobile_country_code'],
-        carrier_name: carrier['name'],
-        device_type: carrier['type']
+        # Basic validation
+        formatted_phone_number: phone_number,
+        valid: valid,
+        validation_errors: validation_errors,
+        country_code: country_code,
+        calling_country_code: calling_country_code,
+        
+        # Line Type Intelligence
+        line_type: line_type,
+        line_type_confidence: line_type_confidence,
+        carrier_name: carrier_name,
+        mobile_network_code: mobile_network_code,
+        mobile_country_code: mobile_country_code,
+        device_type: line_type, # Keep device_type for backwards compatibility
+        
+        # Caller Name (CNAM)
+        caller_name: caller_name,
+        caller_type: caller_type,
+        
+        # SMS Pumping Risk
+        sms_pumping_risk_score: sms_risk_score,
+        sms_pumping_risk_level: sms_risk_level,
+        sms_pumping_carrier_risk_category: sms_carrier_risk,
+        sms_pumping_number_blocked: sms_number_blocked,
+        
+        # Clear error code on success
+        error_code: nil
       )
       
       # Mark as completed
       contact.mark_completed!
       
       Rails.logger.info("Successfully processed contact #{contact.id}: #{contact.formatted_phone_number}")
+
+      # Queue business enrichment if enabled
+      credentials = TwilioCredential.current
+      if credentials&.enable_business_enrichment
+        BusinessEnrichmentJob.perform_later(contact)
+      end
+
+      # Queue address enrichment for consumers if enabled
+      if credentials&.enable_address_enrichment && contact.consumer?
+        AddressEnrichmentJob.perform_later(contact)
+      end
       
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)

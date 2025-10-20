@@ -1,0 +1,86 @@
+<div id="dashboard_stats">
+  <%
+    # Calculate all stats once
+    total_count = Contact.count
+    pending_count = Contact.pending.count
+    processing_count = Contact.processing.count
+    completed_count = Contact.completed.count
+    failed_count = Contact.failed.count
+
+    completion_percentage = total_count > 0 ? (completed_count.to_f / total_count * 100).round(1) : 0
+  %>
+
+  <div class="blank_slate_container" id="dashboard_default_message">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+
+      <!-- Total Contacts Card -->
+      <div class="stat-card" style="border-left: 4px solid #5E6BFF;">
+        <div class="stat-number" style="color: #5E6BFF;">
+          <%= total_count %>
+        </div>
+        <div class="stat-label">
+          Total Contacts
+        </div>
+      </div>
+
+      <!-- Pending Card -->
+      <div class="stat-card" style="border-left: 4px solid #667eea;">
+        <div class="stat-number" style="color: #667eea;">
+          <%= pending_count %>
+        </div>
+        <div class="stat-label">
+          Pending
+        </div>
+      </div>
+
+      <!-- Processing Card -->
+      <div class="stat-card" style="border-left: 4px solid #f093fb;">
+        <div class="stat-number" style="color: #f093fb;">
+          <%= processing_count %>
+        </div>
+        <div class="stat-label">
+          Processing
+        </div>
+      </div>
+
+      <!-- Completed Card -->
+      <div class="stat-card" style="border-left: 4px solid #11998e;">
+        <div class="stat-number" style="color: #11998e;">
+          <%= completed_count %>
+        </div>
+        <div class="stat-label">
+          Completed
+        </div>
+      </div>
+
+      <!-- Failed Card -->
+      <div class="stat-card" style="border-left: 4px solid #eb3349;">
+        <div class="stat-number" style="color: #eb3349;">
+          <%= failed_count %>
+        </div>
+        <div class="stat-label">
+          Failed
+        </div>
+      </div>
+
+      <!-- Success Rate Card -->
+      <div class="stat-card" style="border-left: 4px solid #00D4AA;">
+        <div class="stat-number" style="color: #00D4AA;">
+          <%= completion_percentage %>%
+        </div>
+        <div class="stat-label">
+          Success Rate
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <% if total_count > 0 %>
+    <div class="progress-bar" style="margin-bottom: 30px;">
+      <div class="progress-fill" style="width: <%= completion_percentage %>%;">
+        <%= completed_count %> / <%= total_count %> Complete
+      </div>
+    </div>
+  <% end %>
+</div>

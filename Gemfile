@@ -35,6 +35,9 @@ gem 'coffee-rails', '~> 5.0'  # For CoffeeScript assets
 # Redis for background jobs and caching
 gem 'redis', '~> 5.3'
 
+# Rate limiting and abuse prevention
+gem 'rack-attack', '~> 6.7'
+
 group :development, :test do
   # Modern debugging tools
   gem 'debug', platforms: [:mri, :mingw, :x64_mingw]  # Replaces byebug
