@@ -121,124 +121,164 @@ ActiveAdmin.register Contact do
   # Index View (Main Table)
   # ========================================
   index do
+    # Get current admin user's column preferences
+    prefs = current_admin_user.column_preferences_for('Contact')
+    column_config = prefs.column_config
+    
+    # Always show selectable column first (not configurable)
     selectable_column
-    id_column
     
-    column "Phone Number", :raw_phone_number
-    
-    column "Formatted", :formatted_phone_number do |contact|
-      contact.formatted_phone_number || span("Not processed", class: "empty")
-    end
-    
-    column "Status" do |contact|
-      status_tag contact.status, class: contact.status
-    end
-    
-    column "Carrier" do |contact|
-      contact.carrier_name || span("—", class: "empty")
-    end
-    
-    column "Type" do |contact|
-      if contact.device_type
-        status_tag contact.device_type, class: contact.device_type
-      else
-        span "—", class: "empty"
-      end
-    end
-
-    column "Fraud Risk", :sms_pumping_risk_level do |contact|
-      if contact.sms_pumping_number_blocked
-        status_tag "Blocked", class: "error"
-      elsif contact.sms_pumping_risk_level
-        case contact.sms_pumping_risk_level
-        when 'high'
-          status_tag "High (#{contact.sms_pumping_risk_score})", class: "error"
-        when 'medium'
-          status_tag "Medium (#{contact.sms_pumping_risk_score})", class: "warning"
-        when 'low'
-          status_tag "Low (#{contact.sms_pumping_risk_score})", class: "ok"
+    # Render columns based on configuration
+    column_config.select { |c| c[:visible] }.sort_by { |c| c[:position] }.each do |col_conf|
+      field_name = col_conf[:field]
+      label = col_conf[:label]
+      
+      case field_name
+      when 'id'
+        id_column
+      when 'raw_phone_number'
+        column label, :raw_phone_number
+      when 'formatted_phone_number'
+        column label, :formatted_phone_number do |contact|
+          contact.formatted_phone_number || span("Not processed", class: "empty")
         end
-      else
-        span "—", class: "empty"
-      end
-    end
-
-    column "Valid" do |contact|
-      if contact.valid.nil?
-        span "—", class: "empty"
-      elsif contact.valid
-        status_tag "Yes", class: "ok"
-      else
-        status_tag "No", class: "error"
-      end
-    end
-
-    column "Business", :business_name do |contact|
-      if contact.business?
-        div do
-          if contact.business_name.present?
-            strong contact.business_name, style: "display: block; color: #2c3e50;"
-          end
-          if contact.business_employee_range.present?
-            small contact.business_size_category, style: "color: #7f8c8d; display: block;"
-          end
-          if !contact.business_enriched?
-            status_tag "Not Enriched", class: "warning", style: "margin-top: 5px;"
+      when 'status'
+        column label do |contact|
+          status_tag contact.status, class: contact.status
+        end
+      when 'carrier_name'
+        column label do |contact|
+          contact.carrier_name || span("—", class: "empty")
+        end
+      when 'device_type'
+        column label do |contact|
+          if contact.device_type
+            status_tag contact.device_type, class: contact.device_type
+          else
+            span "—", class: "empty"
           end
         end
-      else
-        span "—", class: "empty"
-      end
-    end
-
-    column "Email", :email do |contact|
-      if contact.email.present?
-        div do
-          span contact.email, style: "display: block; font-family: monospace; font-size: 12px;"
-          if contact.email_verified
-            status_tag "Verified", class: "ok", style: "margin-top: 3px;"
-          elsif contact.email_verified == false
-            status_tag "Invalid", class: "error", style: "margin-top: 3px;"
+      when 'sms_pumping_risk_level'
+        column label, :sms_pumping_risk_level do |contact|
+          if contact.sms_pumping_number_blocked
+            status_tag "Blocked", class: "error"
+          elsif contact.sms_pumping_risk_level
+            case contact.sms_pumping_risk_level
+            when 'high'
+              status_tag "High (#{contact.sms_pumping_risk_score})", class: "error"
+            when 'medium'
+              status_tag "Medium (#{contact.sms_pumping_risk_score})", class: "warning"
+            when 'low'
+              status_tag "Low (#{contact.sms_pumping_risk_score})", class: "ok"
+            end
+          else
+            span "—", class: "empty"
           end
         end
-      else
-        span "—", class: "empty"
-      end
-    end
-
-    column "Quality", :data_quality_score do |contact|
-      if contact.data_quality_score
-        score = contact.data_quality_score
-        color = if score >= 80
-                  "#28a745"
-                elsif score >= 60
-                  "#ffc107"
-                else
-                  "#dc3545"
-                end
-        div do
-          strong "#{score}/100", style: "color: #{color}; display: block;"
-          if contact.is_duplicate
-            status_tag "Duplicate", class: "error", style: "margin-top: 3px;"
+      when 'valid'
+        column label do |contact|
+          if contact.valid.nil?
+            span "—", class: "empty"
+          elsif contact.valid
+            status_tag "Yes", class: "ok"
+          else
+            status_tag "No", class: "error"
           end
         end
-      else
-        span "—", class: "empty"
+      when 'business_name'
+        column label, :business_name do |contact|
+          if contact.business?
+            div do
+              if contact.business_name.present?
+                strong contact.business_name, style: "display: block; color: #2c3e50;"
+              end
+              if contact.business_employee_range.present?
+                small contact.business_size_category, style: "color: #7f8c8d; display: block;"
+              end
+              if !contact.business_enriched?
+                status_tag "Not Enriched", class: "warning", style: "margin-top: 5px;"
+              end
+            end
+          else
+            span "—", class: "empty"
+          end
+        end
+      when 'email'
+        column label, :email do |contact|
+          if contact.email.present?
+            div do
+              span contact.email, style: "display: block; font-family: monospace; font-size: 12px;"
+              if contact.email_verified
+                status_tag "Verified", class: "ok", style: "margin-top: 3px;"
+              elsif contact.email_verified == false
+                status_tag "Invalid", class: "error", style: "margin-top: 3px;"
+              end
+            end
+          else
+            span "—", class: "empty"
+          end
+        end
+      when 'data_quality_score'
+        column label, :data_quality_score do |contact|
+          if contact.data_quality_score
+            score = contact.data_quality_score
+            color = if score >= 80
+                      "#28a745"
+                    elsif score >= 60
+                      "#ffc107"
+                    else
+                      "#dc3545"
+                    end
+            div do
+              strong "#{score}/100", style: "color: #{color}; display: block;"
+              if contact.is_duplicate
+                status_tag "Duplicate", class: "error", style: "margin-top: 3px;"
+              end
+            end
+          else
+            span "—", class: "empty"
+          end
+        end
+      when 'verizon_5g_probability'
+        column label do |contact|
+          if contact.verizon_5g_probability
+            badge_data = contact.verizon_5g_probability_badge
+            div do
+              span "#{badge_data[:percentage]}%", style: "font-weight: bold; margin-right: 5px;"
+              status_tag badge_data[:status].titleize, class: badge_data[:status]
+            end
+          else
+            span "—", class: "empty"
+          end
+        end
+      when 'verizon_lte_probability'
+        column label do |contact|
+          if contact.verizon_lte_probability
+            badge_data = contact.verizon_lte_probability_badge
+            div do
+              span "#{badge_data[:percentage]}%", style: "font-weight: bold; margin-right: 5px;"
+              status_tag badge_data[:status].titleize, class: badge_data[:status]
+            end
+          else
+            span "—", class: "empty"
+          end
+        end
+      when 'lookup_performed_at'
+        column label do |contact|
+          contact.lookup_performed_at&.strftime("%b %d, %Y %H:%M") || span("—", class: "empty")
+        end
+      when 'error_code'
+        column label do |contact|
+          if contact.error_code.present?
+            span truncate(contact.error_code, length: 40), title: contact.error_code, style: "color: #dc3545;"
+          else
+            span "—", class: "empty"
+          end
+        end
       end
     end
     
-    column "Processed At" do |contact|
-      contact.lookup_performed_at&.strftime("%b %d, %Y %H:%M") || span("—", class: "empty")
-    end
-    
-    column "Error" do |contact|
-      if contact.error_code.present?
-        span truncate(contact.error_code, length: 40), title: contact.error_code, style: "color: #dc3545;"
-      else
-        span "—", class: "empty"
-      end
-    end
-    
+    # Always show actions column (not configurable)
     actions defaults: true do |contact|
       if contact.status == 'failed' && contact.retriable?
         link_to 'Retry', retry_admin_contact_path(contact), method: :post, class: "member_link"
