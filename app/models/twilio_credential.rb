@@ -22,6 +22,24 @@ class TwilioCredential < ApplicationRecord
       first
     end
   end
+
+  # Build data packages string for Twilio Lookup v2 API
+  # Returns comma-separated list of enabled packages
+  def data_packages
+    packages = []
+    packages << 'line_type_intelligence' if enable_line_type_intelligence
+    packages << 'caller_name' if enable_caller_name
+    packages << 'sms_pumping_risk' if enable_sms_pumping_risk
+    packages << 'sim_swap' if enable_sim_swap
+    packages << 'reassigned_number' if enable_reassigned_number
+    packages.join(',')
+  end
+
+  # Check if any data packages are enabled
+  def data_packages_enabled?
+    enable_line_type_intelligence || enable_caller_name || enable_sms_pumping_risk ||
+      enable_sim_swap || enable_reassigned_number
+  end
   
   # Clear cache after save
   after_save :clear_cache
