@@ -7,6 +7,10 @@ class Contact < ApplicationRecord
   after_update_commit :broadcast_status_update, if: :saved_change_to_status?
   after_create_commit :broadcast_refresh
   after_destroy_commit :broadcast_refresh
+
+  # Update fingerprints for duplicate detection
+  after_save :update_fingerprints_if_needed, if: :should_update_fingerprints?
+  after_save :calculate_quality_score_if_needed, if: :should_calculate_quality?
   
   # Status workflow: pending -> processing -> completed/failed
   STATUSES = %w[pending processing completed failed].freeze
