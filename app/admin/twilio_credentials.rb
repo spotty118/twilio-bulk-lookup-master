@@ -143,6 +143,55 @@ ActiveAdmin.register TwilioCredential do
               hint: "Optional: Add notes about your Twilio configuration, rate limits, or special settings",
               input_html: { rows: 4 }
     end
+
+    f.inputs "🏢 Business Intelligence Enrichment", class: "business-enrichment" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Enrich business contacts with company data:", style: "margin-top: 0;"
+        para "Automatically fetch business name, employee count, revenue, industry, and more.", style: "margin: 0;"
+      end
+
+      f.input :enable_business_enrichment,
+              label: "Enable Business Enrichment",
+              hint: "Automatically enrich contacts identified as businesses with company intelligence data"
+
+      f.input :auto_enrich_businesses,
+              label: "Auto-Enrich After Lookup",
+              hint: "Automatically queue business enrichment after successful Twilio lookup"
+
+      f.input :enrichment_confidence_threshold,
+              label: "Confidence Threshold (0-100)",
+              hint: "Only save business data with confidence score above this threshold",
+              input_html: { min: 0, max: 100 }
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 Business Enrichment API Keys"
+        para "Configure API keys for business data providers below:", style: "margin: 5px 0;"
+      end
+
+      f.input :clearbit_api_key,
+              label: "Clearbit API Key",
+              hint: "Premium business intelligence (recommended). Get your key at https://clearbit.com",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password",
+                placeholder: "sk_..."
+              }
+
+      f.input :numverify_api_key,
+              label: "NumVerify API Key",
+              hint: "Basic phone intelligence with business detection. Get free key at https://numverify.com",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "💡 Provider Priority: "
+        span "Clearbit → NumVerify → Twilio CNAM (fallback)"
+      end
+    end
     
     f.actions do
       f.action :submit, label: "Save Credentials", button_html: { class: "button primary" }
