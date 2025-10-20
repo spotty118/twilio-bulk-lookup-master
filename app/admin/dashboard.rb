@@ -11,6 +11,14 @@ ActiveAdmin.register_page "Dashboard" do
 
     # Render stats partial
     render partial: 'admin/dashboard/stats'
+
+    # Recalculate stats for use in remaining sections
+    total_count = Contact.count
+    pending_count = Contact.pending.count
+    processing_count = Contact.processing.count
+    completed_count = Contact.completed.count
+    failed_count = Contact.failed.count
+    completion_percentage = total_count > 0 ? (completed_count.to_f / total_count * 100).round(1) : 0
     
     # ========================================
     # Processing Controls & Quick Actions
