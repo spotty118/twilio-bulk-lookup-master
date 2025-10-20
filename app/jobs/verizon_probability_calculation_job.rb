@@ -33,9 +33,11 @@ class VerizonProbabilityCalculationJob < ApplicationJob
       contact.verizon_coverage_data['probability_calculation'] = probabilities[:tower_data]
       contact.verizon_coverage_data['probability_calculated_at'] = Time.current.iso8601
 
-      contact.save!
-
-      Rails.logger.info "[VerizonProbabilityJob] Successfully calculated probability for contact ##{contact_id}"
+      if contact.save
+        Rails.logger.info "[VerizonProbabilityJob] Successfully calculated probability for contact ##{contact_id}"
+      else
+        Rails.logger.error "[VerizonProbabilityJob] Failed to save probability for contact ##{contact_id}: #{contact.errors.full_messages.join(', ')}"
+      end
     else
       Rails.logger.warn "[VerizonProbabilityJob] Failed to calculate probability for contact ##{contact_id}"
     end
