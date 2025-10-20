@@ -2,6 +2,11 @@ class Contact < ApplicationRecord
   # Include concerns for better organization
   include ErrorTrackable
   include StatusManageable
+
+  # Broadcast changes for real-time dashboard updates
+  after_update_commit :broadcast_status_update, if: :saved_change_to_status?
+  after_create_commit :broadcast_refresh
+  after_destroy_commit :broadcast_refresh
   
   # Status workflow: pending -> processing -> completed/failed
   STATUSES = %w[pending processing completed failed].freeze
@@ -72,5 +77,20 @@ class Contact < ApplicationRecord
     
     # Permanent failures: invalid number format, not found, etc.
     error_code.match?(/invalid|not found|does not exist/i)
+  end
+
+  # Broadcast turbo stream updates for real-time dashboard
+  def broadcast_status_update
+    broadcast_refresh
+  end
+
+  def broadcast_refresh
+    # Broadcast to dashboard channel to refresh stats
+    broadcast_replace_to(
+      "dashboard_stats",
+      target: "dashboard_stats",
+      partial: "admin/dashboard/stats",
+      locals: { refresh: true }
+    )
   end
 end
