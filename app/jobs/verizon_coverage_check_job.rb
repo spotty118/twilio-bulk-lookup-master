@@ -13,6 +13,12 @@ class VerizonCoverageCheckJob < ApplicationJob
 
     if success
       Rails.logger.info "[VerizonCoverageCheckJob] Successfully checked Verizon coverage for contact #{contact.id}"
+      
+      # Trigger probability calculation if contact has coordinates
+      if contact.latitude.present? && contact.longitude.present?
+        VerizonProbabilityCalculationJob.perform_later(contact.id)
+        Rails.logger.info "[VerizonCoverageCheckJob] Enqueued probability calculation for contact #{contact.id}"
+      end
     else
       Rails.logger.warn "[VerizonCoverageCheckJob] Verizon coverage check returned false for contact #{contact.id}"
     end
