@@ -865,6 +865,31 @@ ActiveAdmin.register Contact do
     column :lookup_performed_at
     column :created_at
     column :updated_at
+    
+    # Email enrichment fields
+    column :email
+    column :email_verified
+    column :email_status
+    column :email_score
+    column :first_name
+    column :last_name
+    column :full_name
+    column :position
+    column :department
+    column :seniority
+    column :linkedin_url
+    column :twitter_url
+    column :facebook_url
+    column :email_enrichment_provider
+    column :email_enriched_at
+    
+    # Duplicate detection fields
+    column :is_duplicate
+    column :duplicate_of_id
+    column :duplicate_confidence
+    column :duplicate_checked_at
+    column :data_quality_score
+    column :completeness_percentage
   end
   
   # ========================================
