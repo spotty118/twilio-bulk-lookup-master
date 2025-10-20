@@ -101,7 +101,12 @@ class Contact < ApplicationRecord
   scope :verizon_home_internet_available, -> { where('verizon_5g_home_available = ? OR verizon_lte_home_available = ? OR verizon_fios_available = ?', true, true, true) }
   scope :verizon_coverage_checked, -> { where(verizon_coverage_checked: true) }
   scope :needs_verizon_check, -> { where(address_enriched: true, verizon_coverage_checked: false).where.not(consumer_address: nil) }
-  
+  scope :needs_probability_calculation, -> { 
+    where(verizon_coverage_checked: true)
+      .where(verizon_5g_probability: nil)
+      .or(where(verizon_lte_probability: nil))
+  }
+
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
     ["carrier_name", "created_at", "device_type", "error_code",
