@@ -226,6 +226,172 @@ ActiveAdmin.register_page "Dashboard" do
         end
       end
     end
+
+    # ========================================
+    # Business Intelligence Analytics
+    # ========================================
+    columns do
+      column do
+        panel "🏢 Business Intelligence Overview" do
+          total_businesses = Contact.businesses.count
+          total_consumers = Contact.consumers.count
+          enriched_count = Contact.business_enriched.count
+          needs_enrichment_count = Contact.needs_enrichment.count
+          
+          if total_businesses > 0
+            attributes_table_for nil do
+              row("Total Businesses") do
+                link_to "#{total_businesses} business contacts", 
+                        admin_contacts_path(scope: 'businesses'),
+                        style: "font-weight: bold; font-size: 16px; color: #667eea;"
+              end
+              
+              row("Consumers") do
+                link_to "#{total_consumers} consumer contacts", 
+                        admin_contacts_path(scope: 'consumers'),
+                        style: "color: #6c757d;"
+              end
+              
+              row("Enriched") do
+                if enriched_count > 0
+                  enrichment_pct = (enriched_count.to_f / total_businesses * 100).round(1)
+                  link_to "✅ #{enriched_count} enriched (#{enrichment_pct}%)", 
+                          admin_contacts_path(scope: 'business_enriched'),
+                          style: "color: #11998e; font-weight: bold;"
+                else
+                  status_tag "No businesses enriched yet", class: "warning"
+                end
+              end
+              
+              row("Needs Enrichment") do
+                if needs_enrichment_count > 0
+                  link_to "⏳ #{needs_enrichment_count} pending enrichment", 
+                          admin_contacts_path(scope: 'needs_enrichment'),
+                          style: "color: #f39c12; font-weight: bold;"
+                else
+                  status_tag "All enriched", class: "ok"
+                end
+              end
+            end
+            
+            # Enrichment progress bar
+            if total_businesses > 0
+              enrichment_pct = (enriched_count.to_f / total_businesses * 100).round(1)
+              div style: "margin-top: 15px;" do
+                para "Enrichment Progress:", style: "margin-bottom: 5px; font-weight: bold;"
+                div class: "progress-bar", style: "height: 25px; background: #e9ecef;" do
+                  div style: "width: #{enrichment_pct}%; background: #11998e; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;" do
+                    "#{enrichment_pct}%"
+                  end
+                end
+              end
+            end
+          else
+            para "No business contacts identified yet. Process contacts with Caller Name (CNAM) enabled.", 
+                 style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+      
+      column do
+        panel "📊 Top Industries" do
+          industry_stats = Contact.businesses
+                                 .where.not(business_industry: nil)
+                                 .group(:business_industry)
+                                 .count
+                                 .sort_by { |_, count| -count }
+                                 .take(8)
+          
+          if industry_stats.any?
+            total_with_industry = industry_stats.sum { |_, count| count }
+            
+            table_for industry_stats do
+              column("Industry") { |industry, count| industry }
+              column("Companies") { |industry, count| count }
+              column("Percentage") do |industry, count|
+                percentage = (count.to_f / total_with_industry * 100).round(1)
+                "#{percentage}%"
+              end
+              column("Visual") do |industry, count|
+                percentage = (count.to_f / total_with_industry * 100).round(1)
+                div class: "progress-bar", style: "height: 20px; margin: 0; background: #e9ecef;" do
+                  div style: "width: #{percentage}%; background: #667eea; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;" do
+                    "#{percentage}%" if percentage > 15
+                  end
+                end
+              end
+            end
+          else
+            para "No industry data available. Enable business enrichment to see industry breakdown.", 
+                 style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+    end
+    
+    columns do
+      column do
+        panel "🏭 Company Size Distribution" do
+          size_stats = Contact.businesses
+                             .where.not(business_employee_range: nil)
+                             .group(:business_employee_range)
+                             .count
+          
+          if size_stats.any?
+            # Order by size
+            size_order = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10000+']
+            ordered_stats = size_order.map { |size| [size, size_stats[size] || 0] }.select { |_, count| count > 0 }
+            total_with_size = ordered_stats.sum { |_, count| count }
+            
+            table_for ordered_stats do
+              column("Company Size") do |size, count|
+                case size
+                when '1-10' then "Micro (1-10)"
+                when '11-50' then "Small (11-50)"
+                when '51-200' then "Medium (51-200)"
+                when '201-500', '501-1000' then "Large (#{size})"
+                else "Enterprise (#{size})"
+                end
+              end
+              column("Count") { |size, count| count }
+              column("Percentage") do |size, count|
+                percentage = (count.to_f / total_with_size * 100).round(1)
+                "#{percentage}%"
+              end
+            end
+          else
+            para "No company size data available.", style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+      
+      column do
+        panel "💰 Revenue Distribution" do
+          revenue_stats = Contact.businesses
+                                .where.not(business_revenue_range: nil)
+                                .group(:business_revenue_range)
+                                .count
+          
+          if revenue_stats.any?
+            # Order by revenue
+            revenue_order = ['$0-$1M', '$1M-$10M', '$10M-$50M', '$50M-$100M', '$100M-$500M', '$500M-$1B', '$1B+']
+            ordered_stats = revenue_order.map { |range| [range, revenue_stats[range] || 0] }.select { |_, count| count > 0 }
+            total_with_revenue = ordered_stats.sum { |_, count| count }
+            
+            table_for ordered_stats do
+              column("Revenue Range") { |range, count| range }
+              column("Count") { |range, count| count }
+              column("Percentage") do |range, count|
+                percentage = (count.to_f / total_with_revenue * 100).round(1)
+                "#{percentage}%"
+              end
+            end
+          else
+            para "No revenue data available.", style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+    end
     
     # ========================================
     # Interactive Charts
