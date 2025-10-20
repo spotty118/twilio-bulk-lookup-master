@@ -72,6 +72,21 @@ ActiveAdmin.register Contact do
   filter :lookup_performed_at
   filter :created_at
   
+  # Email enrichment filters
+  filter :email, label: "Email Address"
+  filter :email_verified, as: :select, collection: [['Verified', true], ['Not Verified', false]], label: "Email Status"
+  filter :email_score, label: "Email Quality Score (0-100)"
+  filter :first_name, label: "First Name"
+  filter :last_name, label: "Last Name"
+  filter :position, label: "Job Title/Position"
+  filter :department, label: "Department"
+  filter :seniority, as: :select, label: "Seniority Level"
+  
+  # Duplicate detection filters
+  filter :is_duplicate, as: :select, collection: [['Is Duplicate', true], ['Unique', false]], label: "Duplicate Status"
+  filter :data_quality_score, label: "Data Quality Score (0-100)"
+  filter :completeness_percentage, label: "Data Completeness %"
+  
   # ========================================
   # Index View (Main Table)
   # ========================================
