@@ -153,6 +153,9 @@ ActiveAdmin.register Contact do
       if contact.status == 'failed' && contact.retriable?
         link_to 'Retry', retry_admin_contact_path(contact), method: :post, class: "member_link"
       end
+      if contact.lookup_completed? && !contact.business_enriched?
+        link_to 'Enrich', enrich_business_admin_contact_path(contact), method: :post, class: "member_link"
+      end
     end
   end
   
