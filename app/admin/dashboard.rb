@@ -83,6 +83,137 @@ ActiveAdmin.register_page "Dashboard" do
     end
     
     # ========================================
+    # Interactive Charts
+    # ========================================
+    columns do
+      column do
+        panel "📊 Status Distribution Over Time" do
+          # Prepare data for line chart (last 7 days)
+          days_ago = 7.days.ago.to_date
+          date_range = (days_ago..Date.today).to_a
+          
+          chart_data = {
+            labels: date_range.map { |d| d.strftime("%b %d") },
+            datasets: [
+              {
+                label: 'Completed',
+                data: date_range.map { |d| Contact.completed.where('DATE(lookup_performed_at) = ?', d).count },
+                borderColor: '#11998e',
+                backgroundColor: 'rgba(17, 153, 142, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Failed',
+                data: date_range.map { |d| Contact.failed.where('DATE(lookup_performed_at) = ?', d).count },
+                borderColor: '#eb3349',
+                backgroundColor: 'rgba(235, 51, 73, 0.1)',
+                tension: 0.4
+              }
+            ]
+          }
+          
+          div do
+            canvas id: "status-timeline-chart", style: "max-height: 300px;"
+          end
+          
+          script type: "text/javascript" do
+            raw <<-JAVASCRIPT
+              (function() {
+                if (typeof Chart === 'undefined') {
+                  var script = document.createElement('script');
+                  script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                  script.onload = function() { initStatusChart(); };
+                  document.head.appendChild(script);
+                } else {
+                  initStatusChart();
+                }
+                
+                function initStatusChart() {
+                  var ctx = document.getElementById('status-timeline-chart');
+                  if (ctx && !ctx.chart) {
+                    ctx.chart = new Chart(ctx, {
+                      type: 'line',
+                      data: #{chart_data.to_json},
+                      options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: true, position: 'top' },
+                          title: { display: false }
+                        },
+                        scales: {
+                          y: { beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                      }
+                    });
+                  }
+                }
+              })();
+            JAVASCRIPT
+          end
+        end
+      end
+      
+      column do
+        panel "📱 Device Type Breakdown" do
+          # Prepare data for pie chart
+          device_data = Contact.completed.group(:device_type).count
+          
+          if device_data.any?
+            chart_data = {
+              labels: device_data.keys.map { |k| k || 'Unknown' },
+              datasets: [{
+                data: device_data.values,
+                backgroundColor: ['#667eea', '#11998e', '#f093fb', '#5E6BFF', '#eb3349'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+              }]
+            }
+            
+            div do
+              canvas id: "device-type-chart", style: "max-height: 300px;"
+            end
+            
+            script type: "text/javascript" do
+              raw <<-JAVASCRIPT
+                (function() {
+                  if (typeof Chart === 'undefined') {
+                    var script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                    script.onload = function() { initDeviceChart(); };
+                    document.head.appendChild(script);
+                  } else {
+                    initDeviceChart();
+                  }
+                  
+                  function initDeviceChart() {
+                    var ctx = document.getElementById('device-type-chart');
+                    if (ctx && !ctx.chart) {
+                      ctx.chart = new Chart(ctx, {
+                        type: 'pie',
+                        data: #{chart_data.to_json},
+                        options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: true, position: 'right' }
+                          }
+                        }
+                      });
+                    }
+                  }
+                })();
+              JAVASCRIPT
+            end
+          else
+            para "No device type data available yet. Process contacts to see breakdown.", 
+                 style: "color: #6c757d; text-align: center; padding: 40px;"
+          end
+        end
+      end
+    end
+
+    # ========================================
     # Device Type Breakdown
     # ========================================
     if completed_count > 0
