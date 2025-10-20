@@ -283,6 +283,42 @@ class Contact < ApplicationRecord
     "#{down}#{up}"
   end
 
+  def verizon_5g_probability_badge
+    return nil unless verizon_5g_probability.present?
+    
+    status = if verizon_5g_probability >= 70
+               'high'
+             elsif verizon_5g_probability >= 30
+               'medium'
+             else
+               'low'
+             end
+    
+    {
+      percentage: verizon_5g_probability,
+      status: status,
+      label: "#{verizon_5g_probability}% #{status.titleize}"
+    }
+  end
+
+  def verizon_lte_probability_badge
+    return nil unless verizon_lte_probability.present?
+    
+    status = if verizon_lte_probability >= 70
+               'high'
+             elsif verizon_lte_probability >= 30
+               'medium'
+             else
+               'low'
+             end
+    
+    {
+      percentage: verizon_lte_probability,
+      status: status,
+      label: "#{verizon_lte_probability}% #{status.titleize}"
+    }
+  end
+
   # Duplicate detection helpers
   def has_duplicates?
     Contact.where(duplicate_of_id: id).exists?
