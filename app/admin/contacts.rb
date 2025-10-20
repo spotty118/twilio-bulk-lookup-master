@@ -216,6 +216,12 @@ ActiveAdmin.register Contact do
       if contact.lookup_completed? && !contact.business_enriched?
         link_to 'Enrich', enrich_business_admin_contact_path(contact), method: :post, class: "member_link"
       end
+      if contact.lookup_completed? && !contact.email_enriched?
+        link_to 'Find Email', enrich_email_admin_contact_path(contact), method: :post, class: "member_link"
+      end
+      if contact.lookup_completed? && !contact.duplicate_checked_at
+        link_to 'Check Dupes', check_duplicates_admin_contact_path(contact), method: :post, class: "member_link"
+      end
     end
   end
   
