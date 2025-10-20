@@ -192,6 +192,124 @@ ActiveAdmin.register TwilioCredential do
         span "Clearbit → NumVerify → Twilio CNAM (fallback)"
       end
     end
+
+    f.inputs "✉️ Email Enrichment & Verification", class: "email-enrichment" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Find and verify email addresses for contacts:", style: "margin-top: 0;"
+        para "Automatically discover professional email addresses and verify their deliverability.", style: "margin: 0;"
+      end
+
+      f.input :enable_email_enrichment,
+              label: "Enable Email Enrichment",
+              hint: "Automatically find and verify email addresses for contacts after business enrichment"
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 Email Enrichment API Keys"
+        para "Configure API keys for email finding and verification providers:", style: "margin: 5px 0;"
+      end
+
+      f.input :hunter_api_key,
+              label: "Hunter.io API Key",
+              hint: "Email finding and verification service. Get your key at https://hunter.io",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      f.input :zerobounce_api_key,
+              label: "ZeroBounce API Key",
+              hint: "Email verification service. Get your key at https://www.zerobounce.net",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "💡 Email Discovery: "
+        span "Hunter.io (finding) → ZeroBounce (verification) → Clearbit Email (fallback)"
+      end
+    end
+
+    f.inputs "🔍 Duplicate Detection & Merging", class: "duplicate-detection" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Identify and merge duplicate contacts:", style: "margin-top: 0;"
+        para "Uses fuzzy matching to find duplicates by phone, email, and business name.", style: "margin: 0;"
+      end
+
+      f.input :enable_duplicate_detection,
+              label: "Enable Duplicate Detection",
+              hint: "Automatically check for duplicate contacts after enrichment"
+
+      f.input :duplicate_confidence_threshold,
+              label: "Confidence Threshold (0-100)",
+              hint: "Show duplicates with confidence score above this threshold (recommended: 70-80)",
+              input_html: { min: 0, max: 100, value: 75 }
+
+      f.input :auto_merge_duplicates,
+              label: "Auto-Merge High Confidence Duplicates",
+              hint: "Automatically merge contacts with 95%+ confidence match (use with caution)",
+              input_html: { checked: false }
+
+      div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "⚠️ Auto-Merge Warning: "
+        para "Auto-merging is permanent. Review duplicates manually before enabling this feature.", style: "margin: 5px 0 0 0;"
+      end
+    end
+
+    f.inputs "🤖 AI Assistant (GPT Integration)", class: "ai-assistant" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Enable AI-powered features:", style: "margin-top: 0;"
+        para "Natural language search, sales intelligence, and automated outreach generation.", style: "margin: 0;"
+      end
+
+      f.input :enable_ai_features,
+              label: "Enable AI Features",
+              hint: "Unlock AI assistant, natural language search, and intelligent recommendations"
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 OpenAI API Configuration"
+        para "Configure your OpenAI API key to enable AI features:", style: "margin: 5px 0;"
+      end
+
+      f.input :openai_api_key,
+              label: "OpenAI API Key",
+              hint: "Get your API key at https://platform.openai.com/api-keys",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password",
+                placeholder: "sk-..."
+              }
+
+      f.input :ai_model,
+              label: "AI Model",
+              as: :select,
+              collection: [
+                ['GPT-4o (Recommended - Fast & Smart)', 'gpt-4o'],
+                ['GPT-4o-mini (Budget-Friendly)', 'gpt-4o-mini'],
+                ['GPT-4 Turbo (Most Capable)', 'gpt-4-turbo'],
+                ['GPT-3.5 Turbo (Fastest)', 'gpt-3.5-turbo']
+              ],
+              hint: "Choose the AI model for intelligence features (gpt-4o-mini recommended for sales use)",
+              input_html: { selected: 'gpt-4o-mini' }
+
+      f.input :ai_max_tokens,
+              label: "Max Response Tokens",
+              hint: "Maximum tokens for AI responses (500-2000 recommended)",
+              input_html: { min: 100, max: 4000, value: 1000 }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "💡 AI Features: "
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Natural language contact search"
+          li "Sales intelligence and recommendations"
+          li "Automated outreach message generation"
+          li "Data insights and trend analysis"
+        end
+      end
+    end
     
     f.actions do
       f.action :submit, label: "Save Credentials", button_html: { class: "button primary" }
