@@ -60,6 +60,18 @@ class Contact < ApplicationRecord
   # Business industry scopes
   scope :by_industry, ->(industry) { where(business_industry: industry) }
   scope :by_business_type, ->(type) { where(business_type: type) }
+
+  # Email enrichment scopes
+  scope :email_enriched, -> { where(email_enriched: true) }
+  scope :with_verified_email, -> { where(email_verified: true) }
+  scope :needs_email_enrichment, -> { where(email_enriched: false, business_enriched: true) }
+
+  # Duplicate detection scopes
+  scope :potential_duplicates, -> { where(is_duplicate: false).where('duplicate_checked_at IS NULL OR duplicate_checked_at < ?', 7.days.ago) }
+  scope :confirmed_duplicates, -> { where(is_duplicate: true) }
+  scope :primary_contacts, -> { where(is_duplicate: false) }
+  scope :high_quality, -> { where('data_quality_score >= ?', 70) }
+  scope :low_quality, -> { where('data_quality_score < ?', 40) }
   
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
