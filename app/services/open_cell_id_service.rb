@@ -22,8 +22,8 @@ class OpenCellIdService
     api_key = ENV['OPENCELLID_API_KEY'] || OpenCellId[:api_key]
 
     if api_key.blank?
-      Rails.logger.error '[OpenCellID] API key not configured'
-      raise 'OpenCellID API key not configured. Please set OPENCELLID_API_KEY environment variable.'
+      Rails.logger.warn '[OpenCellID] API key not configured, returning no towers. Set OPENCELLID_API_KEY environment variable for tower-based probability calculation.'
+      return []
     end
 
     begin
