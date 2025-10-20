@@ -43,6 +43,23 @@ class Contact < ApplicationRecord
   # Validation scopes
   scope :valid_numbers, -> { where(valid: true) }
   scope :invalid_numbers, -> { where(valid: false) }
+
+  # Business intelligence scopes
+  scope :businesses, -> { where(is_business: true) }
+  scope :consumers, -> { where(is_business: false) }
+  scope :business_enriched, -> { where(business_enriched: true) }
+  scope :needs_enrichment, -> { where(business_enriched: false, status: 'completed') }
+  
+  # Business size scopes
+  scope :micro_businesses, -> { where(business_employee_range: '1-10') }
+  scope :small_businesses, -> { where(business_employee_range: '11-50') }
+  scope :medium_businesses, -> { where(business_employee_range: '51-200') }
+  scope :large_businesses, -> { where(business_employee_range: ['201-500', '501-1000']) }
+  scope :enterprise_businesses, -> { where(business_employee_range: ['1001-5000', '5001-10000', '10000+']) }
+  
+  # Business industry scopes
+  scope :by_industry, ->(industry) { where(business_industry: industry) }
+  scope :by_business_type, ->(type) { where(business_type: type) }
   
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
@@ -53,7 +70,12 @@ class Contact < ApplicationRecord
      "calling_country_code", "line_type", "line_type_confidence",
      "caller_name", "caller_type", "sms_pumping_risk_score",
      "sms_pumping_risk_level", "sms_pumping_carrier_risk_category",
-     "sms_pumping_number_blocked", "validation_errors"]
+     "sms_pumping_number_blocked", "validation_errors",
+     "is_business", "business_name", "business_type", "business_category",
+     "business_industry", "business_employee_count", "business_employee_range",
+     "business_annual_revenue", "business_revenue_range", "business_city",
+     "business_state", "business_country", "business_website",
+     "business_enriched", "business_enrichment_provider"]
   end
 
   def self.ransackable_associations(auth_object = nil)
