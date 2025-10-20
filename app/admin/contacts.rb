@@ -75,6 +75,33 @@ ActiveAdmin.register Contact do
         span "—", class: "empty"
       end
     end
+
+    column "Fraud Risk", :sms_pumping_risk_level do |contact|
+      if contact.sms_pumping_number_blocked
+        status_tag "Blocked", class: "error"
+      elsif contact.sms_pumping_risk_level
+        case contact.sms_pumping_risk_level
+        when 'high'
+          status_tag "High (#{contact.sms_pumping_risk_score})", class: "error"
+        when 'medium'
+          status_tag "Medium (#{contact.sms_pumping_risk_score})", class: "warning"
+        when 'low'
+          status_tag "Low (#{contact.sms_pumping_risk_score})", class: "ok"
+        end
+      else
+        span "—", class: "empty"
+      end
+    end
+
+    column "Valid" do |contact|
+      if contact.valid.nil?
+        span "—", class: "empty"
+      elsif contact.valid
+        status_tag "Yes", class: "ok"
+      else
+        status_tag "No", class: "error"
+      end
+    end
     
     column "Processed At" do |contact|
       contact.lookup_performed_at&.strftime("%b %d, %Y %H:%M") || span("—", class: "empty")
