@@ -549,6 +549,30 @@ ActiveAdmin.register Contact do
     column :sms_pumping_risk_level
     column :sms_pumping_carrier_risk_category
     column :sms_pumping_number_blocked
+    column :is_business
+    column :business_name
+    column :business_legal_name
+    column :business_type
+    column :business_category
+    column :business_industry
+    column :business_employee_count
+    column :business_employee_range
+    column :business_annual_revenue
+    column :business_revenue_range
+    column :business_founded_year
+    column :business_address
+    column :business_city
+    column :business_state
+    column :business_country
+    column :business_postal_code
+    column :business_website
+    column :business_email_domain
+    column :business_linkedin_url
+    column :business_twitter_handle
+    column :business_description
+    column :business_enriched
+    column :business_enrichment_provider
+    column :business_confidence_score
     column :error_code
     column :lookup_performed_at
     column :created_at
