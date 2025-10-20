@@ -514,6 +514,15 @@ ActiveAdmin.register Contact do
     LookupRequestJob.perform_later(resource)
     redirect_to resource_path, notice: "Contact queued for retry"
   end
+
+  member_action :enrich_business, method: :post do
+    if resource.lookup_completed?
+      BusinessEnrichmentJob.perform_later(resource)
+      redirect_to resource_path, notice: "Business enrichment queued"
+    else
+      redirect_to resource_path, alert: "Complete phone lookup first before enriching business data"
+    end
+  end
   
   # ========================================
   # CSV/Excel Export Configuration
