@@ -717,5 +717,11 @@ ActiveAdmin.register TwilioCredential do
                 :enable_caller_name, :enable_sms_pumping_risk, :enable_sim_swap,
                 :enable_reassigned_number, :notes, :enable_business_enrichment,
                 :auto_enrich_businesses, :enrichment_confidence_threshold,
-                :clearbit_api_key, :numverify_api_key
+                :clearbit_api_key, :numverify_api_key,
+                # Email enrichment
+                :enable_email_enrichment, :hunter_api_key, :zerobounce_api_key,
+                # Duplicate detection
+                :enable_duplicate_detection, :duplicate_confidence_threshold, :auto_merge_duplicates,
+                # AI configuration
+                :enable_ai_features, :openai_api_key, :ai_model, :ai_max_tokens
 end
