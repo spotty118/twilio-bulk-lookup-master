@@ -49,6 +49,16 @@ ActiveAdmin.register Contact do
   filter :sms_pumping_number_blocked, as: :select, collection: [['Blocked', true], ['Not Blocked', false]]
   filter :caller_name, label: "Caller Name (CNAM)"
   filter :caller_type, as: :select, collection: ['business', 'consumer']
+  filter :is_business, as: :select, collection: [['Business', true], ['Consumer', false]], label: "Contact Type"
+  filter :business_name, label: "Business Name"
+  filter :business_type, as: :select, label: "Business Type"
+  filter :business_industry, as: :select, label: "Industry"
+  filter :business_employee_range, as: :select, collection: ['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10000+'], label: "Company Size"
+  filter :business_revenue_range, as: :select, collection: ['$0-$1M', '$1M-$10M', '$10M-$50M', '$50M-$100M', '$100M-$500M', '$500M-$1B', '$1B+'], label: "Revenue Range"
+  filter :business_city, label: "Business City"
+  filter :business_state, label: "Business State"
+  filter :business_country, as: :select, label: "Business Country"
+  filter :business_enriched, as: :select, collection: [['Enriched', true], ['Not Enriched', false]], label: "Enrichment Status"
   filter :error_code
   filter :lookup_performed_at
   filter :created_at
