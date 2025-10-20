@@ -898,5 +898,12 @@ ActiveAdmin.register Contact do
   permit_params :raw_phone_number, :formatted_phone_number, :mobile_network_code, 
                 :error_code, :mobile_country_code, :carrier_name, :device_type, :status,
                 :valid, :country_code, :calling_country_code, :line_type,
-                :caller_name, :caller_type, :sms_pumping_risk_score, :sms_pumping_risk_level
+                :caller_name, :caller_type, :sms_pumping_risk_score, :sms_pumping_risk_level,
+                # Email enrichment fields
+                :email, :email_verified, :email_status, :email_score,
+                :first_name, :last_name, :full_name, :position, :department, :seniority,
+                :linkedin_url, :twitter_url, :facebook_url,
+                # Duplicate detection fields
+                :is_duplicate, :duplicate_of_id, :duplicate_confidence,
+                :data_quality_score, :completeness_percentage
 end
