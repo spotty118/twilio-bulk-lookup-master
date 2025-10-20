@@ -299,7 +299,10 @@ class VerizonCoverageService
       estimated_upload_speed: coverage_data[:upload_speed]
     }
 
-    @contact.update!(updates)
+    unless @contact.update(updates)
+      Rails.logger.error "[VerizonCoverageService] Failed to update contact coverage: #{@contact.errors.full_messages.join(', ')}"
+      return
+    end
 
     # Calculate probability scores if contact has coordinates
     if @contact.latitude.present? && @contact.longitude.present?
@@ -316,7 +319,9 @@ class VerizonCoverageService
           @contact.verizon_coverage_data['probability_calculation'] = probabilities[:tower_data]
           @contact.verizon_coverage_data['probability_calculated_at'] = Time.current.iso8601
 
-          @contact.save!
+          unless @contact.save
+            Rails.logger.error "[VerizonCoverageService] Failed to save probability data: #{@contact.errors.full_messages.join(', ')}"
+          end
         end
       rescue StandardError => e
         Rails.logger.error "[VerizonCoverageService] Error calculating probability: #{e.message}"
@@ -328,10 +333,12 @@ class VerizonCoverageService
   end
 
   def mark_coverage_checked
-    @contact.update!(
+    unless @contact.update(
       verizon_coverage_checked: true,
       verizon_coverage_checked_at: Time.current
     )
+      Rails.logger.error "[VerizonCoverageService] Failed to mark coverage as checked: #{@contact.errors.full_messages.join(', ')}"
+    end
   end
 
   # ========================================
