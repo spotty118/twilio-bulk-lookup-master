@@ -1139,5 +1139,11 @@ ActiveAdmin.register Contact do
                 :linkedin_url, :twitter_url, :facebook_url,
                 # Duplicate detection fields
                 :is_duplicate, :duplicate_of_id, :duplicate_confidence,
-                :data_quality_score, :completeness_percentage
+                :data_quality_score, :completeness_percentage,
+                # Business enrichment fields
+                :business_name, :business_employee_range, :business_industry,
+                # Verizon coverage fields
+                :verizon_5g_home_available, :verizon_lte_home_available, :verizon_fios_available,
+                :verizon_5g_probability, :verizon_lte_probability,
+                :estimated_download_speed, :estimated_upload_speed
 end
