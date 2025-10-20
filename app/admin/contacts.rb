@@ -933,17 +933,85 @@ ActiveAdmin.register Contact do
   # Form (Edit/New)
   # ========================================
   form do |f|
-    f.inputs "Contact Details" do
+    f.semantic_errors
+
+    f.inputs 'Basic Information' do
       f.input :raw_phone_number, 
-              label: "Phone Number",
-              placeholder: "+14155551234",
-              hint: "E.164 format recommended (e.g., +14155551234)"
+              label: 'Phone Number',
+              hint: 'Enter phone number in E.164 format (e.g., +15551234567)'
+      f.input :formatted_phone_number, 
+              label: 'Formatted Phone Number (Read-only)',
+              input_html: { disabled: true }
       f.input :status, 
-              as: :select, 
+              as: :select,
               collection: Contact::STATUSES,
-              hint: "Status is automatically managed by the lookup process"
+              hint: 'Current processing status'
     end
-    f.actions
+
+    f.inputs 'Carrier Information' do
+      f.input :carrier_name, label: 'Carrier'
+      f.input :device_type, 
+              as: :select,
+              collection: ['mobile', 'landline', 'voip', 'unknown'],
+              include_blank: true
+      f.input :mobile_country_code, label: 'MCC'
+      f.input :mobile_network_code, label: 'MNC'
+    end
+
+    f.inputs 'Validation & Quality' do
+      f.input :valid, 
+              label: 'Valid Number?',
+              hint: '⚠️ Auto-calculated field - manual changes may be overwritten'
+      f.input :data_quality_score, 
+              label: 'Quality Score (0-100)',
+              hint: '⚠️ Auto-calculated field - manual changes may be overwritten'
+    end
+
+    f.inputs 'Business Information' do
+      f.input :business_name, label: 'Business Name'
+      f.input :business_employee_range, label: 'Employee Range'
+      f.input :business_industry, label: 'Industry'
+    end
+
+    f.inputs 'Email Information' do
+      f.input :email, label: 'Email Address'
+      f.input :email_verified, 
+              label: 'Email Verified?',
+              hint: '⚠️ Auto-verified field'
+    end
+
+    f.inputs 'Verizon Coverage' do
+      f.input :verizon_5g_home_available, 
+              label: '5G Home Available?',
+              hint: '⚠️ Auto-detected field - changes may be overwritten'
+      f.input :verizon_lte_home_available, 
+              label: 'LTE Home Available?',
+              hint: '⚠️ Auto-detected field - changes may be overwritten'
+      f.input :verizon_fios_available, 
+              label: 'Fios Available?',
+              hint: '⚠️ Auto-detected field - changes may be overwritten'
+      f.input :verizon_5g_probability, 
+              label: '5G Probability (0-100)',
+              hint: '⚠️ Auto-calculated field - manual changes may be overwritten'
+      f.input :verizon_lte_probability, 
+              label: 'LTE Probability (0-100)',
+              hint: '⚠️ Auto-calculated field - manual changes may be overwritten'
+      f.input :estimated_download_speed, 
+              label: 'Estimated Download Speed',
+              hint: 'e.g., "300-940 Mbps"'
+      f.input :estimated_upload_speed, label: 'Estimated Upload Speed'
+    end
+
+    f.inputs 'Error Information' do
+      f.input :error_code, 
+              label: 'Error Code',
+              hint: 'Lookup error code if processing failed'
+    end
+
+    f.actions do
+      f.action :submit, label: 'Save Contact'
+      f.action :cancel, label: 'Cancel', wrapper_html: { class: 'cancel' }
+    end
   end
   
   # ========================================
