@@ -1,5 +1,7 @@
 {
   "name": "bulk_lookup",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "sortablejs": "^1.15.0"
+  }
 }
