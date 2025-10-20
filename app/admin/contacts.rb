@@ -26,6 +26,12 @@ ActiveAdmin.register Contact do
   scope :mobile, label: "📱 Mobile"
   scope :landline, label: "☎️ Landline"
   scope :voip, label: "💻 VoIP"
+
+  # Business intelligence scopes
+  scope :businesses, label: "🏢 Businesses"
+  scope :consumers, label: "👤 Consumers"
+  scope :business_enriched, label: "✅ Enriched"
+  scope :needs_enrichment, label: "⏳ Needs Enrichment"
   
   # ========================================
   # Filters
