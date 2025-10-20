@@ -1271,6 +1271,8 @@ ActiveAdmin.register Contact do
     column :verizon_lte_home_available
     column :verizon_fios_available
     column :verizon_coverage_checked
+    column :verizon_5g_probability
+    column :verizon_lte_probability
     column :estimated_download_speed
     column :estimated_upload_speed
   end
