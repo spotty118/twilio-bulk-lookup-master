@@ -4,14 +4,12 @@ div id: 'column-settings-container', class: 'column-settings' do
   para 'Drag to reorder • Check to show • Uncheck to hide • Edit labels to rename',
        class: 'instructions'
 
-  form action: admin_contacts_update_column_settings_path, method: :post,
-       data: { controller: 'column-settings' } do
+  form action: admin_contacts_update_column_settings_path, method: :post do
 
     # CSRF token
     input name: 'authenticity_token', type: 'hidden', value: form_authenticity_token
 
-    div id: 'column-list', class: 'sortable-columns',
-        data: { 'column-settings-target': 'columnList' } do
+    div id: 'column-list', class: 'sortable-columns' do
 
       @preference.column_config.sort_by { |c| c[:position] }.each do |col|
         div class: 'column-item', data: { field: col[:field] } do
@@ -40,7 +38,7 @@ div id: 'column-settings-container', class: 'column-settings' do
     div class: 'actions' do
       input type: 'submit', value: 'Save Preferences', class: 'button primary'
       a 'Reset to Default', href: '#', class: 'button',
-        data: { action: 'click->column-settings#resetDefaults' }
+        data: { action: 'reset' }
       a 'Cancel', href: admin_contacts_path, class: 'button'
     end
   end
