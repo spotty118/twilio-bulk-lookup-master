@@ -32,6 +32,15 @@ ActiveAdmin.register Contact do
   scope :consumers, label: "👤 Consumers"
   scope :business_enriched, label: "✅ Enriched"
   scope :needs_enrichment, label: "⏳ Needs Enrichment"
+
+  # Email scopes
+  scope :email_enriched, label: "✉️ Email Enriched"
+  scope :with_verified_email, label: "✅ Verified Email"
+
+  # Duplicate detection scopes
+  scope :primary_contacts, label: "🎯 Unique Contacts"
+  scope :confirmed_duplicates, label: "🔗 Duplicates"
+  scope :high_quality, label: "⭐ High Quality"
   
   # ========================================
   # Filters
