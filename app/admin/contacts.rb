@@ -50,6 +50,13 @@ ActiveAdmin.register Contact do
   scope :verizon_5g_available, label: "📡 Verizon 5G Home"
   scope :verizon_lte_available, label: "📶 Verizon LTE Home"
   scope :verizon_home_internet_available, label: "🌐 Verizon Available"
+
+  # ========================================
+  # Action Items
+  # ========================================
+  action_item :customize_columns, only: :index do
+    link_to 'Customize Columns', admin_contacts_column_settings_path
+  end
   
   # ========================================
   # Filters
