@@ -265,16 +265,81 @@ class Contact < ApplicationRecord
     update(status: 'completed', lookup_performed_at: Time.current)
   end
   
-  # Mark as failed with error
-  def mark_failed!(error_message)
-    update(
-      status: 'failed',
-      error_code: error_message,
-      lookup_performed_at: Time.current
-    )
+  # Callback conditions
+  def should_update_fingerprints?
+    saved_change_to_formatted_phone_number? || 
+    saved_change_to_business_name? || 
+    saved_change_to_full_name? || 
+    saved_change_to_email?
   end
-  
-  private
+
+  def should_calculate_quality?
+    saved_change_to_email? || 
+    saved_change_to_business_enriched? || 
+    saved_change_to_valid? ||
+    saved_change_to_full_name?
+  end
+
+  def update_fingerprints_if_needed
+    update_fingerprints!
+  end
+
+  def calculate_quality_score_if_needed
+    calculate_quality_score!
+  end
+
+  # Fingerprint calculations for duplicate detection
+  def calculate_phone_fingerprint
+    return nil unless formatted_phone_number.present? || raw_phone_number.present?
+    phone = (formatted_phone_number || raw_phone_number).gsub(/\D/, '')
+    phone.last(10) # Last 10 digits for matching
+  end
+
+  def calculate_name_fingerprint
+    name = business? ? business_name : full_name
+    return nil unless name.present?
+    
+    # Normalize: downcase, remove special chars, sort words
+    normalized = name.downcase
+                     .gsub(/[^a-z0-9\s]/, '')
+                     .split
+                     .sort
+                     .join(' ')
+    normalized
+  end
+
+  def calculate_email_fingerprint
+    return nil unless email.present?
+    email.downcase.strip
+  end
+
+  def calculate_completeness
+    total_fields = 20
+    filled_fields = 0
+
+    filled_fields += 1 if formatted_phone_number.present?
+    filled_fields += 1 if valid == true
+    filled_fields += 1 if email.present?
+    filled_fields += 1 if email_verified == true
+    filled_fields += 1 if full_name.present?
+    filled_fields += 1 if first_name.present?
+    filled_fields += 1 if last_name.present?
+    filled_fields += 1 if business_name.present?
+    filled_fields += 1 if business_industry.present?
+    filled_fields += 1 if business_employee_range.present?
+    filled_fields += 1 if business_revenue_range.present?
+    filled_fields += 1 if business_city.present?
+    filled_fields += 1 if business_website.present?
+    filled_fields += 1 if position.present?
+    filled_fields += 1 if linkedin_url.present?
+    filled_fields += 1 if carrier_name.present?
+    filled_fields += 1 if line_type.present?
+    filled_fields += 1 if sms_pumping_risk_level.present?
+    filled_fields += 1 if caller_name.present?
+    filled_fields += 1 if business_enriched == true
+
+    ((filled_fields.to_f / total_fields) * 100).round
+  end
   
   # Determine if failure is permanent (don't retry)
   def permanent_failure?
