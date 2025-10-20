@@ -116,6 +116,8 @@ ActiveAdmin.register Contact do
   filter :verizon_lte_home_available, as: :select, collection: [['Available', true], ['Not Available', false]], label: "Verizon LTE Home"
   filter :verizon_fios_available, as: :select, collection: [['Available', true], ['Not Available', false]], label: "Verizon Fios"
   filter :verizon_coverage_checked, as: :select, collection: [['Checked', true], ['Not Checked', false]], label: "Coverage Checked"
+  filter :verizon_5g_probability, label: "5G Probability (0-100)"
+  filter :verizon_lte_probability, label: "LTE Probability (0-100)"
   
   # ========================================
   # Index View (Main Table)
