@@ -1096,6 +1096,38 @@ ActiveAdmin.register Contact do
       redirect_to resource_path, alert: "Consumer needs a valid address first. Run address enrichment."
     end
   end
+
+  # ========================================
+  # Column Settings Page Actions
+  # ========================================
+  
+  # Display column settings page
+  collection_action :column_settings, method: :get do
+    @preference = current_admin_user.column_preferences_for('Contact')
+    render partial: 'admin/contacts/column_settings', layout: 'active_admin'
+  end
+
+  # Update column settings
+  collection_action :update_column_settings, method: :post do
+    @preference = current_admin_user.column_preferences_for('Contact')
+    
+    if @preference.update_column_config(params[:columns])
+      redirect_to admin_contacts_path, notice: 'Column preferences saved!'
+    else
+      render partial: 'admin/contacts/column_settings', status: :unprocessable_entity, layout: 'active_admin'
+    end
+  end
+
+  # Reset column settings to defaults
+  collection_action :reset_column_settings, method: :post do
+    @preference = current_admin_user.column_preferences_for('Contact')
+    @preference.reset_to_defaults!
+    
+    respond_to do |format|
+      format.json { head :ok }
+      format.html { redirect_to admin_contacts_path, notice: 'Columns reset to default!' }
+    end
+  end
   
   # ========================================
   # CSV/Excel Export Configuration
