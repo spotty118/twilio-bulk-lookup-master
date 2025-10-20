@@ -256,6 +256,186 @@ ActiveAdmin.register Contact do
       end
     end
 
+    panel "🏢 Business Intelligence" do
+      if contact.business?
+        attributes_table_for contact do
+          row "Business Status" do |c|
+            status_tag "Business Contact", class: "ok"
+          end
+
+          row "Enrichment Status" do |c|
+            if c.business_enriched?
+              div do
+                status_tag "Enriched", class: "ok"
+                if c.business_enrichment_provider.present?
+                  span " via #{c.business_enrichment_provider.titleize}", style: "color: #6c757d; margin-left: 10px;"
+                end
+                if c.business_enriched_at.present?
+                  span " on #{c.business_enriched_at.strftime('%b %d, %Y')}", style: "color: #6c757d; margin-left: 5px;"
+                end
+              end
+            else
+              status_tag "Not Enriched", class: "warning"
+            end
+          end
+
+          row :business_name do |c|
+            if c.business_name.present?
+              strong c.business_name, style: "font-size: 16px;"
+            else
+              "—"
+            end
+          end
+
+          row :business_legal_name
+
+          row :business_type do |c|
+            status_tag c.business_type.titleize if c.business_type
+          end
+
+          row :business_category
+          row :business_industry do |c|
+            status_tag c.business_industry if c.business_industry
+          end
+
+          row "Company Size" do |c|
+            if c.business_employee_count
+              "#{c.business_employee_count.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse} employees (#{c.business_size_category})"
+            elsif c.business_employee_range
+              c.business_size_category
+            else
+              "—"
+            end
+          end
+
+          row "Annual Revenue" do |c|
+            if c.business_annual_revenue
+              "$#{(c.business_annual_revenue.to_f / 1_000_000).round(1)}M (#{c.business_revenue_range})"
+            elsif c.business_revenue_range
+              c.business_revenue_range
+            else
+              "—"
+            end
+          end
+
+          row "Founded" do |c|
+            if c.business_founded_year
+              "#{c.business_founded_year} (#{c.business_age} years old)"
+            else
+              "—"
+            end
+          end
+
+          row "Confidence Score" do |c|
+            if c.business_confidence_score
+              "#{c.business_confidence_score}/100"
+            else
+              "—"
+            end
+          end
+        end
+      else
+        para "This contact is not identified as a business.", style: "color: #6c757d; text-align: center; padding: 30px;"
+      end
+    end
+
+    panel "📍 Business Location" do
+      if contact.business? && contact.business_enriched?
+        attributes_table_for contact do
+          row :business_address
+          row :business_city
+          row :business_state
+          row :business_country
+          row :business_postal_code
+
+          row "Full Address" do |c|
+            parts = [c.business_address, c.business_city, c.business_state, c.business_postal_code, c.business_country].compact
+            if parts.any?
+              parts.join(", ")
+            else
+              "—"
+            end
+          end
+        end
+      else
+        para "No business location data available.", style: "color: #6c757d; text-align: center; padding: 20px;"
+      end
+    end
+
+    panel "🌐 Business Online Presence" do
+      if contact.business? && contact.business_enriched?
+        attributes_table_for contact do
+          row :business_website do |c|
+            if c.business_website
+              link_to c.business_website, "https://#{c.business_website}", target: "_blank"
+            else
+              "—"
+            end
+          end
+
+          row :business_email_domain do |c|
+            if c.business_email_domain
+              span "@#{c.business_email_domain}", style: "font-family: monospace;"
+            else
+              "—"
+            end
+          end
+
+          row :business_linkedin_url do |c|
+            if c.business_linkedin_url
+              link_to "View LinkedIn Profile", c.business_linkedin_url, target: "_blank"
+            else
+              "—"
+            end
+          end
+
+          row :business_twitter_handle do |c|
+            if c.business_twitter_handle
+              link_to "@#{c.business_twitter_handle}", "https://twitter.com/#{c.business_twitter_handle}", target: "_blank"
+            else
+              "—"
+            end
+          end
+        end
+      else
+        para "No online presence data available.", style: "color: #6c757d; text-align: center; padding: 20px;"
+      end
+    end
+
+    panel "📝 Business Description & Tags" do
+      if contact.business? && contact.business_enriched?
+        if contact.business_description.present?
+          div style: "background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;" do
+            para contact.business_description, style: "margin: 0; line-height: 1.6;"
+          end
+        end
+
+        if contact.business_tags.present? && contact.business_tags.any?
+          div do
+            strong "Tags: "
+            contact.business_tags.each do |tag|
+              status_tag tag, class: "default", style: "margin: 2px;"
+            end
+          end
+        end
+
+        if contact.business_tech_stack.present? && contact.business_tech_stack.any?
+          div style: "margin-top: 15px;" do
+            strong "Technology Stack: "
+            contact.business_tech_stack.each do |tech|
+              status_tag tech, class: "ok", style: "margin: 2px;"
+            end
+          end
+        end
+
+        if !contact.business_description.present? && !contact.business_tags.any? && !contact.business_tech_stack.any?
+          para "No description or tags available.", style: "color: #6c757d;"
+        end
+      else
+        para "No business description data available.", style: "color: #6c757d; text-align: center; padding: 20px;"
+      end
+    end
+
     panel "⚠️ Error Information" do
       attributes_table_for contact do
         row :error_code do |c|
