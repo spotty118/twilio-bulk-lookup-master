@@ -104,7 +104,10 @@ class Contact < ApplicationRecord
   scope :needs_probability_calculation, -> { 
     where(verizon_coverage_checked: true)
       .where(verizon_5g_probability: nil)
-      .or(where(verizon_lte_probability: nil))
+      .or(
+        where(verizon_coverage_checked: true)
+          .where(verizon_lte_probability: nil)
+      )
   }
 
   # Define searchable attributes for ActiveAdmin/Ransack
