@@ -131,6 +131,12 @@ class LookupRequestJob < ApplicationJob
       contact.mark_completed!
       
       Rails.logger.info("Successfully processed contact #{contact.id}: #{contact.formatted_phone_number}")
+
+      # Queue business enrichment if enabled
+      credentials = TwilioCredential.current
+      if credentials&.enable_business_enrichment
+        BusinessEnrichmentJob.perform_later(contact)
+      end
       
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
