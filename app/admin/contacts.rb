@@ -796,6 +796,24 @@ ActiveAdmin.register Contact do
       redirect_to resource_path, alert: "Complete phone lookup first before enriching business data"
     end
   end
+
+  member_action :enrich_email, method: :post do
+    if resource.lookup_completed?
+      EmailEnrichmentJob.perform_later(resource)
+      redirect_to resource_path, notice: "Email enrichment queued"
+    else
+      redirect_to resource_path, alert: "Complete phone lookup first before enriching email data"
+    end
+  end
+
+  member_action :check_duplicates, method: :post do
+    if resource.lookup_completed?
+      DuplicateDetectionJob.perform_later(resource)
+      redirect_to resource_path, notice: "Duplicate detection queued"
+    else
+      redirect_to resource_path, alert: "Complete phone lookup first before checking for duplicates"
+    end
+  end
   
   # ========================================
   # CSV/Excel Export Configuration
