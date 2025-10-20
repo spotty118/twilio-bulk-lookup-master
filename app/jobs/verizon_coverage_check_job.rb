@@ -4,7 +4,12 @@ class VerizonCoverageCheckJob < ApplicationJob
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
   def perform(contact_id)
-    contact = Contact.find(contact_id)
+    contact = Contact.find_by(id: contact_id)
+
+    unless contact
+      Rails.logger.warn "[VerizonCoverageCheckJob] Contact ##{contact_id} not found"
+      return
+    end
 
     Rails.logger.info "[VerizonCoverageCheckJob] Starting Verizon coverage check for contact #{contact.id}"
 
