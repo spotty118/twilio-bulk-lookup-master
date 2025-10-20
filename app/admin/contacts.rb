@@ -309,10 +309,20 @@ ActiveAdmin.register Contact do
     column :raw_phone_number
     column :formatted_phone_number
     column :status
+    column :valid
+    column :country_code
+    column :calling_country_code
+    column :line_type
     column :carrier_name
     column :device_type
     column :mobile_country_code
     column :mobile_network_code
+    column :caller_name
+    column :caller_type
+    column :sms_pumping_risk_score
+    column :sms_pumping_risk_level
+    column :sms_pumping_carrier_risk_category
+    column :sms_pumping_number_blocked
     column :error_code
     column :lookup_performed_at
     column :created_at
@@ -323,5 +333,7 @@ ActiveAdmin.register Contact do
   # Permissions
   # ========================================
   permit_params :raw_phone_number, :formatted_phone_number, :mobile_network_code, 
-                :error_code, :mobile_country_code, :carrier_name, :device_type, :status
+                :error_code, :mobile_country_code, :carrier_name, :device_type, :status,
+                :valid, :country_code, :calling_country_code, :line_type,
+                :caller_name, :caller_type, :sms_pumping_risk_score, :sms_pumping_risk_level
 end
