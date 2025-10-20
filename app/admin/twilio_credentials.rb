@@ -783,6 +783,93 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    panel "🏠 Address Enrichment & Verizon Coverage" do
+      attributes_table_for twilio_credential do
+        row "Address Enrichment (Consumers)" do |cred|
+          if cred.enable_address_enrichment
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Verizon Coverage Check" do |cred|
+          if cred.enable_verizon_coverage_check
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Auto-Check Verizon" do |cred|
+          if cred.auto_check_verizon_coverage
+            status_tag "Yes", class: "ok"
+          else
+            status_tag "No", class: "default"
+          end
+        end
+
+        row "Whitepages API" do |cred|
+          if cred.whitepages_api_key.present?
+            div do
+              span "•••••••••••••••••••••••", style: "font-family: monospace;"
+              status_tag "Configured", class: "ok", style: "margin-left: 10px;"
+            end
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+
+        row "TrueCaller API" do |cred|
+          if cred.truecaller_api_key.present?
+            div do
+              span "•••••••••••••••••••••••", style: "font-family: monospace;"
+              status_tag "Configured", class: "ok", style: "margin-left: 10px;"
+            end
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "📍 Address Discovery Process:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Runs only for consumer (non-business) contacts"
+          li "Uses phone number to find residential address"
+          li "Validates and verifies address accuracy"
+          li "Stores full address: street, city, state, zipcode"
+        end
+        para " ", style: "margin: 15px 0 0 0;"
+        strong "📡 Verizon Coverage Check:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Checks availability of 5G Home, LTE Home, and Fios"
+          li "Uses Verizon's public availability checker"
+          li "No Verizon API access required"
+          li "Stores availability status and estimated speeds"
+          li "Checks once per 30 days to avoid redundant lookups"
+        end
+      end
+
+      if twilio_credential.enable_address_enrichment || twilio_credential.enable_verizon_coverage_check
+        # Show stats
+        consumer_count = Contact.consumers.count
+        address_enriched_count = Contact.address_enriched.count
+        verizon_checked_count = Contact.verizon_coverage_checked.count
+        verizon_available_count = Contact.verizon_home_internet_available.count
+
+        div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+          strong "📊 Quick Stats:"
+          ul style: "margin: 10px 0 0 20px; list-style: none; padding-left: 0;" do
+            li "Total Consumers: #{consumer_count}"
+            li "Addresses Found: #{address_enriched_count} (#{consumer_count > 0 ? (address_enriched_count.to_f / consumer_count * 100).round(1) : 0}%)"
+            li "Verizon Coverage Checked: #{verizon_checked_count}"
+            li "Verizon Available: #{verizon_available_count} (#{verizon_checked_count > 0 ? (verizon_available_count.to_f / verizon_checked_count * 100).round(1) : 0}%)"
+          end
+        end
+      end
+    end
     
     panel "Connection Test" do
       div style: "padding: 15px; background: #f8f9fa; border-radius: 8px;" do
