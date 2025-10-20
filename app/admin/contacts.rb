@@ -133,18 +133,101 @@ ActiveAdmin.register Contact do
       end
       row :raw_phone_number
       row :formatted_phone_number
-      row :carrier_name
-      row :device_type do |contact|
-        status_tag contact.device_type if contact.device_type
+      row :valid do |contact|
+        status_tag(contact.valid ? "Valid" : "Invalid", class: contact.valid ? "ok" : "error") unless contact.valid.nil?
       end
-      row :mobile_country_code
-      row :mobile_network_code
-      row :error_code do |contact|
-        span contact.error_code, style: "color: #dc3545;" if contact.error_code
+      row :validation_errors do |contact|
+        if contact.validation_errors.present? && contact.validation_errors.any?
+          contact.validation_errors.join(", ")
+        else
+          "None"
+        end
       end
+      row :country_code
+      row :calling_country_code
       row :lookup_performed_at
       row :created_at
       row :updated_at
+    end
+
+    panel "📡 Line Type Intelligence" do
+      attributes_table_for contact do
+        row :line_type do |c|
+          status_tag c.line_type_display if c.line_type
+        end
+        row :line_type_confidence
+        row :carrier_name
+        row :device_type do |c|
+          span c.device_type, style: "color: #6c757d;" if c.device_type
+        end
+        row :mobile_country_code
+        row :mobile_network_code
+      end
+    end
+
+    panel "👤 Caller Identification (CNAM)" do
+      attributes_table_for contact do
+        row :caller_name do |c|
+          c.caller_name || span("Not available (US only)", style: "color: #6c757d;")
+        end
+        row :caller_type do |c|
+          if c.caller_type
+            status_tag c.caller_type.titleize, class: c.caller_type
+          else
+            span "—", class: "empty"
+          end
+        end
+      end
+    end
+
+    panel "🛡️ SMS Pumping Fraud Risk" do
+      attributes_table_for contact do
+        row "Risk Assessment" do |c|
+          if c.sms_pumping_number_blocked
+            status_tag "BLOCKED", class: "error"
+          elsif c.sms_pumping_risk_level
+            case c.sms_pumping_risk_level
+            when 'high'
+              status_tag "HIGH RISK", class: "error"
+            when 'medium'
+              status_tag "MEDIUM RISK", class: "warning"
+            when 'low'
+              status_tag "LOW RISK", class: "ok"
+            end
+          else
+            span "Not assessed", style: "color: #6c757d;"
+          end
+        end
+        row :sms_pumping_risk_score do |c|
+          if c.sms_pumping_risk_score
+            "#{c.sms_pumping_risk_score}/100"
+          else
+            "—"
+          end
+        end
+        row :sms_pumping_carrier_risk_category do |c|
+          if c.sms_pumping_carrier_risk_category
+            status_tag c.sms_pumping_carrier_risk_category.upcase, 
+                      class: c.sms_pumping_carrier_risk_category
+          end
+        end
+        row :sms_pumping_number_blocked do |c|
+          if c.sms_pumping_number_blocked.nil?
+            "—"
+          else
+            status_tag(c.sms_pumping_number_blocked ? "Yes" : "No", 
+                      class: c.sms_pumping_number_blocked ? "error" : "ok")
+          end
+        end
+      end
+    end
+
+    panel "⚠️ Error Information" do
+      attributes_table_for contact do
+        row :error_code do |c|
+          span c.error_code, style: "color: #dc3545;" if c.error_code
+        end
+      end
     end
     
     panel "Additional Information" do
