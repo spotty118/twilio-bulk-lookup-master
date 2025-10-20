@@ -364,5 +364,7 @@ ActiveAdmin.register TwilioCredential do
   # ========================================
   # Permissions
   # ========================================
-  permit_params :account_sid, :auth_token
+  permit_params :account_sid, :auth_token, :enable_line_type_intelligence,
+                :enable_caller_name, :enable_sms_pumping_risk, :enable_sim_swap,
+                :enable_reassigned_number, :notes
 end
