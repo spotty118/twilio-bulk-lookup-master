@@ -83,6 +83,151 @@ ActiveAdmin.register_page "Dashboard" do
     end
     
     # ========================================
+    # Fraud Analytics
+    # ========================================
+    columns do
+      column do
+        panel "🛡️ SMS Pumping Fraud Detection" do
+          high_risk_count = Contact.high_risk.count
+          medium_risk_count = Contact.medium_risk.count
+          low_risk_count = Contact.low_risk.count
+          blocked_count = Contact.blocked_numbers.count
+          total_assessed = high_risk_count + medium_risk_count + low_risk_count
+          
+          if total_assessed > 0
+            attributes_table_for nil do
+              row("High Risk Numbers") do
+                if high_risk_count > 0
+                  link_to "🚨 #{high_risk_count} numbers", 
+                          admin_contacts_path(scope: 'high_risk'),
+                          style: "color: #dc3545; font-weight: bold; font-size: 16px;"
+                else
+                  status_tag "0 numbers", class: "ok"
+                end
+              end
+              
+              row("Medium Risk Numbers") do
+                if medium_risk_count > 0
+                  link_to "⚠️ #{medium_risk_count} numbers", 
+                          admin_contacts_path(scope: 'medium_risk'),
+                          style: "color: #f39c12; font-weight: bold;"
+                else
+                  status_tag "0 numbers", class: "ok"
+                end
+              end
+              
+              row("Low Risk Numbers") do
+                link_to "✅ #{low_risk_count} numbers", 
+                        admin_contacts_path(scope: 'low_risk'),
+                        style: "color: #11998e;"
+              end
+              
+              row("Blocked Numbers") do
+                if blocked_count > 0
+                  link_to "🚫 #{blocked_count} blocked", 
+                          admin_contacts_path(scope: 'blocked_numbers'),
+                          style: "color: #721c24; font-weight: bold; font-size: 16px;"
+                else
+                  status_tag "None blocked", class: "ok"
+                end
+              end
+              
+              row("Risk Distribution") do
+                high_pct = (high_risk_count.to_f / total_assessed * 100).round(1)
+                medium_pct = (medium_risk_count.to_f / total_assessed * 100).round(1)
+                low_pct = (low_risk_count.to_f / total_assessed * 100).round(1)
+                
+                div style: "margin-top: 10px;" do
+                  div style: "display: flex; gap: 15px; margin-bottom: 5px;" do
+                    span "High: #{high_pct}%", style: "color: #dc3545;"
+                    span "Medium: #{medium_pct}%", style: "color: #f39c12;"
+                    span "Low: #{low_pct}%", style: "color: #11998e;"
+                  end
+                  
+                  div class: "progress-bar", style: "height: 25px; display: flex; border-radius: 4px; overflow: hidden;" do
+                    if high_pct > 0
+                      div style: "width: #{high_pct}%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                        "#{high_pct}%" if high_pct > 10
+                      end
+                    end
+                    if medium_pct > 0
+                      div style: "width: #{medium_pct}%; background: #f39c12; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                        "#{medium_pct}%" if medium_pct > 10
+                      end
+                    end
+                    if low_pct > 0
+                      div style: "width: #{low_pct}%; background: #11998e; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                        "#{low_pct}%" if low_pct > 10
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          else
+            para "No fraud risk data available yet. Process contacts with SMS Pumping Risk detection enabled.", 
+                 style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+      
+      column do
+        panel "📊 Line Type Distribution" do
+          mobile_count = Contact.mobile.count
+          landline_count = Contact.landline.count
+          voip_count = Contact.voip.count
+          total_typed = mobile_count + landline_count + voip_count
+          
+          if total_typed > 0
+            attributes_table_for nil do
+              row("Mobile") do
+                pct = (mobile_count.to_f / total_typed * 100).round(1)
+                "📱 #{mobile_count} (#{pct}%)"
+              end
+              
+              row("Landline") do
+                pct = (landline_count.to_f / total_typed * 100).round(1)
+                "☎️ #{landline_count} (#{pct}%)"
+              end
+              
+              row("VoIP") do
+                pct = (voip_count.to_f / total_typed * 100).round(1)
+                "💻 #{voip_count} (#{pct}%)"
+              end
+            end
+            
+            div style: "margin-top: 15px;" do
+              mobile_pct = (mobile_count.to_f / total_typed * 100).round(1)
+              landline_pct = (landline_count.to_f / total_typed * 100).round(1)
+              voip_pct = (voip_count.to_f / total_typed * 100).round(1)
+              
+              div class: "progress-bar", style: "height: 25px; display: flex; border-radius: 4px; overflow: hidden;" do
+                if mobile_pct > 0
+                  div style: "width: #{mobile_pct}%; background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                    "Mobile #{mobile_pct}%" if mobile_pct > 15
+                  end
+                end
+                if landline_pct > 0
+                  div style: "width: #{landline_pct}%; background: #11998e; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                    "Landline #{landline_pct}%" if landline_pct > 15
+                  end
+                end
+                if voip_pct > 0
+                  div style: "width: #{voip_pct}%; background: #f093fb; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
+                    "VoIP #{voip_pct}%" if voip_pct > 15
+                  end
+                end
+              end
+            end
+          else
+            para "No line type data available. Enable Line Type Intelligence in lookups.", 
+                 style: "color: #6c757d; text-align: center; padding: 30px;"
+          end
+        end
+      end
+    end
+    
+    # ========================================
     # Interactive Charts
     # ========================================
     columns do
