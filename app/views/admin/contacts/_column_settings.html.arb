@@ -1,0 +1,47 @@
+div id: 'column-settings-container', class: 'column-settings' do
+  h2 'Customize Contacts Table Columns'
+
+  para 'Drag to reorder • Check to show • Uncheck to hide • Edit labels to rename',
+       class: 'instructions'
+
+  form action: admin_contacts_update_column_settings_path, method: :post,
+       data: { controller: 'column-settings' } do
+
+    # CSRF token
+    input name: 'authenticity_token', type: 'hidden', value: form_authenticity_token
+
+    div id: 'column-list', class: 'sortable-columns',
+        data: { 'column-settings-target': 'columnList' } do
+
+      @preference.column_config.sort_by { |c| c[:position] }.each do |col|
+        div class: 'column-item', data: { field: col[:field] } do
+          span '⋮⋮', class: 'drag-handle'
+
+          input name: "columns[][field]", type: 'hidden', value: col[:field]
+
+          label style: 'display: inline-block; margin-right: 10px;' do
+            input name: "columns[][visible]", type: 'checkbox',
+                  checked: col[:visible], class: 'visibility-checkbox', value: '1'
+            text_node ' Show'
+          end
+
+          input name: "columns[][label]", type: 'text',
+                value: col[:label], class: 'column-label-input',
+                placeholder: 'Column Label'
+
+          span "(#{col[:field]})", class: 'original-field-name'
+
+          input name: "columns[][position]", type: 'hidden',
+                value: col[:position], class: 'position-input'
+        end
+      end
+    end
+
+    div class: 'actions' do
+      input type: 'submit', value: 'Save Preferences', class: 'button primary'
+      a 'Reset to Default', href: '#', class: 'button',
+        data: { action: 'click->column-settings#resetDefaults' }
+      a 'Cancel', href: admin_contacts_path, class: 'button'
+    end
+  end
+end
