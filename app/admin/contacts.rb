@@ -985,6 +985,26 @@ ActiveAdmin.register Contact do
       redirect_to resource_path, alert: "Complete phone lookup first before checking for duplicates"
     end
   end
+
+  member_action :enrich_address, method: :post do
+    if resource.consumer?
+      AddressEnrichmentJob.perform_later(resource)
+      redirect_to resource_path, notice: "Address enrichment queued"
+    else
+      redirect_to resource_path, alert: "Address enrichment is only for consumer contacts"
+    end
+  end
+
+  member_action :check_verizon_coverage, method: :post do
+    if resource.consumer? && resource.has_full_address?
+      VerizonCoverageCheckJob.perform_later(resource.id)
+      redirect_to resource_path, notice: "Verizon coverage check queued"
+    elsif !resource.consumer?
+      redirect_to resource_path, alert: "Verizon coverage check is only for consumer contacts"
+    else
+      redirect_to resource_path, alert: "Consumer needs a valid address first. Run address enrichment."
+    end
+  end
   
   # ========================================
   # CSV/Excel Export Configuration
