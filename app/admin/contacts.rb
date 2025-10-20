@@ -925,6 +925,58 @@ ActiveAdmin.register Contact do
 
           row :estimated_download_speed
           row :estimated_upload_speed
+
+          row "5G Probability" do |c|
+            if c.verizon_5g_probability.present?
+              badge_data = c.verizon_5g_probability_badge
+              div do
+                strong "#{badge_data[:percentage]}%", style: "font-size: 18px; margin-right: 10px;"
+                status_tag badge_data[:status].titleize, class: badge_data[:status]
+              end
+            else
+              span "Not calculated", style: "color: #6c757d;"
+            end
+          end
+
+          row "LTE Probability" do |c|
+            if c.verizon_lte_probability.present?
+              badge_data = c.verizon_lte_probability_badge
+              div do
+                strong "#{badge_data[:percentage]}%", style: "font-size: 18px; margin-right: 10px;"
+                status_tag badge_data[:status].titleize, class: badge_data[:status]
+              end
+            else
+              span "Not calculated", style: "color: #6c757d;"
+            end
+          end
+
+          row "Coordinates" do |c|
+            if c.latitude.present? && c.longitude.present?
+              "#{c.latitude.round(6)}, #{c.longitude.round(6)}"
+            else
+              span "No coordinates", style: "color: #6c757d;"
+            end
+          end
+
+          row "Nearest Tower Distance" do |c|
+            tower_data = c.verizon_coverage_data&.dig('probability_calculation')
+            if tower_data
+              five_g_dist = tower_data['nearest_5g_distance']
+              lte_dist = tower_data['nearest_lte_distance']
+              
+              parts = []
+              parts << "5G: #{five_g_dist} km" if five_g_dist
+              parts << "LTE: #{lte_dist} km" if lte_dist
+              
+              if parts.any?
+                parts.join(" | ")
+              else
+                "—"
+              end
+            else
+              "—"
+            end
+          end
         end
 
         if contact.verizon_home_internet_available?
