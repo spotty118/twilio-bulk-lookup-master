@@ -999,5 +999,8 @@ ActiveAdmin.register TwilioCredential do
                 :enable_ai_features, :openai_api_key, :ai_model, :ai_max_tokens,
                 # Business directory / zipcode lookup
                 :enable_zipcode_lookup, :google_places_api_key, :yelp_api_key,
-                :results_per_zipcode, :auto_enrich_zipcode_results
+                :results_per_zipcode, :auto_enrich_zipcode_results,
+                # Address enrichment & Verizon coverage
+                :enable_address_enrichment, :enable_verizon_coverage_check,
+                :whitepages_api_key, :truecaller_api_key, :auto_check_verizon_coverage
 end
