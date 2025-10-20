@@ -1,97 +1,16 @@
-
 ActiveAdmin.register_page "Dashboard" do
   
   menu priority: 1, label: proc{ I18n.t("active_admin.dashboard") }
   
   content title: proc{ I18n.t("active_admin.dashboard") } do
-    
-    # Calculate all stats once
-    total_count = Contact.count
-    pending_count = Contact.pending.count
-    processing_count = Contact.processing.count
-    completed_count = Contact.completed.count
-    failed_count = Contact.failed.count
-    
-    completion_percentage = total_count > 0 ? (completed_count.to_f / total_count * 100).round(1) : 0
-    
-    # ========================================
-    # Stats Overview Cards
-    # ========================================
-    div class: "blank_slate_container", id: "dashboard_default_message" do
-      div style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;" do
-        
-        # Total Contacts Card
-        div class: "stat-card", style: "border-left: 4px solid #5E6BFF;" do
-          div class: "stat-number", style: "color: #5E6BFF;" do
-            total_count.to_s
-          end
-          div class: "stat-label" do
-            "Total Contacts"
-          end
-        end
-        
-        # Pending Card
-        div class: "stat-card", style: "border-left: 4px solid #667eea;" do
-          div class: "stat-number", style: "color: #667eea;" do
-            pending_count.to_s
-          end
-          div class: "stat-label" do
-            "Pending"
-          end
-        end
-        
-        # Processing Card
-        div class: "stat-card", style: "border-left: 4px solid #f093fb;" do
-          div class: "stat-number", style: "color: #f093fb;" do
-            processing_count.to_s
-          end
-          div class: "stat-label" do
-            "Processing"
-          end
-        end
-        
-        # Completed Card
-        div class: "stat-card", style: "border-left: 4px solid #11998e;" do
-          div class: "stat-number", style: "color: #11998e;" do
-            completed_count.to_s
-          end
-          div class: "stat-label" do
-            "Completed"
-          end
-        end
-        
-        # Failed Card
-        div class: "stat-card", style: "border-left: 4px solid #eb3349;" do
-          div class: "stat-number", style: "color: #eb3349;" do
-            failed_count.to_s
-          end
-          div class: "stat-label" do
-            "Failed"
-          end
-        end
-        
-        # Success Rate Card
-        div class: "stat-card", style: "border-left: 4px solid #00D4AA;" do
-          div class: "stat-number", style: "color: #00D4AA;" do
-            "#{completion_percentage}%"
-          end
-          div class: "stat-label" do
-            "Success Rate"
-          end
-        end
-      end
+
+    # Subscribe to turbo stream updates
+    div id: "turbo-stream-target" do
+      turbo_stream_from "dashboard_stats"
     end
-    
-    # ========================================
-    # Progress Bar
-    # ========================================
-    if total_count > 0
-      div class: "progress-bar", style: "margin-bottom: 30px;" do
-        div class: "progress-fill", style: "width: #{completion_percentage}%;" do
-          "#{completed_count} / #{total_count} Complete"
-        end
-      end
-    end
+
+    # Render stats partial
+    render partial: 'admin/dashboard/stats'
     
     # ========================================
     # Processing Controls & Quick Actions
