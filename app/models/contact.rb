@@ -69,6 +69,39 @@ class Contact < ApplicationRecord
   def retriable?
     status == 'failed' && error_code.present? && !permanent_failure?
   end
+
+  # Fraud risk assessment helpers
+  def high_fraud_risk?
+    sms_pumping_risk_level == 'high' || sms_pumping_number_blocked == true
+  end
+
+  def safe_number?
+    sms_pumping_risk_level == 'low' && !sms_pumping_number_blocked
+  end
+
+  def fraud_risk_display
+    return 'Unknown' if sms_pumping_risk_score.nil?
+    return 'Blocked' if sms_pumping_number_blocked
+    "#{sms_pumping_risk_level&.titleize} (#{sms_pumping_risk_score}/100)"
+  end
+
+  # Line type helpers
+  def is_mobile?
+    line_type == 'mobile'
+  end
+
+  def is_landline?
+    line_type == 'landline'
+  end
+
+  def is_voip?
+    ['voip', 'fixedVoip', 'nonFixedVoip'].include?(line_type)
+  end
+
+  def line_type_display
+    return device_type if line_type.blank? # Fallback to old field
+    line_type&.titleize || 'Unknown'
+  end
   
   # Mark as processing
   def mark_processing!
