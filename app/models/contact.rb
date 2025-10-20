@@ -102,6 +102,45 @@ class Contact < ApplicationRecord
     return device_type if line_type.blank? # Fallback to old field
     line_type&.titleize || 'Unknown'
   end
+
+  # Business intelligence helpers
+  def business?
+    is_business == true
+  end
+
+  def consumer?
+    !business?
+  end
+
+  def business_enriched?
+    business_enriched == true
+  end
+
+  def business_size_category
+    return 'Unknown' unless business_employee_range.present?
+    case business_employee_range
+    when '1-10' then 'Micro (1-10)'
+    when '11-50' then 'Small (11-50)'
+    when '51-200' then 'Medium (51-200)'
+    when '201-500', '501-1000' then 'Large (201-1000)'
+    when '1001-5000', '5001-10000', '10000+' then 'Enterprise (1000+)'
+    else 'Unknown'
+    end
+  end
+
+  def business_revenue_category
+    return 'Unknown' unless business_revenue_range.present?
+    business_revenue_range
+  end
+
+  def business_display_name
+    business_name || caller_name || formatted_phone_number || raw_phone_number
+  end
+
+  def business_age
+    return nil unless business_founded_year.present?
+    Date.current.year - business_founded_year
+  end
   
   # Mark as processing
   def mark_processing!
