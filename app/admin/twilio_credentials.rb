@@ -655,6 +655,71 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    panel "📍 Business Directory / Zipcode Lookup" do
+      attributes_table_for twilio_credential do
+        row "Zipcode Lookup" do |cred|
+          if cred.enable_zipcode_lookup
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Results Per Zipcode" do |cred|
+          "#{cred.results_per_zipcode || 20} businesses per zipcode"
+        end
+
+        row "Auto-Enrich Results" do |cred|
+          if cred.auto_enrich_zipcode_results
+            status_tag "Yes", class: "ok"
+          else
+            status_tag "No", class: "default"
+          end
+        end
+
+        row "Google Places API" do |cred|
+          if cred.google_places_api_key.present?
+            div do
+              span "AIza•••••••••••••••••••", style: "font-family: monospace;"
+              status_tag "Configured", class: "ok", style: "margin-left: 10px;"
+            end
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+
+        row "Yelp Fusion API" do |cred|
+          if cred.yelp_api_key.present?
+            div do
+              span "•••••••••••••••••••••••", style: "font-family: monospace;"
+              status_tag "Configured", class: "ok", style: "margin-left: 10px;"
+            end
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "🔍 Zipcode Lookup Features:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Search for businesses in specific zipcodes"
+          li "Single or bulk zipcode processing"
+          li "Automatic duplicate prevention"
+          li "Updates existing businesses instead of creating duplicates"
+          li "Auto-enrichment with phone validation and email finding"
+        end
+      end
+
+      if twilio_credential.enable_zipcode_lookup && (twilio_credential.google_places_api_key.present? || twilio_credential.yelp_api_key.present?)
+        div style: "margin-top: 15px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;" do
+          strong "✅ Business Lookup Ready!"
+          para "Visit the Business Lookup page to start searching for businesses by zipcode.", style: "margin: 5px 0 0 0;"
+          link_to "Go to Business Lookup →", admin_business_lookup_path, class: "button primary", style: "margin-top: 10px; display: inline-block;"
+        end
+      end
+    end
     
     panel "Connection Test" do
       div style: "padding: 15px; background: #f8f9fa; border-radius: 8px;" do
