@@ -91,7 +91,11 @@ class Contact < ApplicationRecord
      "business_industry", "business_employee_count", "business_employee_range",
      "business_annual_revenue", "business_revenue_range", "business_city",
      "business_state", "business_country", "business_website",
-     "business_enriched", "business_enrichment_provider"]
+     "business_enriched", "business_enrichment_provider",
+     "email", "email_verified", "email_score", "email_status",
+     "first_name", "last_name", "full_name", "position", "department",
+     "linkedin_url", "email_enriched", "is_duplicate", "duplicate_of_id",
+     "data_quality_score", "completeness_percentage"]
   end
 
   def self.ransackable_associations(auth_object = nil)
