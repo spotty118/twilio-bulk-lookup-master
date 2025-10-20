@@ -846,5 +846,8 @@ ActiveAdmin.register TwilioCredential do
                 # Duplicate detection
                 :enable_duplicate_detection, :duplicate_confidence_threshold, :auto_merge_duplicates,
                 # AI configuration
-                :enable_ai_features, :openai_api_key, :ai_model, :ai_max_tokens
+                :enable_ai_features, :openai_api_key, :ai_model, :ai_max_tokens,
+                # Business directory / zipcode lookup
+                :enable_zipcode_lookup, :google_places_api_key, :yelp_api_key,
+                :results_per_zipcode, :auto_enrich_zipcode_results
 end
