@@ -19,6 +19,9 @@ div id: 'column-settings-container', class: 'column-settings' do
 
           input name: "columns[][field]", type: 'hidden', value: col[:field]
 
+          # Hidden field for unchecked checkbox (Rails convention)
+          input name: "columns[][visible]", type: 'hidden', value: '0'
+
           label style: 'display: inline-block; margin-right: 10px;' do
             input name: "columns[][visible]", type: 'checkbox',
                   checked: col[:visible], class: 'visibility-checkbox', value: '1'
