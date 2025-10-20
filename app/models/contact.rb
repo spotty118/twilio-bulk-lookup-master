@@ -163,6 +163,77 @@ class Contact < ApplicationRecord
     return nil unless business_founded_year.present?
     Date.current.year - business_founded_year
   end
+
+  # Email enrichment helpers
+  def email_enriched?
+    email_enriched == true
+  end
+
+  def has_verified_email?
+    email.present? && email_verified == true
+  end
+
+  def email_quality
+    return 'No Email' unless email.present?
+    return 'Verified' if email_verified
+    return 'Unverified' if email_score && email_score > 70
+    'Low Quality'
+  end
+
+  # Duplicate detection helpers
+  def has_duplicates?
+    Contact.where(duplicate_of_id: id).exists?
+  end
+
+  def duplicate_contacts
+    Contact.where(duplicate_of_id: id)
+  end
+
+  def find_potential_duplicates
+    DuplicateDetectionService.find_duplicates(self)
+  end
+
+  def merge_with!(other_contact)
+    DuplicateDetectionService.merge(self, other_contact)
+  end
+
+  # Calculate fingerprints for duplicate detection
+  def update_fingerprints!
+    self.phone_fingerprint = calculate_phone_fingerprint
+    self.name_fingerprint = calculate_name_fingerprint
+    self.email_fingerprint = calculate_email_fingerprint
+    save!
+  end
+
+  def calculate_quality_score!
+    score = 0
+    
+    # Phone validation (20 points)
+    score += 20 if valid == true
+    
+    # Email quality (20 points)
+    score += 20 if email_verified
+    score += 10 if email.present? && !email_verified
+    
+    # Business enrichment (20 points)
+    score += 20 if business_enriched?
+    
+    # Name data (15 points)
+    score += 15 if full_name.present?
+    score += 5 if first_name.present? && last_name.present?
+    
+    # Contact info (15 points)
+    score += 10 if business_website.present? || linkedin_url.present?
+    score += 5 if position.present?
+    
+    # Fraud check (10 points)
+    score += 10 if sms_pumping_risk_level == 'low'
+    score -= 20 if sms_pumping_risk_level == 'high'
+    
+    self.data_quality_score = [score, 0].max
+    self.completeness_percentage = calculate_completeness
+    save!
+  end
   
   # Mark as processing
   def mark_processing!
