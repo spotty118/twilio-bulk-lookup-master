@@ -467,6 +467,136 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    panel "✉️ Email Enrichment & Verification" do
+      attributes_table_for twilio_credential do
+        row "Email Enrichment" do |cred|
+          if cred.enable_email_enrichment
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Hunter.io API" do |cred|
+          if cred.hunter_api_key.present?
+            status_tag "Configured", class: "ok"
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+
+        row "ZeroBounce API" do |cred|
+          if cred.zerobounce_api_key.present?
+            status_tag "Configured", class: "ok"
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "📧 Email Data Collected:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Primary and additional email addresses"
+          li "Email verification status and deliverability score"
+          li "Contact person name, title, and department"
+          li "Seniority level and role information"
+          li "Social media profiles (LinkedIn, Twitter, Facebook)"
+        end
+      end
+    end
+
+    panel "🔍 Duplicate Detection & Merging" do
+      attributes_table_for twilio_credential do
+        row "Duplicate Detection" do |cred|
+          if cred.enable_duplicate_detection
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Confidence Threshold" do |cred|
+          "#{cred.duplicate_confidence_threshold || 75}/100"
+        end
+
+        row "Auto-Merge Duplicates" do |cred|
+          if cred.auto_merge_duplicates
+            div do
+              status_tag "Yes", class: "warning"
+              span " (95%+ confidence only)", style: "color: #6c757d; margin-left: 10px;"
+            end
+          else
+            status_tag "No", class: "default"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🎯 Duplicate Matching Strategy:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Phone number exact and fuzzy matching"
+          li "Email address comparison"
+          li "Business name and location similarity"
+          li "Personal name fuzzy matching (Levenshtein distance)"
+          li "Fingerprinting for fast duplicate detection"
+        end
+      end
+    end
+
+    panel "🤖 AI Assistant Configuration" do
+      attributes_table_for twilio_credential do
+        row "AI Features" do |cred|
+          if cred.enable_ai_features
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "OpenAI API Key" do |cred|
+          if cred.openai_api_key.present?
+            div do
+              span "sk-•••••••••••••••••••••••", style: "font-family: monospace;"
+              status_tag "Configured", class: "ok", style: "margin-left: 10px;"
+            end
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+
+        row "AI Model" do |cred|
+          if cred.ai_model.present?
+            status_tag cred.ai_model, class: "default"
+          else
+            "gpt-4o-mini (default)"
+          end
+        end
+
+        row "Max Response Tokens" do |cred|
+          cred.ai_max_tokens || 1000
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "🚀 AI Features Available:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Natural language contact search - Find contacts with plain English queries"
+          li "Sales intelligence - Get AI-powered insights about your contacts"
+          li "Smart recommendations - Discover trends and opportunities"
+          li "Outreach generation - AI-generated personalized messages"
+        end
+      end
+
+      if twilio_credential.enable_ai_features && twilio_credential.openai_api_key.present?
+        div style: "margin-top: 15px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;" do
+          strong "✅ AI Assistant Ready!"
+          para "Visit the AI Assistant page to start using natural language search and intelligence features.", style: "margin: 5px 0 0 0;"
+          link_to "Go to AI Assistant →", admin_ai_assistant_path, class: "button primary", style: "margin-top: 10px; display: inline-block;"
+        end
+      end
+    end
     
     panel "Connection Test" do
       div style: "padding: 15px; background: #f8f9fa; border-radius: 8px;" do
