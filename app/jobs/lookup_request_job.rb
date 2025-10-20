@@ -43,12 +43,22 @@ class LookupRequestJob < ApplicationJob
       # Initialize Twilio client
       client = Twilio::REST::Client.new(credentials.account_sid, credentials.auth_token)
       
-      # Perform Twilio Lookup API v2 with data packages
-      # Available packages: line_type_intelligence, caller_name, sms_pumping_risk
-      lookup_result = client.lookups
-                           .v2
-                           .phone_numbers(contact.raw_phone_number)
-                           .fetch(fields: 'line_type_intelligence,caller_name,sms_pumping_risk')
+      # Perform Twilio Lookup API v2 with configured data packages
+      # Build fields parameter from enabled packages
+      fields = credentials.data_packages
+      
+      lookup_result = if fields.present?
+                        client.lookups
+                              .v2
+                              .phone_numbers(contact.raw_phone_number)
+                              .fetch(fields: fields)
+                      else
+                        # Basic lookup if no packages enabled
+                        client.lookups
+                              .v2
+                              .phone_numbers(contact.raw_phone_number)
+                              .fetch
+                      end
       
       # Extract basic validation data
       phone_number = lookup_result.phone_number
