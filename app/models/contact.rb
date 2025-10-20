@@ -213,6 +213,55 @@ class Contact < ApplicationRecord
     'Low Quality'
   end
 
+  # Address enrichment helpers
+  def address_enriched?
+    address_enriched == true
+  end
+
+  def has_full_address?
+    consumer_address.present? && consumer_city.present? && consumer_state.present? && consumer_postal_code.present?
+  end
+
+  def full_address
+    return nil unless has_full_address?
+    [consumer_address, consumer_city, "#{consumer_state} #{consumer_postal_code}", consumer_country].compact.join(', ')
+  end
+
+  def address_display
+    has_full_address? ? full_address : 'No Address'
+  end
+
+  # Verizon coverage helpers
+  def verizon_coverage_checked?
+    verizon_coverage_checked == true
+  end
+
+  def verizon_home_internet_available?
+    verizon_5g_home_available == true || verizon_lte_home_available == true || verizon_fios_available == true
+  end
+
+  def verizon_products_available
+    products = []
+    products << 'Fios' if verizon_fios_available
+    products << '5G Home' if verizon_5g_home_available
+    products << 'LTE Home' if verizon_lte_home_available
+    products.empty? ? 'None' : products.join(', ')
+  end
+
+  def verizon_best_product
+    return 'Fios' if verizon_fios_available
+    return '5G Home' if verizon_5g_home_available
+    return 'LTE Home' if verizon_lte_home_available
+    'Not Available'
+  end
+
+  def estimated_speed_display
+    return nil unless estimated_download_speed.present?
+    down = estimated_download_speed
+    up = estimated_upload_speed.present? ? " / #{estimated_upload_speed}" : ''
+    "#{down}#{up}"
+  end
+
   # Duplicate detection helpers
   def has_duplicates?
     Contact.where(duplicate_of_id: id).exists?
