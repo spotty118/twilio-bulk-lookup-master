@@ -160,6 +160,42 @@ ActiveAdmin.register Contact do
         span "—", class: "empty"
       end
     end
+
+    column "Email", :email do |contact|
+      if contact.email.present?
+        div do
+          span contact.email, style: "display: block; font-family: monospace; font-size: 12px;"
+          if contact.email_verified
+            status_tag "Verified", class: "ok", style: "margin-top: 3px;"
+          elsif contact.email_verified == false
+            status_tag "Invalid", class: "error", style: "margin-top: 3px;"
+          end
+        end
+      else
+        span "—", class: "empty"
+      end
+    end
+
+    column "Quality", :data_quality_score do |contact|
+      if contact.data_quality_score
+        score = contact.data_quality_score
+        color = if score >= 80
+                  "#28a745"
+                elsif score >= 60
+                  "#ffc107"
+                else
+                  "#dc3545"
+                end
+        div do
+          strong "#{score}/100", style: "color: #{color}; display: block;"
+          if contact.is_duplicate
+            status_tag "Duplicate", class: "error", style: "margin-top: 3px;"
+          end
+        end
+      else
+        span "—", class: "empty"
+      end
+    end
     
     column "Processed At" do |contact|
       contact.lookup_performed_at&.strftime("%b %d, %Y %H:%M") || span("—", class: "empty")
