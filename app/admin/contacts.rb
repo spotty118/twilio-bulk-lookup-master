@@ -709,6 +709,177 @@ ActiveAdmin.register Contact do
       end
     end
 
+    panel "🏠 Consumer Address Enrichment" do
+      if contact.consumer?
+        attributes_table_for contact do
+          row "Address Status" do |c|
+            if c.address_enriched?
+              div do
+                status_tag "Address Found", class: "ok"
+                if c.address_enrichment_provider.present?
+                  span " via #{c.address_enrichment_provider.titleize}", style: "color: #6c757d; margin-left: 10px;"
+                end
+                if c.address_enriched_at.present?
+                  span " on #{c.address_enriched_at.strftime('%b %d, %Y')}", style: "color: #6c757d; margin-left: 5px;"
+                end
+              end
+            else
+              status_tag "No Address", class: "warning"
+            end
+          end
+
+          row "Full Address" do |c|
+            if c.has_full_address?
+              div do
+                strong c.full_address, style: "font-size: 14px;"
+                if c.address_verified
+                  status_tag "Verified", class: "ok", style: "margin-left: 10px;"
+                end
+              end
+            else
+              "—"
+            end
+          end
+
+          row :consumer_address
+          row :consumer_city
+          row :consumer_state
+          row :consumer_postal_code
+          row :consumer_country
+
+          row "Address Type" do |c|
+            if c.address_type.present?
+              case c.address_type
+              when 'residential'
+                status_tag "Residential", class: "ok"
+              when 'apartment'
+                status_tag "Apartment", class: "default"
+              when 'po_box'
+                status_tag "PO Box", class: "warning"
+              else
+                c.address_type.titleize
+              end
+            else
+              "—"
+            end
+          end
+
+          row "Address Confidence" do |c|
+            if c.address_confidence_score
+              score = c.address_confidence_score
+              color = score >= 80 ? "#28a745" : (score >= 60 ? "#ffc107" : "#dc3545")
+              span "#{score}/100", style: "color: #{color}; font-weight: bold;"
+            else
+              "—"
+            end
+          end
+        end
+      else
+        para "This is a business contact. Address enrichment is for consumers only.", 
+             style: "color: #6c757d; text-align: center; padding: 30px;"
+        if contact.business_address.present?
+          para "Business address available in Business Location panel above.", 
+               style: "color: #6c757d; text-align: center;"
+        end
+      end
+    end
+
+    panel "📡 Verizon Home Internet Availability" do
+      if contact.consumer? && contact.has_full_address?
+        attributes_table_for contact do
+          row "Coverage Status" do |c|
+            if c.verizon_coverage_checked?
+              div do
+                if c.verizon_home_internet_available?
+                  status_tag "Available", class: "ok"
+                else
+                  status_tag "Not Available", class: "error"
+                end
+                if c.verizon_coverage_checked_at.present?
+                  span " (checked #{c.verizon_coverage_checked_at.strftime('%b %d, %Y')})", 
+                       style: "color: #6c757d; margin-left: 10px;"
+                end
+              end
+            else
+              status_tag "Not Checked", class: "default"
+            end
+          end
+
+          row "Available Products" do |c|
+            if c.verizon_coverage_checked?
+              div do
+                if c.verizon_fios_available
+                  status_tag "Fios", class: "ok", style: "margin: 2px;"
+                end
+                if c.verizon_5g_home_available
+                  status_tag "5G Home", class: "ok", style: "margin: 2px;"
+                end
+                if c.verizon_lte_home_available
+                  status_tag "LTE Home", class: "warning", style: "margin: 2px;"
+                end
+                
+                unless c.verizon_home_internet_available?
+                  span "No Verizon home internet products available at this address", 
+                       style: "color: #6c757d;"
+                end
+              end
+            else
+              "—"
+            end
+          end
+
+          row "Best Product" do |c|
+            if c.verizon_home_internet_available?
+              product = c.verizon_best_product
+              color = case product
+                     when 'Fios' then '#28a745'
+                     when '5G Home' then '#667eea'
+                     when 'LTE Home' then '#ffc107'
+                     else '#6c757d'
+                     end
+              strong product, style: "color: #{color}; font-size: 16px;"
+            else
+              "—"
+            end
+          end
+
+          row "Estimated Speed" do |c|
+            if c.estimated_speed_display.present?
+              strong c.estimated_speed_display, style: "color: #667eea; font-size: 14px;"
+            else
+              "—"
+            end
+          end
+
+          row :estimated_download_speed
+          row :estimated_upload_speed
+        end
+
+        if contact.verizon_home_internet_available?
+          div style: "margin-top: 15px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;" do
+            strong "✅ Verizon Home Internet Qualifies!"
+            para "This consumer's address qualifies for Verizon home internet service.", 
+                 style: "margin: 5px 0 0 0;"
+          end
+        elsif contact.verizon_coverage_checked?
+          div style: "margin-top: 15px; padding: 15px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;" do
+            strong "❌ Not Available"
+            para "Verizon home internet is not available at this address.", 
+                 style: "margin: 5px 0 0 0;"
+          end
+        end
+
+      elsif contact.consumer? && !contact.has_full_address?
+        para "Address needed for Verizon coverage check.", 
+             style: "color: #856404; text-align: center; padding: 20px; background: #fff3cd; border-radius: 8px;"
+        para "Run address enrichment first to find this consumer's address.", 
+             style: "color: #6c757d; text-align: center;"
+      else
+        para "Verizon coverage check is for consumer contacts only.", 
+             style: "color: #6c757d; text-align: center; padding: 30px;"
+      end
+    end
+
     panel "⚠️ Error Information" do
       attributes_table_for contact do
         row :error_code do |c|
