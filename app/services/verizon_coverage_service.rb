@@ -303,6 +303,31 @@ class VerizonCoverageService
     }
 
     @contact.update!(updates)
+
+    # Calculate probability scores if contact has coordinates
+    if @contact.latitude.present? && @contact.longitude.present?
+      begin
+        probability_service = VerizonProbabilityService.new(@contact)
+        probabilities = probability_service.calculate_probabilities
+
+        if probabilities
+          @contact.verizon_5g_probability = probabilities[:five_g]
+          @contact.verizon_lte_probability = probabilities[:lte]
+
+          # Merge tower data into coverage data JSON
+          @contact.verizon_coverage_data ||= {}
+          @contact.verizon_coverage_data['probability_calculation'] = probabilities[:tower_data]
+          @contact.verizon_coverage_data['probability_calculated_at'] = Time.current.iso8601
+
+          @contact.save!
+        end
+      rescue StandardError => e
+        Rails.logger.error "[VerizonCoverageService] Error calculating probability: #{e.message}"
+        # Don't fail the coverage check if probability calculation fails
+      end
+    else
+      Rails.logger.warn "[VerizonCoverageService] Cannot calculate probability without coordinates for contact #{@contact.id}"
+    end
   end
 
   def mark_coverage_checked
