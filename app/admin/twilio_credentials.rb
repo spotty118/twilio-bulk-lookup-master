@@ -102,6 +102,47 @@ ActiveAdmin.register TwilioCredential do
                 autocomplete: "new-password"
               }
     end
+
+    f.inputs "Twilio Lookup API v2 Data Packages", class: "data-packages" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Configure which data packages to fetch with each lookup:", style: "margin-top: 0;"
+        para "Each enabled package may incur additional costs. See ", style: "margin: 0;"
+        link_to "Twilio Lookup pricing", "https://www.twilio.com/lookup/pricing", target: "_blank"
+        span " for details."
+      end
+
+      f.input :enable_line_type_intelligence,
+              label: "📡 Line Type Intelligence",
+              hint: "Get detailed line type info (mobile, landline, VoIP, etc.) with carrier details. <strong>Worldwide coverage.</strong>",
+              input_html: { checked: true }
+
+      f.input :enable_caller_name,
+              label: "👤 Caller Name (CNAM)",
+              hint: "Get caller name and type information. <strong>US numbers only.</strong>",
+              input_html: { checked: true }
+
+      f.input :enable_sms_pumping_risk,
+              label: "🛡️ SMS Pumping Fraud Risk",
+              hint: "Detect fraud risk with real-time risk scores (0-100). <strong>Essential for fraud prevention.</strong>",
+              input_html: { checked: true }
+
+      f.input :enable_sim_swap,
+              label: "📱 SIM Swap Detection",
+              hint: "Detect recent SIM changes for security verification. <strong>Limited coverage - requires carrier approval.</strong>",
+              input_html: { checked: false }
+
+      f.input :enable_reassigned_number,
+              label: "♻️ Reassigned Number Detection",
+              hint: "Check if number has been reassigned to a new user. <strong>US only - requires approval.</strong>",
+              input_html: { checked: false }
+    end
+
+    f.inputs "Notes & Configuration" do
+      f.input :notes,
+              label: "Configuration Notes",
+              hint: "Optional: Add notes about your Twilio configuration, rate limits, or special settings",
+              input_html: { rows: 4 }
+    end
     
     f.actions do
       f.action :submit, label: "Save Credentials", button_html: { class: "button primary" }
