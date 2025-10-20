@@ -132,7 +132,8 @@ class Contact < ApplicationRecord
      "consumer_address", "consumer_city", "consumer_state", "consumer_postal_code",
      "consumer_country", "address_type", "address_verified", "address_enriched",
      "address_confidence_score", "verizon_5g_home_available", "verizon_lte_home_available",
-     "verizon_fios_available", "verizon_coverage_checked", "estimated_download_speed"]
+     "verizon_fios_available", "verizon_coverage_checked", "estimated_download_speed",
+     "verizon_5g_probability", "verizon_lte_probability", "latitude", "longitude"]
   end
 
   def self.ransackable_associations(auth_object = nil)
