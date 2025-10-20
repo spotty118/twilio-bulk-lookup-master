@@ -297,6 +297,58 @@ ActiveAdmin.register TwilioCredential do
         para "No configuration notes.", style: "color: #6c757d;"
       end
     end
+
+    panel "🏢 Business Intelligence Enrichment" do
+      attributes_table_for twilio_credential do
+        row "Business Enrichment" do |cred|
+          if cred.enable_business_enrichment
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Auto-Enrich After Lookup" do |cred|
+          if cred.auto_enrich_businesses
+            status_tag "Yes", class: "ok"
+          else
+            status_tag "No", class: "default"
+          end
+        end
+
+        row "Confidence Threshold" do |cred|
+          "#{cred.enrichment_confidence_threshold}/100"
+        end
+
+        row "Clearbit API" do |cred|
+          if cred.clearbit_api_key.present?
+            status_tag "Configured", class: "ok"
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+
+        row "NumVerify API" do |cred|
+          if cred.numverify_api_key.present?
+            status_tag "Configured", class: "ok"
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "📊 Business Data Collected:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Company name, legal name, and description"
+          li "Employee count and revenue estimates"
+          li "Industry, category, and business type"
+          li "Location (address, city, state, country)"
+          li "Contact info (website, email domain, social media)"
+          li "Technology stack and company tags"
+        end
+      end
+    end
     
     panel "Connection Test" do
       div style: "padding: 15px; background: #f8f9fa; border-radius: 8px;" do
