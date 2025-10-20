@@ -27,13 +27,33 @@ class Contact < ApplicationRecord
   scope :completed, -> { where(status: 'completed') }
   scope :failed, -> { where(status: 'failed') }
   scope :not_processed, -> { where(status: ['pending', 'failed']) }
+
+  # Fraud risk scopes
+  scope :high_risk, -> { where(sms_pumping_risk_level: 'high') }
+  scope :medium_risk, -> { where(sms_pumping_risk_level: 'medium') }
+  scope :low_risk, -> { where(sms_pumping_risk_level: 'low') }
+  scope :blocked_numbers, -> { where(sms_pumping_number_blocked: true) }
+
+  # Line type scopes
+  scope :mobile, -> { where(line_type: 'mobile') }
+  scope :landline, -> { where(line_type: 'landline') }
+  scope :voip, -> { where(line_type: ['voip', 'fixedVoip', 'nonFixedVoip']) }
+  scope :toll_free, -> { where(line_type: 'tollFree') }
+
+  # Validation scopes
+  scope :valid_numbers, -> { where(valid: true) }
+  scope :invalid_numbers, -> { where(valid: false) }
   
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
     ["carrier_name", "created_at", "device_type", "error_code",
      "formatted_phone_number", "id", "mobile_country_code",
      "mobile_network_code", "raw_phone_number", "updated_at",
-     "status", "lookup_performed_at"]
+     "status", "lookup_performed_at", "valid", "country_code",
+     "calling_country_code", "line_type", "line_type_confidence",
+     "caller_name", "caller_type", "sms_pumping_risk_score",
+     "sms_pumping_risk_level", "sms_pumping_carrier_risk_category",
+     "sms_pumping_number_blocked", "validation_errors"]
   end
 
   def self.ransackable_associations(auth_object = nil)
