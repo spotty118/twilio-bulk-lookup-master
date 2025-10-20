@@ -76,6 +76,19 @@ class Contact < ApplicationRecord
   scope :primary_contacts, -> { where(is_duplicate: false) }
   scope :high_quality, -> { where('data_quality_score >= ?', 70) }
   scope :low_quality, -> { where('data_quality_score < ?', 40) }
+
+  # Address enrichment scopes
+  scope :address_enriched, -> { where(address_enriched: true) }
+  scope :needs_address_enrichment, -> { where(is_business: false, address_enriched: false).where.not(status: 'pending') }
+  scope :with_verified_address, -> { where(address_verified: true) }
+
+  # Verizon coverage scopes
+  scope :verizon_5g_available, -> { where(verizon_5g_home_available: true) }
+  scope :verizon_lte_available, -> { where(verizon_lte_home_available: true) }
+  scope :verizon_fios_available, -> { where(verizon_fios_available: true) }
+  scope :verizon_home_internet_available, -> { where('verizon_5g_home_available = ? OR verizon_lte_home_available = ? OR verizon_fios_available = ?', true, true, true) }
+  scope :verizon_coverage_checked, -> { where(verizon_coverage_checked: true) }
+  scope :needs_verizon_check, -> { where(address_enriched: true, verizon_coverage_checked: false).where.not(consumer_address: nil) }
   
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
