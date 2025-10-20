@@ -108,7 +108,11 @@ class Contact < ApplicationRecord
      "email", "email_verified", "email_score", "email_status",
      "first_name", "last_name", "full_name", "position", "department",
      "linkedin_url", "email_enriched", "is_duplicate", "duplicate_of_id",
-     "data_quality_score", "completeness_percentage"]
+     "data_quality_score", "completeness_percentage",
+     "consumer_address", "consumer_city", "consumer_state", "consumer_postal_code",
+     "consumer_country", "address_type", "address_verified", "address_enriched",
+     "address_confidence_score", "verizon_5g_home_available", "verizon_lte_home_available",
+     "verizon_fios_available", "verizon_coverage_checked", "estimated_download_speed"]
   end
 
   def self.ransackable_associations(auth_object = nil)
