@@ -137,6 +137,11 @@ class LookupRequestJob < ApplicationJob
       if credentials&.enable_business_enrichment
         BusinessEnrichmentJob.perform_later(contact)
       end
+
+      # Queue address enrichment for consumers if enabled
+      if credentials&.enable_address_enrichment && contact.consumer?
+        AddressEnrichmentJob.perform_later(contact)
+      end
       
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
