@@ -41,6 +41,15 @@ ActiveAdmin.register Contact do
   scope :primary_contacts, label: "🎯 Unique Contacts"
   scope :confirmed_duplicates, label: "🔗 Duplicates"
   scope :high_quality, label: "⭐ High Quality"
+
+  # Address enrichment scopes
+  scope :address_enriched, label: "🏠 Address Found"
+  scope :with_verified_address, label: "✅ Verified Address"
+
+  # Verizon coverage scopes
+  scope :verizon_5g_available, label: "📡 Verizon 5G Home"
+  scope :verizon_lte_available, label: "📶 Verizon LTE Home"
+  scope :verizon_home_internet_available, label: "🌐 Verizon Available"
   
   # ========================================
   # Filters
