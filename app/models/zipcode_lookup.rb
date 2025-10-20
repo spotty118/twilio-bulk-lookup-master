@@ -5,6 +5,17 @@ class ZipcodeLookup < ApplicationRecord
   STATUSES = %w[pending processing completed failed].freeze
 
   # ========================================
+  # Ransack Configuration (for ActiveAdmin filtering)
+  # ========================================
+  def self.ransackable_attributes(auth_object = nil)
+    %w[zipcode status provider businesses_found businesses_imported businesses_updated businesses_skipped created_at updated_at lookup_started_at lookup_completed_at]
+  end
+
+  def self.ransackable_associations(auth_object = nil)
+    []
+  end
+
+  # ========================================
   # Validations
   # ========================================
   validates :zipcode, presence: true, format: { with: /\A\d{5}\z/, message: "must be a 5-digit US zipcode" }
