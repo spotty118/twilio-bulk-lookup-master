@@ -1081,6 +1081,26 @@ ActiveAdmin.register Contact do
     column :duplicate_checked_at
     column :data_quality_score
     column :completeness_percentage
+
+    # Consumer address fields
+    column :consumer_address
+    column :consumer_city
+    column :consumer_state
+    column :consumer_postal_code
+    column :consumer_country
+    column :address_type
+    column :address_verified
+    column :address_enriched
+    column :address_enrichment_provider
+    column :address_confidence_score
+
+    # Verizon coverage fields
+    column :verizon_5g_home_available
+    column :verizon_lte_home_available
+    column :verizon_fios_available
+    column :verizon_coverage_checked
+    column :estimated_download_speed
+    column :estimated_upload_speed
   end
   
   # ========================================
