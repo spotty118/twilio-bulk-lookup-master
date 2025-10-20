@@ -15,15 +15,34 @@ ActiveAdmin.register Contact do
   scope :completed
   scope :failed
   scope :not_processed, label: "Need Processing"
+
+  # Fraud risk scopes
+  scope :high_risk, label: "🚨 High Risk"
+  scope :medium_risk, label: "⚠️ Medium Risk"
+  scope :low_risk, label: "✅ Low Risk"
+  scope :blocked_numbers, label: "🚫 Blocked"
+
+  # Line type scopes
+  scope :mobile, label: "📱 Mobile"
+  scope :landline, label: "☎️ Landline"
+  scope :voip, label: "💻 VoIP"
   
   # ========================================
   # Filters
   # ========================================
   filter :status, as: :select, collection: Contact::STATUSES
   filter :device_type, as: :select, collection: ['mobile', 'landline', 'voip']
+  filter :line_type, as: :select, collection: ['mobile', 'landline', 'voip', 'fixedVoip', 'nonFixedVoip', 'tollFree']
   filter :carrier_name
   filter :raw_phone_number
   filter :formatted_phone_number
+  filter :country_code, as: :select
+  filter :valid, as: :select, collection: [[  'Valid', true], ['Invalid', false]]
+  filter :sms_pumping_risk_level, as: :select, collection: ['low', 'medium', 'high'], label: "Fraud Risk"
+  filter :sms_pumping_risk_score, label: "Risk Score (0-100)"
+  filter :sms_pumping_number_blocked, as: :select, collection: [['Blocked', true], ['Not Blocked', false]]
+  filter :caller_name, label: "Caller Name (CNAM)"
+  filter :caller_type, as: :select, collection: ['business', 'consumer']
   filter :error_code
   filter :lookup_performed_at
   filter :created_at
