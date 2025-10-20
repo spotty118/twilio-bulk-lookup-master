@@ -276,14 +276,11 @@ class VerizonCoverageService
   # ========================================
 
   def get_latitude
-    # Could use geocoding service or cache
-    # For now, return nil (would need geocoding API)
-    nil
+    @contact.latitude
   end
 
   def get_longitude
-    # Could use geocoding service or cache
-    nil
+    @contact.longitude
   end
 
   # ========================================
