@@ -310,6 +310,64 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    f.inputs "📍 Business Directory / Zipcode Lookup", class: "business-directory" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Search for businesses by zipcode:", style: "margin-top: 0;"
+        para "Automatically find and import businesses from specific geographic areas.", style: "margin: 0;"
+      end
+
+      f.input :enable_zipcode_lookup,
+              label: "Enable Zipcode Business Lookup",
+              hint: "Allow searching and importing businesses by zipcode from business directories"
+
+      f.input :results_per_zipcode,
+              label: "Results Per Zipcode",
+              hint: "Maximum number of businesses to fetch per zipcode (1-50 recommended)",
+              input_html: { min: 1, max: 100, value: 20 }
+
+      f.input :auto_enrich_zipcode_results,
+              label: "Auto-Enrich Imported Businesses",
+              hint: "Automatically run phone lookup and email enrichment on newly imported businesses",
+              input_html: { checked: true }
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 Business Directory API Keys"
+        para "Configure at least one API to enable zipcode lookup:", style: "margin: 5px 0;"
+      end
+
+      f.input :google_places_api_key,
+              label: "Google Places API Key",
+              hint: "Recommended for comprehensive business data. Get your key at https://console.cloud.google.com/apis",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password",
+                placeholder: "AIza..."
+              }
+
+      f.input :yelp_api_key,
+              label: "Yelp Fusion API Key",
+              hint: "Alternative/fallback source. Get your key at https://www.yelp.com/developers",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "💡 Provider Priority: "
+        span "Google Places (first) → Yelp (fallback)"
+        para " ", style: "margin: 10px 0 0 0;"
+        strong "Features:"
+        ul style: "margin: 5px 0 0 20px;" do
+          li "Single or bulk zipcode lookup"
+          li "Automatic duplicate prevention"
+          li "Updates existing businesses instead of duplicating"
+          li "Imports business name, address, phone, website"
+        end
+      end
+    end
     
     f.actions do
       f.action :submit, label: "Save Credentials", button_html: { class: "button primary" }
