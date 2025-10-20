@@ -499,6 +499,210 @@ ActiveAdmin.register Contact do
       end
     end
 
+    panel "✉️ Email Enrichment" do
+      attributes_table_for contact do
+        row "Enrichment Status" do |c|
+          if c.email_enriched?
+            div do
+              status_tag "Email Found", class: "ok"
+              if c.email_enrichment_provider.present?
+                span " via #{c.email_enrichment_provider.titleize}", style: "color: #6c757d; margin-left: 10px;"
+              end
+              if c.email_enriched_at.present?
+                span " on #{c.email_enriched_at.strftime('%b %d, %Y')}", style: "color: #6c757d; margin-left: 5px;"
+              end
+            end
+          else
+            status_tag "Not Enriched", class: "warning"
+          end
+        end
+
+        row :email do |c|
+          if c.email.present?
+            div do
+              link_to c.email, "mailto:#{c.email}", style: "font-family: monospace;"
+              if c.email_verified
+                status_tag "Verified", class: "ok", style: "margin-left: 10px;"
+              elsif c.email_verified == false
+                status_tag "Invalid", class: "error", style: "margin-left: 10px;"
+              end
+            end
+          else
+            "—"
+          end
+        end
+
+        row :email_status do |c|
+          if c.email_status
+            case c.email_status
+            when 'valid'
+              status_tag "Valid", class: "ok"
+            when 'invalid'
+              status_tag "Invalid", class: "error"
+            when 'unknown'
+              status_tag "Unknown", class: "warning"
+            when 'catch_all'
+              status_tag "Catch-All", class: "warning"
+            when 'disposable'
+              status_tag "Disposable", class: "error"
+            else
+              c.email_status.titleize
+            end
+          else
+            "—"
+          end
+        end
+
+        row :email_score do |c|
+          if c.email_score
+            score = c.email_score
+            color = score >= 80 ? "#28a745" : (score >= 60 ? "#ffc107" : "#dc3545")
+            span "#{score}/100", style: "color: #{color}; font-weight: bold;"
+          else
+            "—"
+          end
+        end
+
+        row "Additional Emails" do |c|
+          if c.additional_emails.present? && c.additional_emails.any?
+            c.additional_emails.join(", ")
+          else
+            "—"
+          end
+        end
+      end
+    end
+
+    panel "👤 Contact Person Information" do
+      if contact.email_enriched?
+        attributes_table_for contact do
+          row "Full Name" do |c|
+            if c.full_name.present?
+              strong c.full_name, style: "font-size: 16px;"
+            elsif c.first_name.present? || c.last_name.present?
+              "#{c.first_name} #{c.last_name}".strip
+            else
+              "—"
+            end
+          end
+
+          row :first_name
+          row :last_name
+          row :position
+          row :department
+          row :seniority do |c|
+            status_tag c.seniority.titleize if c.seniority
+          end
+
+          row "Social Profiles" do |c|
+            profiles = []
+            profiles << link_to("LinkedIn", c.linkedin_url, target: "_blank") if c.linkedin_url.present?
+            profiles << link_to("Twitter", c.twitter_url, target: "_blank") if c.twitter_url.present?
+            profiles << link_to("Facebook", c.facebook_url, target: "_blank") if c.facebook_url.present?
+            
+            if profiles.any?
+              safe_join(profiles, " | ")
+            else
+              "—"
+            end
+          end
+        end
+      else
+        para "No contact person information available.", style: "color: #6c757d; text-align: center; padding: 20px;"
+      end
+    end
+
+    panel "🔍 Duplicate Detection" do
+      attributes_table_for contact do
+        row "Duplicate Status" do |c|
+          if c.is_duplicate
+            div do
+              status_tag "This is a Duplicate", class: "error"
+              if c.duplicate_of_id
+                link_to "View Primary Contact", admin_contact_path(c.duplicate_of_id), 
+                       class: "button", style: "margin-left: 10px;"
+              end
+            end
+          else
+            status_tag "Unique Contact", class: "ok"
+          end
+        end
+
+        row :duplicate_confidence do |c|
+          if c.duplicate_confidence
+            "#{c.duplicate_confidence}%"
+          else
+            "—"
+          end
+        end
+
+        row "Duplicate Check" do |c|
+          if c.duplicate_checked_at
+            "Checked on #{c.duplicate_checked_at.strftime('%b %d, %Y %H:%M')}"
+          else
+            "Not checked yet"
+          end
+        end
+
+        row "Data Quality Score" do |c|
+          if c.data_quality_score
+            score = c.data_quality_score
+            color = score >= 80 ? "#28a745" : (score >= 60 ? "#ffc107" : "#dc3545")
+            span "#{score}/100", style: "color: #{color}; font-weight: bold;"
+          else
+            "—"
+          end
+        end
+
+        row "Data Completeness" do |c|
+          if c.completeness_percentage
+            "#{c.completeness_percentage}%"
+          else
+            "—"
+          end
+        end
+
+        row "Potential Duplicates" do |c|
+          duplicates = c.find_potential_duplicates
+          if duplicates.any?
+            div do
+              duplicates.first(5).each do |dup|
+                div style: "margin-bottom: 10px; padding: 10px; background: #fff3cd; border-radius: 4px;" do
+                  div do
+                    link_to dup[:contact].business_display_name, admin_contact_path(dup[:contact]), 
+                           style: "font-weight: bold; margin-right: 10px;"
+                    status_tag "#{dup[:confidence]}% match", 
+                              class: dup[:confidence] >= 80 ? "error" : "warning"
+                  end
+                  small "Reason: #{dup[:reason]}", style: "color: #6c757d;"
+                end
+              end
+              if duplicates.count > 5
+                para "...and #{duplicates.count - 5} more", style: "color: #6c757d; margin-top: 10px;"
+              end
+            end
+          else
+            "No potential duplicates found"
+          end
+        end
+
+        row "Merge History" do |c|
+          if c.merge_history.present? && c.merge_history.any?
+            div do
+              c.merge_history.each do |merge|
+                div style: "margin-bottom: 5px;" do
+                  text_node "Merged contact ##{merge['contact_id']} "
+                  small "(#{Time.parse(merge['merged_at']).strftime('%b %d, %Y')})", style: "color: #6c757d;"
+                end
+              end
+            end
+          else
+            "No merge history"
+          end
+        end
+      end
+    end
+
     panel "⚠️ Error Information" do
       attributes_table_for contact do
         row :error_code do |c|
