@@ -24,7 +24,19 @@ class Contact < ApplicationRecord
             },
             on: :create
   validates :status, inclusion: { in: STATUSES }, allow_nil: true
-  
+  validates :verizon_5g_probability, numericality: { 
+    only_integer: true, 
+    greater_than_or_equal_to: 0, 
+    less_than_or_equal_to: 100, 
+    allow_nil: true 
+  }
+  validates :verizon_lte_probability, numericality: { 
+    only_integer: true, 
+    greater_than_or_equal_to: 0, 
+    less_than_or_equal_to: 100, 
+    allow_nil: true 
+  }
+
   # Scopes for filtering
   scope :pending, -> { where(status: 'pending') }
   scope :processing, -> { where(status: 'processing') }
