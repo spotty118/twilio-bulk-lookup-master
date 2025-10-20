@@ -368,6 +368,69 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    f.inputs "🏠 Address Enrichment & Verizon Coverage", class: "address-enrichment" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Find consumer addresses and check Verizon home internet availability:", style: "margin-top: 0;"
+        para "For consumers only: Find residential addresses and automatically check if they qualify for Verizon 5G/LTE Home Internet.", style: "margin: 0;"
+      end
+
+      f.input :enable_address_enrichment,
+              label: "Enable Address Enrichment (Consumers Only)",
+              hint: "Find residential addresses for consumer contacts from phone numbers"
+
+      f.input :enable_verizon_coverage_check,
+              label: "Enable Verizon Coverage Check",
+              hint: "Automatically check if consumer addresses qualify for Verizon 5G/LTE Home Internet"
+
+      f.input :auto_check_verizon_coverage,
+              label: "Auto-Check After Address Found",
+              hint: "Automatically run Verizon coverage check when a valid address is found",
+              input_html: { checked: true }
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 Address Lookup API Keys"
+        para "Configure at least one provider for address discovery:", style: "margin: 5px 0;"
+      end
+
+      f.input :whitepages_api_key,
+              label: "Whitepages Pro API Key",
+              hint: "Best for US residential addresses. Get your key at https://pro.whitepages.com",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      f.input :truecaller_api_key,
+              label: "TrueCaller API Key",
+              hint: "Alternative address source. Get your key at https://www.truecaller.com/business",
+              input_html: { 
+                type: "password",
+                style: "font-family: monospace; font-size: 14px;",
+                autocomplete: "new-password"
+              }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "📍 How it works:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Address lookup runs only for consumer (non-business) contacts"
+          li "Uses Whitepages or TrueCaller to find residential address"
+          li "If address found and Verizon check enabled → checks 5G/LTE/Fios availability"
+          li "Uses Verizon's public availability checker (no Verizon API needed)"
+          li "Stores availability status and estimated speeds"
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;" do
+        strong "✅ Verizon Products Checked:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "5G Home Internet (fastest, limited availability)"
+          li "LTE Home Internet (wider availability)"
+          li "Fios (fiber, if available at address)"
+        end
+      end
+    end
     
     f.actions do
       f.action :submit, label: "Save Credentials", button_html: { class: "button primary" }
