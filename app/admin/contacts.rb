@@ -118,6 +118,24 @@ ActiveAdmin.register Contact do
         status_tag "No", class: "error"
       end
     end
+
+    column "Business", :business_name do |contact|
+      if contact.business?
+        div do
+          if contact.business_name.present?
+            strong contact.business_name, style: "display: block; color: #2c3e50;"
+          end
+          if contact.business_employee_range.present?
+            small contact.business_size_category, style: "color: #7f8c8d; display: block;"
+          end
+          if !contact.business_enriched?
+            status_tag "Not Enriched", class: "warning", style: "margin-top: 5px;"
+          end
+        end
+      else
+        span "—", class: "empty"
+      end
+    end
     
     column "Processed At" do |contact|
       contact.lookup_performed_at&.strftime("%b %d, %Y %H:%M") || span("—", class: "empty")
