@@ -181,6 +181,73 @@ ActiveAdmin.register TwilioCredential do
         end
       end
     end
+
+    panel "🔧 Lookup API v2 Data Packages Configuration" do
+      attributes_table_for twilio_credential do
+        row "Line Type Intelligence" do |cred|
+          if cred.enable_line_type_intelligence
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Caller Name (CNAM)" do |cred|
+          if cred.enable_caller_name
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "SMS Pumping Risk Detection" do |cred|
+          if cred.enable_sms_pumping_risk
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "SIM Swap Detection" do |cred|
+          if cred.enable_sim_swap
+            status_tag "Enabled", class: "warning"
+          else
+            status_tag "Disabled", class: "default"
+          end
+        end
+
+        row "Reassigned Number Detection" do |cred|
+          if cred.enable_reassigned_number
+            status_tag "Enabled", class: "warning"
+          else
+            status_tag "Disabled", class: "default"
+          end
+        end
+
+        row "API Fields Parameter" do |cred|
+          if cred.data_packages.present?
+            code cred.data_packages, style: "background: #f8f9fa; padding: 5px 10px; border-radius: 4px; font-family: monospace;"
+          else
+            span "No data packages enabled (basic lookup only)", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "💰 Cost Information: "
+        para "Each enabled data package incurs additional API costs per lookup. Review Twilio pricing before enabling.", style: "margin: 5px 0 0 0;"
+      end
+    end
+
+    panel "📝 Configuration Notes" do
+      if twilio_credential.notes.present?
+        div style: "background: #f8f9fa; padding: 15px; border-radius: 8px; white-space: pre-wrap;" do
+          twilio_credential.notes
+        end
+      else
+        para "No configuration notes.", style: "color: #6c757d;"
+      end
+    end
     
     panel "Connection Test" do
       div style: "padding: 15px; background: #f8f9fa; border-radius: 8px;" do
