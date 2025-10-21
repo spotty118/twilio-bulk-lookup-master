@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby '3.3.5'  # Latest stable Ruby version
+ruby '3.3.6'  # Latest stable Ruby version
 
 # Core Rails gems - using Rails 7.2 for better gem compatibility
 gem 'rails', '~> 7.2.0'
