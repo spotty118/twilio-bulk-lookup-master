@@ -2,18 +2,24 @@
 
 # Bulk Lookup for Twilio
 
-An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 11+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, AI-powered search, and comprehensive contact management.
+An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 14+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, multi-LLM AI support, CRM sync, automated messaging, and comprehensive contact management.
 
-## ✨ What's New
+## ✨ What's New in v2.0
 
-This platform has evolved from a simple phone lookup tool into a comprehensive contact intelligence system:
+This platform has evolved from a simple phone lookup tool into a comprehensive contact intelligence system with enterprise features:
 
-- **API Connectors Dashboard**: Manage 11+ data providers from a single interface
+- **🆕 Multi-LLM Support**: OpenAI GPT, Anthropic Claude, and Google Gemini integration
+- **🆕 CRM Sync**: Bidirectional sync with Salesforce, HubSpot, and Pipedrive
+- **🆕 SMS & Voice**: Automated outreach with Twilio messaging and voice calls
+- **🆕 Geocoding**: Google Maps integration for address-to-coordinates conversion
+- **🆕 Real-time Webhooks**: Live status updates for Trust Hub, SMS, and voice calls
+- **🆕 API Cost Tracking**: Per-API usage analytics and billing insights
+- **API Connectors Dashboard**: Manage 14+ data providers from a single interface
 - **Business Discovery**: Find and import businesses by zipcode using Google Places and Yelp
-- **AI-Powered Search**: Query your contacts using natural language with OpenAI
-- **Advanced Enrichment**: Business data, email discovery, address lookup, and more
-- **Trust Hub Integration**: Business verification through Twilio Trust Hub
-- **Verizon Coverage**: Check 5G/LTE Home Internet availability
+- **AI-Powered Search**: Query your contacts using natural language with multiple LLM providers
+- **Advanced Enrichment**: Business data, email discovery, address lookup, geocoding, and more
+- **Trust Hub Integration**: Business verification through Twilio Trust Hub with real-time webhooks
+- **Verizon Coverage**: Check 5G/LTE Home Internet availability with geocoded precision
 - **Quality Metrics**: Automated data quality scoring and tracking
 - **Duplicate Detection**: Smart contact deduplication
 
@@ -21,29 +27,35 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 
 ### Core Functionality
 - **Bulk Phone Number Lookup**: Process thousands of phone numbers via Twilio Lookup v2 API
-- **11+ API Integrations**: Unified dashboard for managing multiple data providers
+- **14+ API Integrations**: Unified dashboard for managing multiple data providers
 - **CSV Import/Export**: Easy data import and export in CSV, TSV, or Excel formats
 - **Background Processing**: Sidekiq-powered async job processing with Redis
 - **Admin Interface**: Comprehensive ActiveAdmin dashboard
-- **Status Tracking**: Real-time processing status for all contacts
+- **Status Tracking**: Real-time processing status for all contacts with webhook updates
 - **Error Handling**: Intelligent retry logic with exponential backoff
 - **Rate Limiting**: Configurable concurrency to prevent API throttling
 - **Idempotency**: Skip already-processed contacts automatically
+- **🆕 API Cost Tracking**: Real-time cost analytics per provider with usage insights
+- **🆕 Webhook System**: Real-time status updates for SMS, voice calls, and Trust Hub
 
 ### Advanced Enrichment
 - **Business Intelligence**: Company data from Clearbit and NumVerify
 - **Email Discovery**: Find and verify emails with Hunter.io and ZeroBounce
 - **Address Enrichment**: Consumer addresses via Whitepages Pro and TrueCaller
+- **🆕 Geocoding**: Convert addresses to coordinates using Google Geocoding API
 - **Business Directory**: Zipcode-based business lookup via Google Places and Yelp
-- **Verizon Coverage**: Check 5G/LTE Home Internet availability
+- **Verizon Coverage**: Check 5G/LTE Home Internet availability (enhanced with geocoding)
 - **Duplicate Detection**: Automatic duplicate contact identification
-- **Trust Hub Integration**: Business verification via Twilio Trust Hub
+- **Trust Hub Integration**: Business verification via Twilio Trust Hub with real-time webhooks
 
 ### AI-Powered Features
+- **🆕 Multi-LLM Support**: Choose between OpenAI GPT, Anthropic Claude, or Google Gemini
 - **Natural Language Search**: Query contacts using plain English
 - **AI Assistant**: Get insights and recommendations from your data
 - **Smart Filtering**: AI-powered contact segmentation
 - **Sales Intelligence**: Automated lead scoring and analysis
+- **🆕 Outreach Generation**: AI-powered SMS and email message creation
+- **Cost Optimization**: Automatic selection of most cost-effective LLM for each task
 
 ### Data Quality
 - **Line Type Intelligence**: Mobile, landline, VoIP detection
@@ -60,9 +72,12 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **Database**: PostgreSQL 9.1+
 - **Background Jobs**: Sidekiq with Redis
 - **Admin Interface**: ActiveAdmin
-- **API Integration**: 11+ third-party providers
-- **AI/ML**: OpenAI GPT integration
-- **Frontend**: Responsive admin dashboard
+- **API Integration**: 14+ third-party providers
+- **AI/ML**: OpenAI GPT, Anthropic Claude, Google Gemini
+- **Messaging**: Twilio SMS & Voice API
+- **CRM Integration**: Salesforce, HubSpot, Pipedrive
+- **Geocoding**: Google Maps Geocoding API
+- **Frontend**: Responsive admin dashboard with real-time updates
 
 ### Key Components
 
@@ -232,8 +247,11 @@ Navigate to **API Connectors** dashboard to see all available integrations:
 - **Business Intelligence**: Clearbit, NumVerify
 - **Email Discovery**: Hunter.io, ZeroBounce
 - **Address Data**: Whitepages Pro, TrueCaller
+- **🆕 Geocoding**: Google Geocoding API
 - **Business Search**: Google Places, Yelp Fusion
-- **AI Features**: OpenAI API
+- **🆕 AI Features**: OpenAI, Anthropic Claude, Google Gemini
+- **🆕 Messaging**: Twilio SMS & Voice
+- **🆕 CRM Sync**: Salesforce, HubSpot, Pipedrive
 - **Coverage Check**: Verizon (no API key needed)
 
 The API Connectors dashboard shows:
@@ -405,6 +423,87 @@ Model: gpt-4o-mini (default) or gpt-4
 Enable: AI Features toggle
 ```
 
+**🆕 Anthropic Claude** (Advanced reasoning & long context)
+```
+API Key: sk-ant-xxxxxxxxxxxx
+Model: claude-3-5-sonnet-20241022 (default)
+Enable: Anthropic toggle
+Preferred LLM Provider: anthropic
+```
+
+**🆕 Google Gemini** (Cost-effective multimodal AI)
+```
+API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
+Model: gemini-1.5-flash (default)
+Enable: Google AI toggle
+Preferred LLM Provider: google
+```
+
+**🆕 Google Geocoding** (Address to coordinates)
+```
+API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
+Enable: Geocoding toggle
+```
+
+### CRM Integrations
+
+**🆕 Salesforce** (Sales CRM sync)
+```
+Client ID: 3MVGxxxxxxxxxxxxx
+Client Secret: your_client_secret
+Access Token: (obtained via OAuth)
+Refresh Token: (obtained via OAuth)
+Instance URL: https://yourcompany.salesforce.com
+Enable: Salesforce Sync toggle
+Auto Sync: true/false
+Sync Direction: bidirectional/push/pull
+```
+
+**🆕 HubSpot** (Marketing automation)
+```
+API Key: pat-na1-xxxxxxxxxxxx
+Portal ID: 12345678
+Enable: HubSpot Sync toggle
+Auto Sync: true/false
+```
+
+**🆕 Pipedrive** (Sales pipeline)
+```
+API Key: your_pipedrive_api_key
+Company Domain: yourcompany
+Enable: Pipedrive Sync toggle
+Auto Sync: true/false
+```
+
+### Messaging
+
+**🆕 Twilio SMS** (Outbound messaging)
+```
+Phone Number: +15551234567
+Messaging Service SID: MGxxxxxxxxxx (optional)
+Enable: SMS Messaging toggle
+Max SMS per Hour: 100
+Templates: Intro, Follow-up
+```
+
+**🆕 Twilio Voice** (Outbound calls)
+```
+Voice Webhook URL: https://yourdomain.com/twiml/voice
+Recording Enabled: true/false
+Enable: Voice Messaging toggle
+Max Calls per Hour: 50
+```
+
+### Webhooks
+
+**🆕 Webhook Endpoints**
+```
+SMS Status: https://yourdomain.com/webhooks/twilio/sms_status
+Voice Status: https://yourdomain.com/webhooks/twilio/voice_status
+Trust Hub: https://yourdomain.com/webhooks/twilio/trust_hub
+```
+Configure these URLs in your Twilio Console for real-time status updates.
+
 ### Sidekiq Concurrency
 
 Edit `config/sidekiq.yml` to adjust processing speed:
@@ -437,16 +536,33 @@ Jobs automatically retry on transient failures:
 ### Feature Toggles
 
 Control which enrichments run via **Twilio Credentials** settings:
+
+**Core Features:**
 - `enable_line_type_intelligence`: Phone type detection
 - `enable_caller_name`: CNAM lookup
 - `enable_sms_pumping_risk`: Fraud risk scoring
+- `enable_sim_swap`: SIM swap detection
+- `enable_reassigned_number`: Reassigned number detection
+
+**Enrichment Features:**
 - `enable_business_enrichment`: Company data enrichment
 - `enable_email_enrichment`: Email discovery
 - `enable_address_enrichment`: Address lookup
 - `enable_duplicate_detection`: Auto-detect duplicates
-- `enable_ai_features`: AI Assistant access
 - `enable_zipcode_lookup`: Business directory search
 - `enable_verizon_coverage_check`: Verizon availability
+- `enable_trust_hub`: Trust Hub business verification
+
+**🆕 New Features:**
+- `enable_geocoding`: Google Geocoding API
+- `enable_sms_messaging`: Twilio SMS outreach
+- `enable_voice_messaging`: Twilio voice calls
+- `enable_ai_features`: OpenAI integration
+- `enable_anthropic`: Anthropic Claude integration
+- `enable_google_ai`: Google Gemini integration
+- `enable_salesforce_sync`: Salesforce CRM sync
+- `enable_hubspot_sync`: HubSpot CRM sync
+- `enable_pipedrive_sync`: Pipedrive CRM sync
 
 ## 🔧 Heroku Deployment
 
@@ -658,18 +774,31 @@ heroku run rails console
 - [Hunter.io Email Finder](https://hunter.io/api-documentation)
 - [ZeroBounce Email Verification](https://www.zerobounce.net/docs/)
 - [Google Places API](https://developers.google.com/maps/documentation/places/web-service)
+- [🆕 Google Geocoding API](https://developers.google.com/maps/documentation/geocoding)
 - [Yelp Fusion API](https://www.yelp.com/developers/documentation/v3)
 - [Whitepages Pro API](https://pro.whitepages.com/developer/documentation/)
 - [OpenAI API](https://platform.openai.com/docs)
+- [🆕 Anthropic API](https://docs.anthropic.com)
+- [🆕 Google AI (Gemini)](https://ai.google.dev/docs)
+- [🆕 Salesforce API](https://developer.salesforce.com/docs)
+- [🆕 HubSpot API](https://developers.hubspot.com)
+- [🆕 Pipedrive API](https://developers.pipedrive.com)
 
 ### Getting API Keys
 - [Twilio Console](https://console.twilio.com/) - Get Account SID and Auth Token
 - [Clearbit](https://clearbit.com/) - Premium business data
 - [Hunter.io](https://hunter.io/) - 50 free searches/month
 - [ZeroBounce](https://www.zerobounce.net/) - 100 free verifications
-- [Google Cloud Console](https://console.cloud.google.com/) - Enable Places API
+- [Google Cloud Console](https://console.cloud.google.com/) - Enable Places & Geocoding API
 - [Yelp Developers](https://www.yelp.com/developers) - Free API access
 - [OpenAI Platform](https://platform.openai.com/) - Pay-as-you-go pricing
+- [🆕 Anthropic Console](https://console.anthropic.com/) - Claude API access
+- [🆕 Google AI Studio](https://aistudio.google.com/app/apikey) - Gemini API key
+- [🆕 Salesforce Connected App](https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm) - OAuth setup
+- [🆕 HubSpot Private Apps](https://developers.hubspot.com/docs/api/private-apps) - API token
+- [🆕 Pipedrive Settings](https://pipedrive.readme.io/docs/how-to-find-the-api-token) - API token
+
+**📖 Complete API Configuration Guide**: See [API_CONFIGURATION_GUIDE.md](API_CONFIGURATION_GUIDE.md) for detailed setup instructions, pricing, and usage examples for all 14+ providers.
 
 ## 🤝 Contributing
 
