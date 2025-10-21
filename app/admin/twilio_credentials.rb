@@ -193,6 +193,69 @@ ActiveAdmin.register TwilioCredential do
       end
     end
 
+    f.inputs "🛡️ Trust Hub Business Verification", class: "trust-hub" do
+      div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
+        h4 "Verify businesses with Twilio Trust Hub:", style: "margin-top: 0;"
+        para "Trust Hub provides regulatory compliance and business verification through Twilio's platform.", style: "margin: 0;"
+      end
+
+      f.input :enable_trust_hub,
+              label: "Enable Trust Hub Verification",
+              hint: "Automatically verify business contacts using Twilio Trust Hub API for compliance and authenticity"
+
+      f.input :auto_create_trust_hub_profiles,
+              label: "Auto-Create Trust Hub Profiles",
+              hint: "Automatically create draft Trust Hub customer profiles for verified businesses (requires manual document submission)",
+              input_html: { checked: false }
+
+      f.input :trust_hub_reverification_days,
+              label: "Re-verification Interval (days)",
+              hint: "How often to re-check Trust Hub verification status (default: 90 days)",
+              input_html: { min: 1, max: 365, value: 90 }
+
+      div style: "margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "🔑 Trust Hub Configuration"
+        para "Configure your Trust Hub policy and webhook settings:", style: "margin: 5px 0;"
+      end
+
+      f.input :trust_hub_policy_sid,
+              label: "Trust Hub Policy SID",
+              hint: "Your Trust Hub policy SID from Twilio Console (e.g., RNxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx). Leave blank to use default business profile policy.",
+              input_html: {
+                style: "font-family: monospace; font-size: 14px;",
+                placeholder: "RNxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+
+      f.input :trust_hub_webhook_url,
+              label: "Trust Hub Webhook URL",
+              hint: "Optional: URL to receive Trust Hub status update webhooks from Twilio",
+              input_html: {
+                type: "url",
+                placeholder: "https://your-domain.com/webhooks/trust_hub"
+              }
+
+      div style: "margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "📋 Trust Hub Features:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Business verification and compliance validation"
+          li "Regulatory status checking for messaging compliance"
+          li "Customer profile management"
+          li "Verification score calculation (0-100)"
+          li "Automatic re-verification for pending/rejected profiles"
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+        strong "⚠️ Important Notes:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Trust Hub verification may require manual document submission"
+          li "Draft profiles are created automatically but need documents to be submitted"
+          li "Verification typically takes 1-3 business days after submission"
+          li "Uses your Twilio API credentials configured above"
+        end
+      end
+    end
+
     f.inputs "✉️ Email Enrichment & Verification", class: "email-enrichment" do
       div style: "background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;" do
         h4 "Find and verify email addresses for contacts:", style: "margin-top: 0;"
@@ -585,6 +648,74 @@ ActiveAdmin.register TwilioCredential do
           li "Location (address, city, state, country)"
           li "Contact info (website, email domain, social media)"
           li "Technology stack and company tags"
+        end
+      end
+    end
+
+    panel "🛡️ Trust Hub Business Verification" do
+      attributes_table_for twilio_credential do
+        row "Trust Hub Verification" do |cred|
+          if cred.enable_trust_hub
+            status_tag "Enabled", class: "ok"
+          else
+            status_tag "Disabled", class: "error"
+          end
+        end
+
+        row "Auto-Create Profiles" do |cred|
+          if cred.auto_create_trust_hub_profiles
+            status_tag "Yes", class: "warning"
+          else
+            status_tag "No", class: "default"
+          end
+        end
+
+        row "Re-verification Interval" do |cred|
+          "#{cred.trust_hub_reverification_days || 90} days"
+        end
+
+        row "Trust Hub Policy SID" do |cred|
+          if cred.trust_hub_policy_sid.present?
+            code cred.trust_hub_policy_sid, style: "background: #f8f9fa; padding: 5px 10px; border-radius: 4px; font-family: monospace;"
+          else
+            span "Using default policy", style: "color: #6c757d;"
+          end
+        end
+
+        row "Webhook URL" do |cred|
+          if cred.trust_hub_webhook_url.present?
+            link_to cred.trust_hub_webhook_url, cred.trust_hub_webhook_url, target: "_blank", style: "font-family: monospace; font-size: 12px;"
+          else
+            span "Not configured", style: "color: #6c757d;"
+          end
+        end
+      end
+
+      div style: "margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;" do
+        strong "🔐 Trust Hub Data Collected:"
+        ul style: "margin: 10px 0 0 20px;" do
+          li "Business verification status and score"
+          li "Customer profile SID"
+          li "Regulatory compliance status"
+          li "Business registration details"
+          li "Verification checks passed/failed"
+          li "Compliance type and region"
+        end
+      end
+
+      if twilio_credential.enable_trust_hub
+        # Show stats
+        verified_count = Contact.where(trust_hub_verified: true).count
+        total_checked = Contact.where(trust_hub_enriched: true).count
+        pending_count = Contact.where(trust_hub_status: ['pending-review', 'in-review']).count
+
+        div style: "margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;" do
+          strong "📊 Trust Hub Stats:"
+          ul style: "margin: 10px 0 0 20px; list-style: none; padding-left: 0;" do
+            li "Total Businesses Checked: #{total_checked}"
+            li "Verified Businesses: #{verified_count} (#{total_checked > 0 ? (verified_count.to_f / total_checked * 100).round(1) : 0}%)"
+            li "Pending Verification: #{pending_count}"
+          end
         end
       end
     end
@@ -991,6 +1122,9 @@ ActiveAdmin.register TwilioCredential do
                 :enable_reassigned_number, :notes, :enable_business_enrichment,
                 :auto_enrich_businesses, :enrichment_confidence_threshold,
                 :clearbit_api_key, :numverify_api_key,
+                # Trust Hub verification
+                :enable_trust_hub, :trust_hub_policy_sid, :trust_hub_webhook_url,
+                :auto_create_trust_hub_profiles, :trust_hub_reverification_days,
                 # Email enrichment
                 :enable_email_enrichment, :hunter_api_key, :zerobounce_api_key,
                 # Duplicate detection

@@ -89,6 +89,14 @@ class Contact < ApplicationRecord
   scope :verizon_home_internet_available, -> { where('verizon_5g_home_available = ? OR verizon_lte_home_available = ? OR verizon_fios_available = ?', true, true, true) }
   scope :verizon_coverage_checked, -> { where(verizon_coverage_checked: true) }
   scope :needs_verizon_check, -> { where(address_enriched: true, verizon_coverage_checked: false).where.not(consumer_address: nil) }
+
+  # Trust Hub verification scopes
+  scope :trust_hub_verified, -> { where(trust_hub_verified: true) }
+  scope :trust_hub_enriched, -> { where(trust_hub_enriched: true) }
+  scope :trust_hub_pending, -> { where(trust_hub_status: ['pending-review', 'in-review']) }
+  scope :trust_hub_rejected, -> { where(trust_hub_status: ['twilio-rejected', 'rejected']) }
+  scope :trust_hub_approved, -> { where(trust_hub_status: ['twilio-approved', 'compliant']) }
+  scope :needs_trust_hub_verification, -> { where(is_business: true, trust_hub_enriched: false, business_enriched: true) }
   
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(auth_object = nil)
@@ -112,7 +120,9 @@ class Contact < ApplicationRecord
      "consumer_address", "consumer_city", "consumer_state", "consumer_postal_code",
      "consumer_country", "address_type", "address_verified", "address_enriched",
      "address_confidence_score", "verizon_5g_home_available", "verizon_lte_home_available",
-     "verizon_fios_available", "verizon_coverage_checked", "estimated_download_speed"]
+     "verizon_fios_available", "verizon_coverage_checked", "estimated_download_speed",
+     "trust_hub_verified", "trust_hub_status", "trust_hub_business_sid", "trust_hub_enriched",
+     "trust_hub_verification_score", "trust_hub_regulatory_status", "trust_hub_business_name"]
   end
 
   def self.ransackable_associations(auth_object = nil)
@@ -264,6 +274,55 @@ class Contact < ApplicationRecord
     down = estimated_download_speed
     up = estimated_upload_speed.present? ? " / #{estimated_upload_speed}" : ''
     "#{down}#{up}"
+  end
+
+  # Trust Hub verification helpers
+  def trust_hub_enriched?
+    trust_hub_enriched == true
+  end
+
+  def trust_hub_verified?
+    trust_hub_verified == true
+  end
+
+  def trust_hub_pending?
+    ['pending-review', 'in-review'].include?(trust_hub_status)
+  end
+
+  def trust_hub_rejected?
+    ['twilio-rejected', 'rejected'].include?(trust_hub_status)
+  end
+
+  def trust_hub_approved?
+    ['twilio-approved', 'compliant'].include?(trust_hub_status)
+  end
+
+  def trust_hub_status_display
+    return 'Not Checked' unless trust_hub_enriched?
+    return 'Verified' if trust_hub_verified?
+    trust_hub_status&.titleize || 'Unknown'
+  end
+
+  def trust_hub_verification_level
+    return 'None' unless trust_hub_verification_score.present?
+    score = trust_hub_verification_score
+    case score
+    when 90..100 then 'Excellent'
+    when 70..89 then 'Good'
+    when 50..69 then 'Fair'
+    when 1..49 then 'Poor'
+    else 'None'
+    end
+  end
+
+  def trust_hub_needs_reverification?
+    return false unless trust_hub_enriched?
+    return true if trust_hub_pending? || trust_hub_rejected?
+    return false unless trust_hub_enriched_at.present?
+
+    days_since_check = (Time.current - trust_hub_enriched_at) / 1.day
+    reverification_days = TwilioCredential.current&.trust_hub_reverification_days || 90
+    days_since_check >= reverification_days
   end
 
   # Duplicate detection helpers
