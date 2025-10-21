@@ -15,6 +15,14 @@ Rails.application.routes.draw do
   # Bulk lookup trigger
   get '/lookup', to: 'lookup#run'
   
+  # Webhook endpoints
+  namespace :webhooks do
+    post 'twilio/sms_status', to: 'webhooks#twilio_sms_status'
+    post 'twilio/voice_status', to: 'webhooks#twilio_voice_status'
+    post 'twilio/trust_hub', to: 'webhooks#twilio_trust_hub'
+    post 'generic', to: 'webhooks#generic'
+  end
+
   # Health check endpoints
   get "up" => "rails/health#show", as: :rails_health_check
   get "health" => "health#show", as: :health_check
