@@ -39,9 +39,14 @@ class BusinessEnrichmentJob < ApplicationJob
 
     if success
       Rails.logger.info("Successfully enriched contact #{contact.id} with business data")
-      
-      # Queue email enrichment after business enrichment
+
+      # Queue Trust Hub enrichment after business enrichment
       credentials = TwilioCredential.current
+      if credentials&.enable_trust_hub
+        TrustHubEnrichmentJob.perform_later(contact)
+      end
+
+      # Queue email enrichment after business enrichment
       if credentials&.enable_email_enrichment
         EmailEnrichmentJob.perform_later(contact)
       end
