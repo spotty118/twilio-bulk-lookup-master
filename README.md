@@ -2,19 +2,103 @@
 
 # Bulk Lookup for Twilio
 
-Twilio Lookup allows you to determine if a phone number is a mobile number or a landline. This project allows you to upload a CSV, run a bulk lookup, and then download a CSV with information from the Lookup API.
+An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 11+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, AI-powered search, and comprehensive contact management.
+
+## ✨ What's New
+
+This platform has evolved from a simple phone lookup tool into a comprehensive contact intelligence system:
+
+- **API Connectors Dashboard**: Manage 11+ data providers from a single interface
+- **Business Discovery**: Find and import businesses by zipcode using Google Places and Yelp
+- **AI-Powered Search**: Query your contacts using natural language with OpenAI
+- **Advanced Enrichment**: Business data, email discovery, address lookup, and more
+- **Trust Hub Integration**: Business verification through Twilio Trust Hub
+- **Verizon Coverage**: Check 5G/LTE Home Internet availability
+- **Quality Metrics**: Automated data quality scoring and tracking
+- **Duplicate Detection**: Smart contact deduplication
 
 ## 🚀 Features
 
-- **Bulk Phone Number Lookup**: Process thousands of phone numbers via Twilio Lookup API
+### Core Functionality
+- **Bulk Phone Number Lookup**: Process thousands of phone numbers via Twilio Lookup v2 API
+- **11+ API Integrations**: Unified dashboard for managing multiple data providers
 - **CSV Import/Export**: Easy data import and export in CSV, TSV, or Excel formats
 - **Background Processing**: Sidekiq-powered async job processing with Redis
-- **Admin Interface**: ActiveAdmin dashboard for managing contacts and credentials
+- **Admin Interface**: Comprehensive ActiveAdmin dashboard
 - **Status Tracking**: Real-time processing status for all contacts
 - **Error Handling**: Intelligent retry logic with exponential backoff
 - **Rate Limiting**: Configurable concurrency to prevent API throttling
 - **Idempotency**: Skip already-processed contacts automatically
-- **Monitoring Dashboard**: Built-in Sidekiq Web UI for job monitoring
+
+### Advanced Enrichment
+- **Business Intelligence**: Company data from Clearbit and NumVerify
+- **Email Discovery**: Find and verify emails with Hunter.io and ZeroBounce
+- **Address Enrichment**: Consumer addresses via Whitepages Pro and TrueCaller
+- **Business Directory**: Zipcode-based business lookup via Google Places and Yelp
+- **Verizon Coverage**: Check 5G/LTE Home Internet availability
+- **Duplicate Detection**: Automatic duplicate contact identification
+- **Trust Hub Integration**: Business verification via Twilio Trust Hub
+
+### AI-Powered Features
+- **Natural Language Search**: Query contacts using plain English
+- **AI Assistant**: Get insights and recommendations from your data
+- **Smart Filtering**: AI-powered contact segmentation
+- **Sales Intelligence**: Automated lead scoring and analysis
+
+### Data Quality
+- **Line Type Intelligence**: Mobile, landline, VoIP detection
+- **Caller Name (CNAM)**: Identify phone line owners
+- **SMS Pumping Risk**: Fraud detection and risk scoring
+- **SIM Swap Detection**: Security threat identification
+- **Reassigned Number**: Detect recycled phone numbers
+- **Quality Scoring**: Automated data quality metrics
+
+## 🏗️ Architecture
+
+### Technology Stack
+- **Backend**: Ruby on Rails 7.x
+- **Database**: PostgreSQL 9.1+
+- **Background Jobs**: Sidekiq with Redis
+- **Admin Interface**: ActiveAdmin
+- **API Integration**: 11+ third-party providers
+- **AI/ML**: OpenAI GPT integration
+- **Frontend**: Responsive admin dashboard
+
+### Key Components
+
+**API Connectors Dashboard**
+- Unified view of all API integrations
+- Real-time connection health checks
+- Per-API configuration and status
+- Usage statistics and quotas
+
+**Contact Management**
+- Advanced filtering and search
+- Bulk import/export (CSV, TSV, Excel)
+- Automatic duplicate detection
+- Data quality scoring
+- Custom field mapping
+
+**Background Processing**
+- Parallel job execution with Sidekiq
+- Intelligent retry logic
+- Rate limiting and throttling
+- Progress monitoring
+- Error handling and logging
+
+**Business Lookup Engine**
+- Zipcode-based business discovery
+- Multi-provider fallback (Google Places, Yelp)
+- Automatic contact creation
+- Duplicate prevention
+- Batch processing support
+
+**AI Assistant**
+- Natural language query parsing
+- Intelligent filter generation
+- Data insights and recommendations
+- Contact segmentation
+- Quality analysis
 
 ## 📋 Prerequisites
 
@@ -122,20 +206,48 @@ redis-server
 
 - **Main App**: http://localhost:3000
 - **Admin Dashboard**: http://localhost:3000/admin
+- **API Connectors**: http://localhost:3000/admin/api_connectors
+- **Business Lookup**: http://localhost:3000/admin/business_lookup
+- **AI Assistant**: http://localhost:3000/admin/ai_assistant
 - **Sidekiq Monitor**: http://localhost:3000/sidekiq (requires admin login)
 
 Default admin credentials (from seed):
 - Email: `admin@example.com`
 - Password: `password`
 
+**⚠️ Important**: Change the default password immediately after first login!
+
 ## 📊 Usage
 
-### Import Contacts
+### Quick Start Guide
 
-1. Log in to the admin dashboard
-2. Navigate to **Contacts**
-3. Click **Import Contacts**
-4. Upload a CSV file with phone numbers (column: `raw_phone_number`)
+#### 1. Configure API Integrations
+
+Navigate to **API Connectors** dashboard to see all available integrations:
+
+**Required:**
+- Twilio Lookup v2 (Account SID + Auth Token)
+
+**Optional Enrichment APIs:**
+- **Business Intelligence**: Clearbit, NumVerify
+- **Email Discovery**: Hunter.io, ZeroBounce
+- **Address Data**: Whitepages Pro, TrueCaller
+- **Business Search**: Google Places, Yelp Fusion
+- **AI Features**: OpenAI API
+- **Coverage Check**: Verizon (no API key needed)
+
+The API Connectors dashboard shows:
+- Configuration status for each API
+- Active data packages
+- Connection health checks
+- Quick toggle switches for features
+
+#### 2. Import Contacts
+
+**Method A: CSV Upload**
+1. Navigate to **Contacts**
+2. Click **Import Contacts**
+3. Upload CSV with phone numbers (column: `raw_phone_number`)
 
 Example CSV format:
 ```csv
@@ -145,35 +257,153 @@ raw_phone_number
 +14155559999
 ```
 
-### Run Bulk Lookup
+**Method B: Business Lookup by Zipcode**
+1. Navigate to **Business Lookup**
+2. Enter one or more zipcodes (e.g., 90210, 10001)
+3. System automatically finds businesses and imports as contacts
+4. Businesses are auto-enriched with phone + email data
+
+#### 3. Run Bulk Lookup
 
 1. Go to the **Dashboard**
 2. Click **Run Lookup** button
-3. Processing will happen in the background via Sidekiq
-4. Monitor progress in the Dashboard or Sidekiq UI
+3. Processing happens in background via Sidekiq
+4. Enable optional enrichments in **Twilio Credentials** settings:
+   - Line Type Intelligence
+   - Caller Name (CNAM)
+   - SMS Pumping Risk
+   - Business Enrichment
+   - Email Enrichment
+   - Address Enrichment
 
-### Monitor Progress
+#### 4. Use AI Assistant
 
-- **Dashboard**: Shows total contacts and processed count
-- **Sidekiq UI** (`/sidekiq`): Real-time job monitoring, retries, failures
-- **Contacts Page**: Filter by status (pending/processing/completed/failed)
+Navigate to **AI Assistant** to:
 
-### Export Results
+**Natural Language Search:**
+```
+"Find tech companies in California with 50+ employees"
+"Show me mobile numbers with high SMS risk"
+"Businesses in healthcare with verified emails"
+```
+
+**Ask Questions:**
+```
+"What industries should I focus on?"
+"Analyze my contact data quality"
+"Which contacts have the highest engagement potential?"
+```
+
+#### 5. Monitor Progress
+
+- **Dashboard**: Total contacts and processing statistics
+- **API Connectors**: Per-API usage and health status
+- **Sidekiq UI** (`/sidekiq`): Real-time job monitoring
+- **Contacts Page**: Filter by status, enrichment level, quality score
+- **Duplicates**: View and merge duplicate contacts
+
+#### 6. Export Results
 
 1. Navigate to **Contacts**
-2. Use filters to select desired contacts
+2. Use filters or AI search to select contacts
 3. Click **Download** and choose format (CSV/TSV/Excel)
 
 Exported data includes:
-- Original phone number
-- Formatted phone number
-- Carrier name
-- Device type (mobile/landline/voip)
-- Mobile network/country codes
-- Processing status
-- Error messages (if failed)
+- Phone validation (line type, carrier, formatted number)
+- Business data (name, industry, employee count, revenue)
+- Email addresses (discovered + verified)
+- Physical addresses (consumer + business)
+- Risk scores (SMS pumping, fraud indicators)
+- Quality metrics (data completeness score)
+- Verizon coverage availability
 
 ## ⚙️ Configuration
+
+### API Integration Setup
+
+Configure API integrations via **Admin → API Connectors** or **Twilio Credentials**:
+
+#### Core APIs
+
+**Twilio Lookup v2** (Required)
+```
+Account SID: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Auth Token: your_auth_token
+```
+Enable data packages:
+- Line Type Intelligence
+- Caller Name (CNAM)
+- SMS Pumping Risk
+- SIM Swap Detection
+- Reassigned Number
+
+#### Business Intelligence
+
+**Clearbit** (Premium business data)
+```
+API Key: sk-xxxxxxxxxxxx
+Enable: Business Enrichment toggle
+```
+
+**NumVerify** (Basic phone intelligence)
+```
+API Key: your_numverify_key
+```
+
+#### Email Discovery
+
+**Hunter.io** (Email finding)
+```
+API Key: your_hunter_key
+Enable: Email Enrichment toggle
+```
+
+**ZeroBounce** (Email verification)
+```
+API Key: your_zerobounce_key
+```
+
+#### Address & Coverage
+
+**Whitepages Pro** (Consumer addresses)
+```
+API Key: your_whitepages_key
+Enable: Address Enrichment toggle
+```
+
+**TrueCaller** (Alternative address source)
+```
+API Key: your_truecaller_key
+```
+
+**Verizon Coverage** (5G/LTE availability)
+```
+No API key needed
+Enable: Verizon Coverage Check toggle
+```
+
+#### Business Directory
+
+**Google Places** (Business search by zipcode)
+```
+API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
+Enable: Zipcode Business Lookup toggle
+Results per zipcode: 20 (configurable)
+```
+
+**Yelp Fusion** (Alternative business directory)
+```
+API Key: your_yelp_api_key
+```
+
+#### AI Features
+
+**OpenAI** (Natural language search & insights)
+```
+API Key: sk-xxxxxxxxxxxx
+Model: gpt-4o-mini (default) or gpt-4
+Enable: AI Features toggle
+```
 
 ### Sidekiq Concurrency
 
@@ -192,9 +422,10 @@ Edit `config/sidekiq.yml` to adjust processing speed:
 ### Processing Rate
 
 With default settings (concurrency: 5):
-- **Theoretical max**: ~25 requests/second
-- **Realistic throughput**: ~4,000 contacts/hour
-- Actual rate depends on network latency and API response time
+- **Phone Lookup**: ~4,000 contacts/hour
+- **Business Enrichment**: ~2,000 contacts/hour (additional API calls)
+- **Email Discovery**: ~1,500 contacts/hour (rate-limited APIs)
+- **Zipcode Lookup**: ~20 businesses per zipcode per request
 
 ### Retry Configuration
 
@@ -202,6 +433,20 @@ Jobs automatically retry on transient failures:
 - **Max retries**: 3 attempts
 - **Backoff**: Exponential (15s, 17s, 19s)
 - **Permanent failures**: No retry (invalid numbers, auth errors)
+
+### Feature Toggles
+
+Control which enrichments run via **Twilio Credentials** settings:
+- `enable_line_type_intelligence`: Phone type detection
+- `enable_caller_name`: CNAM lookup
+- `enable_sms_pumping_risk`: Fraud risk scoring
+- `enable_business_enrichment`: Company data enrichment
+- `enable_email_enrichment`: Email discovery
+- `enable_address_enrichment`: Address lookup
+- `enable_duplicate_detection`: Auto-detect duplicates
+- `enable_ai_features`: AI Assistant access
+- `enable_zipcode_lookup`: Business directory search
+- `enable_verizon_coverage_check`: Verizon availability
 
 ## 🔧 Heroku Deployment
 
@@ -279,18 +524,60 @@ rails db:migrate:status
 - **Rate Limit Exceeded**: Lower Sidekiq concurrency in `config/sidekiq.yml`
 - **Invalid Number**: Check phone number format (E.164 recommended: +1234567890)
 
-## 📝 API Response Fields
+## 📝 Available Data Fields
 
+### Phone Validation Fields
 | Field | Description | Example |
 |-------|-------------|---------|
 | `raw_phone_number` | Original input | `4155551234` |
 | `formatted_phone_number` | E.164 format | `+14155551234` |
-| `carrier_name` | Carrier/provider name | `Verizon` |
-| `device_type` | Phone type | `mobile`, `landline`, `voip` |
+| `carrier_name` | Carrier/provider name | `Verizon Wireless` |
+| `line_type` | Phone type | `mobile`, `landline`, `voip` |
 | `mobile_country_code` | MCC code | `310` |
 | `mobile_network_code` | MNC code | `456` |
+| `caller_name` | CNAM lookup result | `John Doe` |
+| `sms_pumping_risk_level` | Fraud risk score | `low`, `medium`, `high` |
+
+### Business Intelligence Fields
+| Field | Description | Example |
+|-------|-------------|---------|
+| `business_name` | Company name | `Acme Corporation` |
+| `business_industry` | Industry category | `Technology` |
+| `business_type` | Company type | `B2B`, `B2C`, `Enterprise` |
+| `business_description` | Company description | `Leading SaaS provider...` |
+| `business_employee_range` | Employee count | `50-200`, `200-500`, `500+` |
+| `business_revenue_range` | Annual revenue | `$1M-$10M`, `$10M-$50M` |
+| `business_tags` | Technology stack | `['Ruby', 'Rails', 'AWS']` |
+| `is_business` | Business vs consumer | `true`, `false` |
+
+### Email Fields
+| Field | Description | Example |
+|-------|-------------|---------|
+| `email` | Email address | `contact@acme.com` |
+| `email_verified` | Verification status | `true`, `false` |
+| `email_deliverability` | Deliverability score | `high`, `medium`, `low` |
+| `email_source` | Discovery source | `hunter`, `clearbit` |
+
+### Address Fields
+| Field | Description | Example |
+|-------|-------------|---------|
+| `business_address` | Full address | `123 Main St` |
+| `business_city` | City | `San Francisco` |
+| `business_state` | State/Province | `CA` |
+| `business_postal_code` | Zipcode | `94102` |
+| `business_country` | Country | `United States` |
+| `latitude` | Geo coordinate | `37.7749` |
+| `longitude` | Geo coordinate | `-122.4194` |
+
+### Coverage & Risk Fields
+| Field | Description | Example |
+|-------|-------------|---------|
+| `verizon_5g_home_available` | 5G availability | `true`, `false` |
+| `verizon_lte_home_available` | LTE availability | `true`, `false` |
+| `verizon_fios_available` | Fios availability | `true`, `false` |
+| `data_quality_score` | Overall quality (0-100) | `85` |
+| `status` | Processing status | `pending`, `completed`, `failed` |
 | `error_code` | Error message if failed | `Invalid number format` |
-| `status` | Processing status | `pending`, `processing`, `completed`, `failed` |
 
 ## 🧪 Development
 
@@ -330,12 +617,59 @@ rails console
 heroku run rails console
 ```
 
+## 🎯 Use Cases
+
+### Sales & Marketing
+- **Lead Enrichment**: Automatically enhance contact lists with business intelligence
+- **List Cleaning**: Validate phone numbers and remove invalid contacts
+- **Territory Mapping**: Find all businesses in specific zipcodes or regions
+- **Email Discovery**: Build email lists from phone-only contact databases
+- **Market Research**: Analyze business distribution by industry and location
+
+### Fraud Prevention
+- **SMS Pumping Detection**: Identify high-risk numbers before sending
+- **SIM Swap Monitoring**: Detect potential account takeover attempts
+- **Number Validation**: Verify phone numbers are active and legitimate
+- **Risk Scoring**: Automated fraud risk assessment for all contacts
+
+### Customer Intelligence
+- **Consumer vs Business**: Automatically classify contacts
+- **Service Availability**: Check Verizon coverage for target addresses
+- **Duplicate Management**: Identify and merge duplicate records
+- **Data Quality Tracking**: Monitor enrichment completeness
+
+### Research & Analytics
+- **Natural Language Queries**: Ask questions about your contact database
+- **Industry Analysis**: Understand market composition and trends
+- **Quality Metrics**: Track data completeness and accuracy
+- **AI-Powered Insights**: Get recommendations from your data
+
 ## 📚 Additional Resources
 
-- [Twilio Lookup API Documentation](https://www.twilio.com/docs/lookup/api)
+### Platform Documentation
+- [Twilio Lookup API v2](https://www.twilio.com/docs/lookup/v2-api)
+- [Twilio Trust Hub](https://www.twilio.com/docs/trust-hub)
 - [Sidekiq Documentation](https://github.com/sidekiq/sidekiq/wiki)
 - [ActiveAdmin Documentation](https://activeadmin.info/documentation.html)
 - [Rails Guides](https://guides.rubyonrails.org/)
+
+### API Provider Documentation
+- [Clearbit Enrichment API](https://clearbit.com/docs)
+- [Hunter.io Email Finder](https://hunter.io/api-documentation)
+- [ZeroBounce Email Verification](https://www.zerobounce.net/docs/)
+- [Google Places API](https://developers.google.com/maps/documentation/places/web-service)
+- [Yelp Fusion API](https://www.yelp.com/developers/documentation/v3)
+- [Whitepages Pro API](https://pro.whitepages.com/developer/documentation/)
+- [OpenAI API](https://platform.openai.com/docs)
+
+### Getting API Keys
+- [Twilio Console](https://console.twilio.com/) - Get Account SID and Auth Token
+- [Clearbit](https://clearbit.com/) - Premium business data
+- [Hunter.io](https://hunter.io/) - 50 free searches/month
+- [ZeroBounce](https://www.zerobounce.net/) - 100 free verifications
+- [Google Cloud Console](https://console.cloud.google.com/) - Enable Places API
+- [Yelp Developers](https://www.yelp.com/developers) - Free API access
+- [OpenAI Platform](https://platform.openai.com/) - Pay-as-you-go pricing
 
 ## 🤝 Contributing
 
