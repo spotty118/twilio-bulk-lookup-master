@@ -1,262 +1,251 @@
-require 'net/http'
-require 'json'
-
 class AiAssistantService
   # Main AI assistant for natural language queries
-  def self.query(prompt, context: nil)
-    new.query(prompt, context: context)
+  # Now supports multiple LLM providers: OpenAI, Anthropic Claude, Google Gemini
+
+  def self.query(prompt, context: nil, provider: nil)
+    new.query(prompt, context: context, provider: provider)
   end
 
-  # Generate sales intelligence for a contact
-  def self.generate_sales_intelligence(contact)
-    new.generate_sales_intelligence(contact)
+  def self.generate_sales_intelligence(contact, provider: nil)
+    new.generate_sales_intelligence(contact, provider: provider)
   end
 
-  # Natural language search
-  def self.natural_language_search(query)
-    new.natural_language_search(query)
+  def self.natural_language_search(search_query, provider: nil)
+    new.natural_language_search(search_query, provider: provider)
   end
 
-  # Generate outreach message
-  def self.generate_outreach(contact, template_type: 'intro')
-    new.generate_outreach(contact, template_type: template_type)
+  def self.generate_outreach(contact, template_type: 'intro', provider: nil)
+    new.generate_outreach(contact, template_type: template_type, provider: provider)
   end
 
   def initialize
-    @api_key = ENV['OPENAI_API_KEY'] || TwilioCredential.current&.openai_api_key
-    @model = TwilioCredential.current&.ai_model || 'gpt-4o-mini'
-    @max_tokens = TwilioCredential.current&.ai_max_tokens || 500
+    @credentials = TwilioCredential.current
+    @llm_service = MultiLlmService.new
   end
 
-  def query(prompt, context: nil)
+  def query(prompt, context: nil, provider: nil)
     return { error: "AI features not enabled" } unless ai_enabled?
 
-    messages = [
-      {
-        role: "system",
-        content: "You are a helpful AI assistant for a sales CRM focused on phone number intelligence and business data. Provide concise, actionable insights."
-      }
-    ]
+    system_prompt = "You are a helpful AI assistant for a sales CRM focused on phone number intelligence and business data. Provide concise, actionable insights."
 
     if context
-      messages << {
-        role: "system",
-        content: "Context: #{context}"
-      }
+      system_prompt += "\n\nContext: #{context}"
     end
 
-    messages << {
-      role: "user",
-      content: prompt
+    full_prompt = "#{system_prompt}\n\n#{prompt}"
+
+    result = @llm_service.generate(full_prompt, provider: provider || preferred_provider)
+
+    if result[:success]
+      {
+        content: result[:response],
+        provider: result[:provider],
+        usage: result[:usage]
+      }
+    else
+      { error: result[:error] }
+    end
+  end
+
+  def generate_sales_intelligence(contact, provider: nil)
+    return { error: "AI features not enabled" } unless ai_enabled?
+
+    # Use the new MultiLlmService method
+    result = @llm_service.generate_sales_intelligence(contact, provider: provider || preferred_provider)
+
+    if result[:success]
+      {
+        content: result[:response],
+        provider: result[:provider],
+        usage: result[:usage]
+      }
+    else
+      { error: result[:error] }
+    end
+  end
+
+  def natural_language_search(search_query, provider: nil)
+    return { error: "AI features not enabled" } unless ai_enabled?
+
+    # Use the new MultiLlmService method
+    result = @llm_service.parse_query(search_query, provider: provider || preferred_provider)
+
+    if result[:success]
+      result
+    else
+      { error: result[:error] }
+    end
+  end
+
+  def generate_outreach(contact, template_type: 'intro', provider: nil)
+    return { error: "AI features not enabled" } unless ai_enabled?
+
+    # Use the new MultiLlmService method
+    result = @llm_service.generate_outreach_message(
+      contact,
+      message_type: template_type,
+      provider: provider || preferred_provider
+    )
+
+    if result[:success]
+      {
+        content: result[:response],
+        provider: result[:provider],
+        usage: result[:usage]
+      }
+    else
+      { error: result[:error] }
+    end
+  end
+
+  # Data analysis and insights
+  def analyze_contact_quality(limit: 100)
+    return { error: "AI features not enabled" } unless ai_enabled?
+
+    # Get sample of contacts with quality issues
+    low_quality = Contact.low_quality.limit(limit)
+
+    summary = {
+      total: Contact.count,
+      low_quality_count: Contact.low_quality.count,
+      avg_quality_score: Contact.average(:data_quality_score)&.round(2),
+      issues: []
     }
 
-    response = call_openai(messages)
-    response[:content] if response
-  end
-
-  def generate_sales_intelligence(contact)
-    return { error: "AI features not enabled" } unless ai_enabled?
-
-    # Build comprehensive contact profile
-    profile = build_contact_profile(contact)
+    # Identify common issues
+    summary[:issues] << "#{Contact.where(email: nil).count} contacts missing email" if Contact.where(email: nil).count > 0
+    summary[:issues] << "#{Contact.where(business_enriched: false).count} contacts not enriched" if Contact.where(business_enriched: false).count > 0
+    summary[:issues] << "#{Contact.high_risk.count} high-risk contacts" if Contact.high_risk.count > 0
 
     prompt = <<~PROMPT
-      Analyze this sales contact and provide actionable intelligence:
+      Analyze this contact database quality summary:
 
-      #{profile}
+      #{summary.to_json}
 
       Provide:
-      1. Key insights about this contact (2-3 bullet points)
-      2. Potential pain points or needs based on their business
-      3. Recommended talking points for sales outreach
-      4. Best time/channel to reach them (based on contact type)
-      5. Risk assessment (fraud risk, data quality issues)
+      1. Top 3 data quality issues to address
+      2. Recommended actions to improve data quality
+      3. Estimated impact of improvements
+      4. Priority order for fixes
 
-      Keep response concise and sales-focused.
+      Keep response concise and actionable.
     PROMPT
 
     query(prompt)
   end
 
-  def natural_language_search(search_query)
+  # Industry insights
+  def analyze_industry_distribution
     return { error: "AI features not enabled" } unless ai_enabled?
 
-    # Use GPT to convert natural language to SQL-like query
+    industries = Contact.group(:business_industry).count
+    top_industries = industries.sort_by { |_, count| -count }.first(10)
+
     prompt = <<~PROMPT
-      Convert this natural language query into structured search criteria for a contact database:
+      Analyze this industry distribution from our contact database:
 
-      Query: "#{search_query}"
+      #{top_industries.to_h.to_json}
 
-      Available fields:
-      - business_name, business_industry, business_type
-      - business_employee_range (1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001-10000, 10000+)
-      - business_revenue_range ($0-$1M, $1M-$10M, $10M-$50M, $50M-$100M, $100M-$500M, $500M-$1B, $1B+)
-      - business_city, business_state, business_country
-      - line_type (mobile, landline, voip)
-      - sms_pumping_risk_level (low, medium, high)
-      - is_business (true/false)
-      - email_verified (true/false)
-      - status (pending, processing, completed, failed)
+      Provide:
+      1. Market opportunities based on industry concentration
+      2. Underserved industries worth targeting
+      3. Industry-specific outreach recommendations
+      4. Risk factors by industry
 
-      Respond ONLY with JSON in this format:
-      {
-        "filters": {
-          "field_name": "value",
-          "another_field": "value"
-        },
-        "explanation": "Plain English explanation of what will be searched"
-      }
+      Keep response strategic and sales-focused.
     PROMPT
 
-    response = query(prompt)
-    return { error: "AI parsing failed" } unless response
+    query(prompt)
+  end
 
-    begin
-      # Extract JSON from response
-      json_match = response.match(/\{.*\}/m)
-      return { error: "No JSON found in response" } unless json_match
+  # Smart contact recommendations
+  def recommend_contacts_for_outreach(criteria: {}, limit: 10)
+    return { error: "AI features not enabled" } unless ai_enabled?
 
-      parsed = JSON.parse(json_match[0])
+    # Build smart query based on criteria
+    contacts = Contact.completed.high_quality
+
+    contacts = contacts.where(business_employee_range: criteria[:size]) if criteria[:size]
+    contacts = contacts.where(business_industry: criteria[:industry]) if criteria[:industry]
+    contacts = contacts.where(sms_pumping_risk_level: 'low') unless criteria[:allow_risk]
+
+    contacts = contacts.limit(limit)
+
+    summary = contacts.map { |c| build_contact_summary(c) }.join("\n\n---\n\n")
+
+    prompt = <<~PROMPT
+      Rank these contacts for sales outreach priority:
+
+      #{summary}
+
+      For each contact, provide:
+      1. Priority score (1-10)
+      2. Best outreach angle
+      3. Talking points
+      4. Potential objections
+
+      Respond in JSON format with contact ID as key.
+    PROMPT
+
+    result = query(prompt)
+
+    if result[:content]
       {
-        filters: parsed['filters'],
-        explanation: parsed['explanation'],
-        raw_response: response
+        content: result[:content],
+        contacts: contacts,
+        provider: result[:provider]
       }
-    rescue JSON::ParserError => e
-      { error: "Failed to parse AI response: #{e.message}", raw: response }
+    else
+      result
     end
   end
 
-  def generate_outreach(contact, template_type: 'intro')
-    return { error: "AI features not enabled" } unless ai_enabled?
-
-    profile = build_contact_profile(contact)
-
-    prompt = case template_type
-    when 'intro'
-      <<~PROMPT
-        Write a personalized cold outreach message for this contact:
-
-        #{profile}
-
-        Requirements:
-        - Professional but friendly tone
-        - Reference their business/industry specifically
-        - Keep under 100 words
-        - Include a clear call-to-action
-        - Don't be pushy or salesy
-
-        Format: SMS-friendly (no special formatting)
-      PROMPT
-    when 'follow_up'
-      <<~PROMPT
-        Write a follow-up message for this contact (assume they didn't respond to initial outreach):
-
-        #{profile}
-
-        Requirements:
-        - Brief reminder of previous message
-        - Add new value/angle
-        - Soft call-to-action
-        - Under 80 words
-        - SMS-friendly format
-      PROMPT
-    when 'email'
-      <<~PROMPT
-        Write a professional email to this contact:
-
-        #{profile}
-
-        Requirements:
-        - Include subject line
-        - Professional email format
-        - Personalized based on their business
-        - Clear value proposition
-        - Strong call-to-action
-        - Keep under 150 words
-      PROMPT
+  # Get cost-effective provider for task
+  def self.best_provider_for(task_type)
+    case task_type
+    when :quick_query
+      'google'  # Gemini Flash is cheapest
+    when :complex_analysis
+      'anthropic'  # Claude excels at analysis
+    when :creative_writing
+      'openai'  # GPT-4 for creative tasks
+    else
+      TwilioCredential.current&.preferred_llm_provider || 'openai'
     end
-
-    query(prompt)
   end
 
   private
 
   def ai_enabled?
-    credentials = TwilioCredential.current
-    return false unless credentials&.enable_ai_features
-    return false unless @api_key.present?
-    true
+    return false unless @credentials&.enable_ai_features
+
+    # Check if at least one LLM provider is configured
+    has_openai = @credentials.enable_ai_features && @credentials.openai_api_key.present?
+    has_anthropic = @credentials.enable_anthropic && @credentials.anthropic_api_key.present?
+    has_google = @credentials.enable_google_ai && @credentials.google_ai_api_key.present?
+
+    has_openai || has_anthropic || has_google
   end
 
-  def call_openai(messages)
-    uri = URI('https://api.openai.com/v1/chat/completions')
-
-    request = Net::HTTP::Post.new(uri)
-    request['Authorization'] = "Bearer #{@api_key}"
-    request['Content-Type'] = 'application/json'
-
-    request.body = {
-      model: @model,
-      messages: messages,
-      max_tokens: @max_tokens,
-      temperature: 0.7
-    }.to_json
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 30) do |http|
-      http.request(request)
-    end
-
-    return nil unless response.code == '200'
-
-    data = JSON.parse(response.body)
-    {
-      content: data.dig('choices', 0, 'message', 'content'),
-      usage: data['usage']
-    }
-  rescue StandardError => e
-    Rails.logger.error("OpenAI API error: #{e.message}")
-    nil
+  def preferred_provider
+    @credentials&.preferred_llm_provider || 'openai'
   end
 
-  def build_contact_profile(contact)
-    profile = []
+  def build_contact_summary(contact)
+    summary = ["Contact ID: #{contact.id}"]
+    summary << "Phone: #{contact.formatted_phone_number}"
+    summary << "Name: #{contact.full_name}" if contact.full_name.present?
 
-    # Basic info
-    profile << "Phone: #{contact.formatted_phone_number || contact.raw_phone_number}"
-    profile << "Name: #{contact.full_name}" if contact.full_name.present?
-    profile << "Email: #{contact.email}" if contact.email.present?
-
-    # Contact type
     if contact.business?
-      profile << "\nBusiness Contact:"
-      profile << "- Company: #{contact.business_name}" if contact.business_name.present?
-      profile << "- Industry: #{contact.business_industry}" if contact.business_industry.present?
-      profile << "- Size: #{contact.business_size_category}" if contact.business_employee_range.present?
-      profile << "- Revenue: #{contact.business_revenue_range}" if contact.business_revenue_range.present?
-      profile << "- Location: #{contact.business_city}, #{contact.business_state}" if contact.business_city.present?
-      profile << "- Website: #{contact.business_website}" if contact.business_website.present?
-      profile << "- Description: #{contact.business_description}" if contact.business_description.present?
-    else
-      profile << "\nConsumer Contact"
+      summary << "Company: #{contact.business_name}"
+      summary << "Industry: #{contact.business_industry}" if contact.business_industry.present?
+      summary << "Size: #{contact.business_size_category}" if contact.business_employee_range.present?
+      summary << "Revenue: #{contact.business_revenue_range}" if contact.business_revenue_range.present?
     end
 
-    # Contact quality/risk
-    profile << "\nData Quality:"
-    profile << "- Phone Valid: #{contact.valid ? 'Yes' : 'Unknown'}"
-    profile << "- Line Type: #{contact.line_type_display}" if contact.line_type.present?
-    profile << "- Fraud Risk: #{contact.fraud_risk_display}" if contact.sms_pumping_risk_level.present?
+    summary << "Quality Score: #{contact.data_quality_score}%" if contact.data_quality_score
+    summary << "Risk Level: #{contact.sms_pumping_risk_level}" if contact.sms_pumping_risk_level.present?
 
-    if contact.email_verified
-      profile << "- Email: Verified"
-    elsif contact.email.present?
-      profile << "- Email: Unverified"
-    end
-
-    # Position/role
-    profile << "- Position: #{contact.position}" if contact.position.present?
-    profile << "- Department: #{contact.department}" if contact.department.present?
-
-    profile.join("\n")
+    summary.join("\n")
   end
 end
