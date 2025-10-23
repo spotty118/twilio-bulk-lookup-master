@@ -12,12 +12,10 @@
 5. [Coverage Check APIs](#5-coverage-check-apis)
 6. [Business Directory APIs](#6-business-directory-apis)
 7. [AI & LLM APIs](#7-ai--llm-apis)
-8. [Messaging APIs](#8-messaging-apis)
-9. [CRM Integration APIs](#9-crm-integration-apis)
-10. [Business Verification APIs](#10-business-verification-apis)
-11. [Webhook Configuration](#11-webhook-configuration)
-12. [Cost Tracking](#12-cost-tracking)
-13. [Configuration Best Practices](#13-configuration-best-practices)
+8. [Business Verification APIs](#8-business-verification-apis)
+9. [Webhook Configuration](#9-webhook-configuration)
+10. [Cost Tracking](#10-cost-tracking)
+11. [Configuration Best Practices](#11-configuration-best-practices)
 
 ---
 
@@ -465,162 +463,9 @@ result = llm.generate(
 
 ---
 
-## 8. Messaging APIs
+## 8. Business Verification APIs
 
-### 8.1 Twilio SMS (NEW!)
-
-**Purpose**: Send outbound SMS messages
-
-**Configuration**:
-```ruby
-enable_sms_messaging: true
-twilio_phone_number: "+15551234567"
-twilio_messaging_service_sid: "MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # optional
-
-# Templates
-sms_intro_template: "Hi {{first_name}}, ..."
-sms_follow_up_template: "Following up..."
-
-# Rate limiting
-max_sms_per_hour: 100
-```
-
-**Pricing**: $0.0079 per SMS (US)
-
-**Usage**:
-```ruby
-service = MessagingService.new(contact)
-service.send_sms("Your message here")
-service.send_sms_from_template(template_type: 'intro')
-service.send_ai_generated_sms(message_type: 'intro')
-```
-
-**Webhook URL**: `https://yourdomain.com/webhooks/twilio/sms_status`
-
----
-
-### 8.2 Twilio Voice (NEW!)
-
-**Purpose**: Make outbound voice calls
-
-**Configuration**:
-```ruby
-enable_voice_messaging: true
-voice_call_webhook_url: "https://yourdomain.com/twiml/voice"
-voice_recording_enabled: false
-max_calls_per_hour: 50
-```
-
-**Pricing**: $0.014 per minute (US)
-
-**Usage**:
-```ruby
-service = MessagingService.new(contact)
-service.make_voice_call
-```
-
-**Webhook URL**: `https://yourdomain.com/webhooks/twilio/voice_status`
-
----
-
-## 9. CRM Integration APIs
-
-### 9.1 Salesforce (NEW!)
-
-**Purpose**: Bidirectional contact sync
-
-**Configuration**:
-```ruby
-enable_salesforce_sync: true
-salesforce_instance_url: "https://yourcompany.salesforce.com"
-salesforce_client_id: "3MVG9xxxxxxxxxxxxxxxxxxxxx"
-salesforce_client_secret: "your_client_secret"
-salesforce_access_token: "00Dxxxxxxxxxxxx!ARxxxxxx"  # obtained via OAuth
-salesforce_refresh_token: "your_refresh_token"
-salesforce_auto_sync: true
-crm_sync_interval_minutes: 60
-crm_sync_direction: "bidirectional"  # or "push", "pull"
-```
-
-**How to Get OAuth Credentials**:
-1. Log in to Salesforce
-2. Setup → Apps → App Manager → New Connected App
-3. Enable OAuth Settings
-4. Add scopes: `full`, `refresh_token`
-5. Copy Consumer Key (Client ID) and Consumer Secret
-
-**OAuth Flow**:
-```ruby
-# Get authorization URL
-url = CrmSync::SalesforceService.get_authorization_url(redirect_uri)
-
-# Exchange code for token (after user authorizes)
-result = CrmSync::SalesforceService.exchange_code_for_token(code, redirect_uri)
-```
-
-**Usage**:
-```ruby
-service = CrmSync::SalesforceService.new(contact)
-service.sync_to_salesforce
-
-# Or use background job
-CrmSyncJob.perform_later(contact.id, 'salesforce')
-```
-
----
-
-### 9.2 HubSpot (NEW!)
-
-**Purpose**: Marketing automation integration
-
-**Configuration**:
-```ruby
-enable_hubspot_sync: true
-hubspot_api_key: "pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-hubspot_portal_id: "12345678"
-hubspot_auto_sync: true
-```
-
-**How to Get API Key**:
-1. Log in to HubSpot
-2. Settings → Integrations → Private Apps
-3. Create private app with scopes: `crm.objects.contacts.write`, `crm.objects.contacts.read`
-4. Generate access token
-
-**Pricing**: Included with HubSpot subscription
-
-**Usage**:
-```ruby
-service = CrmSync::HubspotService.new(contact)
-service.sync_to_hubspot
-```
-
----
-
-### 9.3 Pipedrive (NEW!)
-
-**Purpose**: Sales pipeline management
-
-**Configuration**:
-```ruby
-enable_pipedrive_sync: true
-pipedrive_api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-pipedrive_company_domain: "yourcompany"
-pipedrive_auto_sync: true
-```
-
-**How to Get API Key**:
-1. Log in to Pipedrive
-2. Settings → Personal Preferences → API
-3. Copy your API token
-
-**Pricing**: Included with Pipedrive subscription
-
----
-
-## 10. Business Verification APIs
-
-### 10.1 Twilio Trust Hub
+### 8.1 Twilio Trust Hub
 
 **Purpose**: Business verification for compliance
 
@@ -639,33 +484,22 @@ trust_hub_reverification_days: 90
 
 ---
 
-## 11. Webhook Configuration
+## 9. Webhook Configuration
 
-### 11.1 Available Webhook Endpoints
+### 9.1 Trust Hub Webhook Endpoint
 
-**SMS Status Updates**:
-```
-POST https://yourdomain.com/webhooks/twilio/sms_status
-```
-
-**Voice Call Status**:
-```
-POST https://yourdomain.com/webhooks/twilio/voice_status
-```
-
-**Trust Hub Status**:
+**Trust Hub Status Updates**:
 ```
 POST https://yourdomain.com/webhooks/twilio/trust_hub
 ```
 
-### 11.2 Configuring Webhooks in Twilio
+### 9.2 Configuring Webhook in Twilio
 
 1. Go to Twilio Console
-2. For SMS: Configure webhook URL in Messaging Service or Phone Number settings
-3. For Voice: Configure webhook URL in Phone Number settings
-4. For Trust Hub: Configure in Trust Hub Policy settings
+2. Navigate to Trust Hub Policy settings
+3. Configure webhook URL for status updates
 
-### 11.3 Webhook Security
+### 9.3 Webhook Security
 
 All webhooks are validated using Twilio's signature verification:
 ```ruby
@@ -676,9 +510,9 @@ validator.validate(url, request.POST, signature)
 
 ---
 
-## 12. Cost Tracking
+## 10. Cost Tracking
 
-### 12.1 Automatic Cost Logging
+### 10.1 Automatic Cost Logging
 
 All API calls are automatically logged with cost information:
 
@@ -696,7 +530,7 @@ ApiUsageLog.total_cost_by_provider(start_date: 1.week.ago)
 ApiUsageLog.usage_stats(start_date: 1.month.ago)
 ```
 
-### 12.2 Cost Matrix (Per Request)
+### 10.2 Cost Matrix (Per Request)
 
 | Provider | Service | Cost (USD) |
 |----------|---------|-----------|
@@ -719,7 +553,7 @@ ApiUsageLog.usage_stats(start_date: 1.month.ago)
 | Anthropic | Claude 3.5 Sonnet | $0.003/1K tokens |
 | Google AI | Gemini Flash | $0.000075/1K tokens |
 
-### 12.3 Viewing Cost Analytics
+### 10.3 Viewing Cost Analytics
 
 Access the API Usage Logs dashboard in ActiveAdmin to view:
 - Total costs by provider
@@ -729,9 +563,9 @@ Access the API Usage Logs dashboard in ActiveAdmin to view:
 
 ---
 
-## 13. Configuration Best Practices
+## 11. Configuration Best Practices
 
-### 13.1 Recommended Startup Configuration
+### 11.1 Recommended Startup Configuration
 
 **Minimum (Free Tier)**:
 ```ruby
@@ -785,7 +619,7 @@ ai_model: "gpt-4o-mini"
 # + Business directory lookups
 ```
 
-### 13.2 Rate Limiting Best Practices
+### 11.2 Rate Limiting Best Practices
 
 - Start with Sidekiq concurrency: 5
 - Monitor API usage logs for rate limit errors
@@ -793,15 +627,15 @@ ai_model: "gpt-4o-mini"
 - Use batch operations during off-peak hours
 - Enable auto-retry with exponential backoff
 
-### 13.3 Security Recommendations
+### 11.3 Security Recommendations
 
 1. **API Key Storage**: Never commit API keys to version control
 2. **Environment Variables**: Use Rails credentials or environment variables
 3. **Webhook Security**: Always validate Twilio signatures
-4. **CRM OAuth**: Rotate tokens regularly
+4. **API Token Rotation**: Rotate API keys and tokens regularly
 5. **Database Backups**: Regular backups of API usage logs
 
-### 13.4 Cost Optimization
+### 11.4 Cost Optimization
 
 1. **Selective Enrichment**: Only enrich high-value contacts
 2. **Caching**: Check if data already exists before API call

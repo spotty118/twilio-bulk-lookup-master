@@ -2,17 +2,16 @@
 
 # Bulk Lookup for Twilio
 
-An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 14+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, multi-LLM AI support, CRM sync, automated messaging, and comprehensive contact management.
+An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 14+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, multi-LLM AI support, and comprehensive contact management.
 
 ## ✨ What's New in v2.0
 
 This platform has evolved from a simple phone lookup tool into a comprehensive contact intelligence system with enterprise features:
 
 - **🆕 Multi-LLM Support**: OpenAI GPT, Anthropic Claude, and Google Gemini integration
-- **🆕 CRM Sync**: Bidirectional sync with Salesforce, HubSpot, and Pipedrive
-- **🆕 SMS & Voice**: Automated outreach with Twilio messaging and voice calls
+- **🆕 OpenRouter Integration**: Access 100+ AI models through a single unified API
 - **🆕 Geocoding**: Google Maps integration for address-to-coordinates conversion
-- **🆕 Real-time Webhooks**: Live status updates for Trust Hub, SMS, and voice calls
+- **🆕 Real-time Webhooks**: Live status updates for Trust Hub business verification
 - **🆕 API Cost Tracking**: Per-API usage analytics and billing insights
 - **API Connectors Dashboard**: Manage 14+ data providers from a single interface
 - **Business Discovery**: Find and import businesses by zipcode using Google Places and Yelp
@@ -31,12 +30,12 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **CSV Import/Export**: Easy data import and export in CSV, TSV, or Excel formats
 - **Background Processing**: Sidekiq-powered async job processing with Redis
 - **Admin Interface**: Comprehensive ActiveAdmin dashboard
-- **Status Tracking**: Real-time processing status for all contacts with webhook updates
+- **Status Tracking**: Real-time processing status for all contacts
 - **Error Handling**: Intelligent retry logic with exponential backoff
 - **Rate Limiting**: Configurable concurrency to prevent API throttling
 - **Idempotency**: Skip already-processed contacts automatically
 - **🆕 API Cost Tracking**: Real-time cost analytics per provider with usage insights
-- **🆕 Webhook System**: Real-time status updates for SMS, voice calls, and Trust Hub
+- **🆕 Trust Hub Webhooks**: Real-time status updates for business verification
 
 ### Advanced Enrichment
 - **Business Intelligence**: Company data from Clearbit and NumVerify
@@ -46,7 +45,7 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **Business Directory**: Zipcode-based business lookup via Google Places and Yelp
 - **Verizon Coverage**: Check 5G/LTE Home Internet availability (enhanced with geocoding)
 - **Duplicate Detection**: Automatic duplicate contact identification
-- **Trust Hub Integration**: Business verification via Twilio Trust Hub with real-time webhooks
+- **Trust Hub Integration**: Business verification via Twilio Trust Hub
 
 ### AI-Powered Features
 - **🆕 Multi-LLM Support**: Choose between OpenAI GPT, Anthropic Claude, Google Gemini, or **OpenRouter** (100+ models)
@@ -55,7 +54,6 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **AI Assistant**: Get insights and recommendations from your data
 - **Smart Filtering**: AI-powered contact segmentation
 - **Sales Intelligence**: Automated lead scoring and analysis
-- **🆕 Outreach Generation**: AI-powered SMS and email message creation
 - **Cost Optimization**: Automatic selection of most cost-effective LLM for each task, including FREE models
 
 ### Data Quality
@@ -74,9 +72,7 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **Background Jobs**: Sidekiq with Redis
 - **Admin Interface**: ActiveAdmin
 - **API Integration**: 14+ third-party providers
-- **AI/ML**: OpenAI GPT, Anthropic Claude, Google Gemini
-- **Messaging**: Twilio SMS & Voice API
-- **CRM Integration**: Salesforce, HubSpot, Pipedrive
+- **AI/ML**: OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter (100+ models)
 - **Geocoding**: Google Maps Geocoding API
 - **Frontend**: Responsive admin dashboard with real-time updates
 
@@ -251,8 +247,6 @@ Navigate to **API Connectors** dashboard to see all available integrations:
 - **🆕 Geocoding**: Google Geocoding API
 - **Business Search**: Google Places, Yelp Fusion
 - **🆕 AI Features**: OpenAI, Anthropic Claude, Google Gemini, **OpenRouter** (100+ models)
-- **🆕 Messaging**: Twilio SMS & Voice
-- **🆕 CRM Sync**: Salesforce, HubSpot, Pipedrive
 - **Coverage Check**: Verizon (no API key needed)
 
 The API Connectors dashboard shows:
@@ -463,64 +457,13 @@ API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
 Enable: Geocoding toggle
 ```
 
-### CRM Integrations
+### Trust Hub Webhooks
 
-**🆕 Salesforce** (Sales CRM sync)
+**Trust Hub Status Updates**
 ```
-Client ID: 3MVGxxxxxxxxxxxxx
-Client Secret: your_client_secret
-Access Token: (obtained via OAuth)
-Refresh Token: (obtained via OAuth)
-Instance URL: https://yourcompany.salesforce.com
-Enable: Salesforce Sync toggle
-Auto Sync: true/false
-Sync Direction: bidirectional/push/pull
+Webhook URL: https://yourdomain.com/webhooks/twilio/trust_hub
 ```
-
-**🆕 HubSpot** (Marketing automation)
-```
-API Key: pat-na1-xxxxxxxxxxxx
-Portal ID: 12345678
-Enable: HubSpot Sync toggle
-Auto Sync: true/false
-```
-
-**🆕 Pipedrive** (Sales pipeline)
-```
-API Key: your_pipedrive_api_key
-Company Domain: yourcompany
-Enable: Pipedrive Sync toggle
-Auto Sync: true/false
-```
-
-### Messaging
-
-**🆕 Twilio SMS** (Outbound messaging)
-```
-Phone Number: +15551234567
-Messaging Service SID: MGxxxxxxxxxx (optional)
-Enable: SMS Messaging toggle
-Max SMS per Hour: 100
-Templates: Intro, Follow-up
-```
-
-**🆕 Twilio Voice** (Outbound calls)
-```
-Voice Webhook URL: https://yourdomain.com/twiml/voice
-Recording Enabled: true/false
-Enable: Voice Messaging toggle
-Max Calls per Hour: 50
-```
-
-### Webhooks
-
-**🆕 Webhook Endpoints**
-```
-SMS Status: https://yourdomain.com/webhooks/twilio/sms_status
-Voice Status: https://yourdomain.com/webhooks/twilio/voice_status
-Trust Hub: https://yourdomain.com/webhooks/twilio/trust_hub
-```
-Configure these URLs in your Twilio Console for real-time status updates.
+Configure this URL in your Twilio Console to receive real-time business verification status updates.
 
 ### Sidekiq Concurrency
 
@@ -573,14 +516,10 @@ Control which enrichments run via **Twilio Credentials** settings:
 
 **🆕 New Features:**
 - `enable_geocoding`: Google Geocoding API
-- `enable_sms_messaging`: Twilio SMS outreach
-- `enable_voice_messaging`: Twilio voice calls
 - `enable_ai_features`: OpenAI integration
 - `enable_anthropic`: Anthropic Claude integration
 - `enable_google_ai`: Google Gemini integration
-- `enable_salesforce_sync`: Salesforce CRM sync
-- `enable_hubspot_sync`: HubSpot CRM sync
-- `enable_pipedrive_sync`: Pipedrive CRM sync
+- `enable_openrouter`: OpenRouter multi-LLM integration
 
 ## 🔧 Heroku Deployment
 
@@ -798,9 +737,7 @@ heroku run rails console
 - [OpenAI API](https://platform.openai.com/docs)
 - [🆕 Anthropic API](https://docs.anthropic.com)
 - [🆕 Google AI (Gemini)](https://ai.google.dev/docs)
-- [🆕 Salesforce API](https://developer.salesforce.com/docs)
-- [🆕 HubSpot API](https://developers.hubspot.com)
-- [🆕 Pipedrive API](https://developers.pipedrive.com)
+- [🆕 OpenRouter](https://openrouter.ai/docs)
 
 ### Getting API Keys
 - [Twilio Console](https://console.twilio.com/) - Get Account SID and Auth Token
@@ -812,9 +749,7 @@ heroku run rails console
 - [OpenAI Platform](https://platform.openai.com/) - Pay-as-you-go pricing
 - [🆕 Anthropic Console](https://console.anthropic.com/) - Claude API access
 - [🆕 Google AI Studio](https://aistudio.google.com/app/apikey) - Gemini API key
-- [🆕 Salesforce Connected App](https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm) - OAuth setup
-- [🆕 HubSpot Private Apps](https://developers.hubspot.com/docs/api/private-apps) - API token
-- [🆕 Pipedrive Settings](https://pipedrive.readme.io/docs/how-to-find-the-api-token) - API token
+- [🆕 OpenRouter](https://openrouter.ai) - Access 100+ models with $1 free credit
 
 **📖 Complete API Configuration Guide**: See [API_CONFIGURATION_GUIDE.md](API_CONFIGURATION_GUIDE.md) for detailed setup instructions, pricing, and usage examples for all 14+ providers.
 
