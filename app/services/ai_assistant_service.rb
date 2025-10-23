@@ -1,6 +1,6 @@
 class AiAssistantService
   # Main AI assistant for natural language queries
-  # Now supports multiple LLM providers: OpenAI, Anthropic Claude, Google Gemini
+  # Now supports multiple LLM providers: OpenAI, Anthropic Claude, Google Gemini, and OpenRouter
 
   def self.query(prompt, context: nil, provider: nil)
     new.query(prompt, context: context, provider: provider)
@@ -209,6 +209,8 @@ class AiAssistantService
       'anthropic'  # Claude excels at analysis
     when :creative_writing
       'openai'  # GPT-4 for creative tasks
+    when :access_all_models
+      'openrouter'  # Access to 100+ models through single API
     else
       TwilioCredential.current&.preferred_llm_provider || 'openai'
     end
@@ -223,8 +225,9 @@ class AiAssistantService
     has_openai = @credentials.enable_ai_features && @credentials.openai_api_key.present?
     has_anthropic = @credentials.enable_anthropic && @credentials.anthropic_api_key.present?
     has_google = @credentials.enable_google_ai && @credentials.google_ai_api_key.present?
+    has_openrouter = @credentials.enable_openrouter && @credentials.openrouter_api_key.present?
 
-    has_openai || has_anthropic || has_google
+    has_openai || has_anthropic || has_google || has_openrouter
   end
 
   def preferred_provider

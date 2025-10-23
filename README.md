@@ -49,13 +49,14 @@ This platform has evolved from a simple phone lookup tool into a comprehensive c
 - **Trust Hub Integration**: Business verification via Twilio Trust Hub with real-time webhooks
 
 ### AI-Powered Features
-- **🆕 Multi-LLM Support**: Choose between OpenAI GPT, Anthropic Claude, or Google Gemini
+- **🆕 Multi-LLM Support**: Choose between OpenAI GPT, Anthropic Claude, Google Gemini, or **OpenRouter** (100+ models)
+- **🆕 OpenRouter Integration**: Access GPT, Claude, Gemini, Llama, Mistral, and 100+ models with single API
 - **Natural Language Search**: Query contacts using plain English
 - **AI Assistant**: Get insights and recommendations from your data
 - **Smart Filtering**: AI-powered contact segmentation
 - **Sales Intelligence**: Automated lead scoring and analysis
 - **🆕 Outreach Generation**: AI-powered SMS and email message creation
-- **Cost Optimization**: Automatic selection of most cost-effective LLM for each task
+- **Cost Optimization**: Automatic selection of most cost-effective LLM for each task, including FREE models
 
 ### Data Quality
 - **Line Type Intelligence**: Mobile, landline, VoIP detection
@@ -249,7 +250,7 @@ Navigate to **API Connectors** dashboard to see all available integrations:
 - **Address Data**: Whitepages Pro, TrueCaller
 - **🆕 Geocoding**: Google Geocoding API
 - **Business Search**: Google Places, Yelp Fusion
-- **🆕 AI Features**: OpenAI, Anthropic Claude, Google Gemini
+- **🆕 AI Features**: OpenAI, Anthropic Claude, Google Gemini, **OpenRouter** (100+ models)
 - **🆕 Messaging**: Twilio SMS & Voice
 - **🆕 CRM Sync**: Salesforce, HubSpot, Pipedrive
 - **Coverage Check**: Verizon (no API key needed)
@@ -437,6 +438,23 @@ API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
 Model: gemini-1.5-flash (default)
 Enable: Google AI toggle
 Preferred LLM Provider: google
+```
+
+**🆕 OpenRouter** (RECOMMENDED - Access 100+ models with single API)
+```
+API Key: sk-or-v1-xxxxxxxxxxxxx
+Model: google/gemini-flash-1.5 (or any of 100+ models)
+Enable: OpenRouter toggle
+Preferred LLM Provider: openrouter
+
+Why OpenRouter?
+- Single API for GPT, Claude, Gemini, Llama, Mistral, and more
+- Automatic fallback if model fails
+- FREE models available (Llama 3.1)
+- Compare models without managing multiple keys
+- $1 free credits to start
+
+See OPENROUTER_GUIDE.md for full details
 ```
 
 **🆕 Google Geocoding** (Address to coordinates)

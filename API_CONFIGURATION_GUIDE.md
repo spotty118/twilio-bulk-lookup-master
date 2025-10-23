@@ -378,6 +378,93 @@ preferred_llm_provider: "google"
 
 ---
 
+### 7.4 OpenRouter (NEW! - RECOMMENDED)
+
+**Purpose**: Unified access to 100+ AI models through single API
+
+**Why OpenRouter?**
+- ✅ Single API key for 100+ models (GPT, Claude, Gemini, Llama, Mistral, etc.)
+- ✅ Automatic fallback if primary model is down
+- ✅ Compare models easily without managing multiple integrations
+- ✅ Pay-as-you-go with competitive pricing
+- ✅ Access to FREE models (Llama 3.1)
+- ✅ No provider lock-in
+
+**Configuration**:
+```ruby
+openrouter_api_key: "sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+enable_openrouter: true
+openrouter_model: "google/gemini-flash-1.5"  # or any model from 100+ options
+preferred_llm_provider: "openrouter"
+
+# Optional - For OpenRouter rankings
+openrouter_site_url: "https://yourdomain.com"
+openrouter_site_name: "Your App Name"
+```
+
+**How to Get API Key**:
+1. Go to https://openrouter.ai
+2. Sign up or log in
+3. Navigate to **Keys** → **Create Key**
+4. Copy API key (starts with `sk-or-v1-`)
+5. Free tier includes $1 in credits
+
+**Recommended Models**:
+```ruby
+# Best for most queries (fast + cheap)
+openrouter_model: "google/gemini-flash-1.5"
+# Cost: $0.075/$0.30 per 1M tokens
+
+# Completely FREE (rate-limited)
+openrouter_model: "meta-llama/llama-3.1-8b-instruct:free"
+# Cost: $0 (20 requests/minute)
+
+# Balanced performance
+openrouter_model: "openai/gpt-4o-mini"
+# Cost: $0.15/$0.60 per 1M tokens
+
+# High quality analysis
+openrouter_model: "anthropic/claude-3.5-sonnet"
+# Cost: $3/$15 per 1M tokens
+```
+
+**Pricing Examples** (per 1,000 queries):
+- FREE Llama model: **$0**
+- Gemini Flash: **~$0.02**
+- GPT-4o Mini: **~$0.04**
+- Claude 3.5: **~$0.90**
+
+**Usage**:
+```ruby
+# Use OpenRouter
+llm = MultiLlmService.new
+result = llm.generate("Your prompt", provider: 'openrouter')
+
+# With specific model
+result = llm.generate(
+  "Your prompt",
+  provider: 'openrouter',
+  model: 'google/gemini-flash-1.5'
+)
+
+# With automatic fallbacks
+result = llm.generate(
+  "Your prompt",
+  provider: 'openrouter',
+  route: 'fallback'  # Auto-try alternatives if model fails
+)
+```
+
+**Available Models**: See full list at https://openrouter.ai/models
+
+**Rate Limits**:
+- FREE models: 20 requests/minute
+- Paid models: Varies by model (typically 500-1000/minute)
+
+**📖 Complete Guide**: See `OPENROUTER_GUIDE.md` for detailed setup, model comparison, and best practices.
+
+---
+
 ## 8. Messaging APIs
 
 ### 8.1 Twilio SMS (NEW!)

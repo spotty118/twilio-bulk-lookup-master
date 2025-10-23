@@ -5,6 +5,7 @@ class MultiLlmService
   OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
   ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
   GOOGLE_AI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+  OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
   def initialize
     @credentials = TwilioCredential.current
@@ -21,6 +22,8 @@ class MultiLlmService
       generate_with_anthropic(prompt, options)
     when 'google'
       generate_with_google_ai(prompt, options)
+    when 'openrouter'
+      generate_with_openrouter(prompt, options)
     else
       { success: false, error: "Unknown LLM provider: #{provider}" }
     end
@@ -279,6 +282,104 @@ class MultiLlmService
 
       log_api_usage(
         provider: 'google_ai',
+        service: model,
+        status: 'error',
+        error_message: e.message,
+        response_time_ms: ((Time.current - start_time) * 1000).to_i
+      )
+
+      { success: false, error: e.message }
+    end
+  end
+
+  # ========================================
+  # OpenRouter Integration
+  # ========================================
+
+  def generate_with_openrouter(prompt, options = {})
+    return { success: false, error: 'OpenRouter not enabled' } unless @credentials&.enable_openrouter
+    return { success: false, error: 'No OpenRouter API key configured' } unless @credentials.openrouter_api_key.present?
+
+    start_time = Time.current
+    model = options[:model] || @credentials.openrouter_model || 'openai/gpt-4o-mini'
+    max_tokens = options[:max_tokens] || @credentials.ai_max_tokens || 500
+
+    begin
+      uri = URI(OPENROUTER_API_URL)
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request['Authorization'] = "Bearer #{@credentials.openrouter_api_key}"
+      request['HTTP-Referer'] = @credentials.openrouter_site_url if @credentials.openrouter_site_url.present?
+      request['X-Title'] = @credentials.openrouter_site_name if @credentials.openrouter_site_name.present?
+
+      request.body = {
+        model: model,
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant for a contact intelligence platform.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: max_tokens,
+        temperature: options[:temperature] || 0.7,
+        # OpenRouter-specific features
+        route: options[:route] || 'fallback', # Use fallback routing for reliability
+        transforms: options[:transforms] || ['middle-out'] # Optimize for cost/quality
+      }.to_json
+
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 60) do |http|
+        http.request(request)
+      end
+
+      if response.code.to_i == 200
+        data = JSON.parse(response.body)
+        text = data.dig('choices', 0, 'message', 'content')
+        usage = data['usage']
+
+        # OpenRouter provides actual model used (may differ from requested if using fallback)
+        actual_model = data.dig('model') || model
+
+        # Log API usage with cost
+        log_api_usage(
+          provider: 'openrouter',
+          service: actual_model,
+          status: 'success',
+          response_time_ms: ((Time.current - start_time) * 1000).to_i,
+          http_status_code: 200,
+          credits_used: usage&.[]('total_tokens') || 0,
+          response_data: {
+            usage: usage,
+            model_used: actual_model,
+            native_tokens_prompt: data.dig('usage', 'native_tokens_prompt'),
+            native_tokens_completion: data.dig('usage', 'native_tokens_completion')
+          }
+        )
+
+        {
+          success: true,
+          response: text,
+          usage: usage,
+          provider: 'openrouter',
+          model_used: actual_model
+        }
+      else
+        error_data = JSON.parse(response.body) rescue {}
+        error_msg = error_data.dig('error', 'message') || 'OpenRouter API error'
+
+        log_api_usage(
+          provider: 'openrouter',
+          service: model,
+          status: 'failed',
+          error_message: error_msg,
+          response_time_ms: ((Time.current - start_time) * 1000).to_i,
+          http_status_code: response.code.to_i
+        )
+
+        { success: false, error: error_msg }
+      end
+    rescue => e
+      Rails.logger.error "OpenRouter API error: #{e.message}"
+
+      log_api_usage(
+        provider: 'openrouter',
         service: model,
         status: 'error',
         error_message: e.message,
