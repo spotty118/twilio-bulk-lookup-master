@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README.md
+LICENSE
+CHANGELOG.md
+
+# Logs
+log/*.log
+tmp/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Ruby/Rails
+.bundle/
+vendor/bundle
+
+# Test files
+test/
+spec/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+public/assets
+public/packs
+public/packs-test
+
+# Database
+*.sqlite3
+*.sqlite3-journal
+
+# Temporary files
+tmp/
+*.pid
+*.seed

@@ -1,8 +1,39 @@
 > NOT SUPPORTED OR MAINTAINED BY TWILIO, USE AT YOUR OWN RISK.
 
-# Bulk Lookup for Twilio
+# 📞 Bulk Lookup for Twilio
+
+[![Ruby](https://img.shields.io/badge/Ruby-3.3.6-red.svg)](https://www.ruby-lang.org/)
+[![Rails](https://img.shields.io/badge/Rails-7.2-red.svg)](https://rubyonrails.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 An enterprise-grade contact enrichment platform powered by Twilio Lookup API and 14+ data providers. Go beyond basic phone validation with business intelligence, email enrichment, multi-LLM AI support, CRM sync, automated messaging, and comprehensive contact management.
+
+---
+
+## 🚀 Quick Start
+
+> **New to this project?** → Start with [**START_HERE.md**](START_HERE.md) 🎯
+
+**Want to get started immediately?** See [**QUICK_START.md**](QUICK_START.md) for a 3-step setup guide!
+
+```bash
+# 1. Copy environment file
+cp .env.example .env
+
+# 2. Add your Twilio credentials to .env, then:
+bash start.sh  # Start with Docker
+
+# OR
+docker-compose up --build -d
+```
+
+**Access**: http://localhost:3002/admin  
+**Login**: admin@example.com / password  
+**Monitor**: http://localhost:3002/sidekiq
+
+---
 
 ## ✨ What's New in v2.0
 
