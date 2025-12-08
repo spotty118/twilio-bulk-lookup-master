@@ -43,6 +43,8 @@ group :development, :test do
   gem 'debug', platforms: [:mri, :mingw, :x64_mingw]  # Replaces byebug
   gem 'rspec-rails', '~> 7.0'  # Modern testing framework
   gem 'factory_bot_rails', '~> 6.4'  # Test data factories
+  gem 'shoulda-matchers', '~> 6.0'  # RSpec matchers for common validations
+  gem 'faker', '~> 3.2'  # Generate fake data for tests
 end
 
 group :development do
