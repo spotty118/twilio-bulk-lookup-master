@@ -396,6 +396,71 @@ When working on this codebase, apply Darwin-Gödel with these domain-specific we
 - **Scope Composability** (0.20): Scopes can be chained safely?
 - **Callback Safety** (0.20): Callbacks don't cause performance issues?
 
+## Darwin-Gödel Framework Extensions
+
+**Source**: DARWIN_GODEL_META_IMPROVEMENTS.md (extracted from "fix it all" remediation)
+**Status**: ACTIVE - Apply to all future work
+
+### Post-Edit Validation
+
+After Write or Edit on any `.rb` file:
+1. Auto-run: `ruby -c {file_path}`
+2. If error → fix immediately before continuing
+3. Report: "✓ Syntax validated" (silent on success)
+
+**Rationale**: Catches syntax errors while context is fresh in working memory.
+
+### Migration Creation Protocol
+
+When creating migrations WITHOUT Rails CLI:
+1. Generate timestamp: `date +%Y%m%d%H%M%S`_`openssl rand -hex 2`
+2. Add query pattern comment explaining index purpose
+3. Use `unless_exists: true` for all indices
+4. Add reversibility check (does `down` method exist?)
+
+**Example**:
+```ruby
+# Query pattern: Contact.where(phone_fingerprint: x, is_duplicate: true)
+# Found in: app/models/contact.rb:145
+add_index :contacts, :phone_fingerprint,
+  where: "is_duplicate = true AND phone_fingerprint IS NOT NULL",
+  unless_exists: true
+```
+
+### Test Infrastructure Requirements
+
+All tests tagged `:job`, `:integration`, or `:system` MUST declare dependencies:
+```ruby
+# INFRASTRUCTURE REQUIRED:
+# - PostgreSQL with SERIALIZABLE isolation
+# - Redis (for Sidekiq tests)
+# - Run with: SIDEKIQ_CONCURRENCY=10 bundle exec rspec
+```
+
+### Factory Trait Composition
+
+Enrichment traits auto-include base `:enriched` trait:
+```ruby
+trait :with_business do
+  enriched  # Auto-includes completed status, timestamps
+  is_business { true }
+  business_enriched { true }
+end
+```
+
+**Usage**: `create(:contact, :with_business)` → auto-gets completed status
+
+### Index Creation Checklist
+
+Before creating database index:
+- [ ] Grep for column usage: `grep -r "column_name" app/`
+- [ ] Extract WHERE/ORDER BY patterns from code
+- [ ] Document query pattern as migration comment
+- [ ] Verify partial index WHERE matches query WHERE exactly
+- [ ] Add TODO for post-deployment pg_stat_statements validation
+
+**Warning**: Partial indices only used if query WHERE clause EXACTLY matches index WHERE clause.
+
 ## Known Technical Debt
 
 1. **No Test Coverage**: Priority #1 - Add RSpec tests for Contact model and critical jobs
