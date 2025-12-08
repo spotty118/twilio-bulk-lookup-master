@@ -134,10 +134,15 @@ module StatusManageable
   end
   
   private
-  
+
   def track_status_change
-    if status_changed? && !status_valid_transition?(status)
-      Rails.logger.warn("Invalid status transition for #{self.class.name} ##{id}: #{status_was} -> #{status}")
+    if status_changed? && status_was.present? && !status_valid_transition?(status)
+      error_message = "Invalid status transition: #{status_was} -> #{status}"
+      Rails.logger.error("#{self.class.name} ##{id}: #{error_message}")
+      errors.add(:status, error_message)
+      # Restore previous status
+      self.status = status_was
+      throw :abort
     end
   end
   

@@ -344,40 +344,46 @@ class Contact < ApplicationRecord
 
   # Calculate fingerprints for duplicate detection
   def update_fingerprints!
-    self.phone_fingerprint = calculate_phone_fingerprint
-    self.name_fingerprint = calculate_name_fingerprint
-    self.email_fingerprint = calculate_email_fingerprint
-    save!
+    # Use update_columns to skip callbacks and avoid recursion
+    update_columns(
+      phone_fingerprint: calculate_phone_fingerprint,
+      name_fingerprint: calculate_name_fingerprint,
+      email_fingerprint: calculate_email_fingerprint,
+      updated_at: Time.current
+    )
   end
 
   def calculate_quality_score!
     score = 0
-    
+
     # Phone validation (20 points)
     score += 20 if valid == true
-    
+
     # Email quality (20 points)
     score += 20 if email_verified
     score += 10 if email.present? && !email_verified
-    
+
     # Business enrichment (20 points)
     score += 20 if business_enriched?
-    
+
     # Name data (15 points)
     score += 15 if full_name.present?
     score += 5 if first_name.present? && last_name.present?
-    
+
     # Contact info (15 points)
     score += 10 if business_website.present? || linkedin_url.present?
     score += 5 if position.present?
-    
+
     # Fraud check (10 points)
     score += 10 if sms_pumping_risk_level == 'low'
     score -= 20 if sms_pumping_risk_level == 'high'
-    
-    self.data_quality_score = [score, 0].max
-    self.completeness_percentage = calculate_completeness
-    save!
+
+    # Use update_columns to skip callbacks and avoid recursion
+    update_columns(
+      data_quality_score: [score, 0].max,
+      completeness_percentage: calculate_completeness,
+      updated_at: Time.current
+    )
   end
   
   # Mark as processing

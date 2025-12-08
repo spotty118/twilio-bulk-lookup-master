@@ -26,10 +26,22 @@ class LookupRequestJob < ApplicationJob
       Rails.logger.info("Skipping contact #{contact.id}: already completed")
       return
     end
-    
-    # Mark as processing to prevent duplicate processing
-    return unless contact.status == 'pending' || contact.status == 'failed'
-    contact.mark_processing!
+
+    # Atomic status transition to prevent race conditions
+    # Use pessimistic locking to ensure only one job processes this contact
+    updated = contact.with_lock do
+      if contact.status == 'pending' || contact.status == 'failed'
+        contact.mark_processing!
+        true
+      else
+        false
+      end
+    end
+
+    unless updated
+      Rails.logger.info("Skipping contact #{contact.id}: already being processed (status: #{contact.status})")
+      return
+    end
     
     begin
       # Use cached credentials to avoid N+1 queries

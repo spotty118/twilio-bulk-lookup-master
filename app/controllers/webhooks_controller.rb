@@ -4,7 +4,7 @@ class WebhooksController < ApplicationController
 
   # Twilio SMS Status Webhook
   def twilio_sms_status
-    webhook = Webhook.create!(
+    webhook = Webhook.create(
       source: 'twilio_sms',
       event_type: 'sms_status',
       external_id: params[:MessageSid],
@@ -14,15 +14,24 @@ class WebhooksController < ApplicationController
       received_at: Time.current
     )
 
-    # Process asynchronously
-    WebhookProcessorJob.perform_later(webhook.id)
+    if webhook.persisted?
+      # Process asynchronously
+      WebhookProcessorJob.perform_later(webhook.id)
+    else
+      Rails.logger.error("Failed to create SMS webhook: #{webhook.errors.full_messages.join(', ')}")
+    end
 
+    # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue StandardError => e
+    Rails.logger.error("SMS webhook error: #{e.class} - #{e.message}")
+    # Still return 200 to acknowledge receipt
     head :ok
   end
 
   # Twilio Voice Status Webhook
   def twilio_voice_status
-    webhook = Webhook.create!(
+    webhook = Webhook.create(
       source: 'twilio_voice',
       event_type: 'voice_status',
       external_id: params[:CallSid],
@@ -32,15 +41,24 @@ class WebhooksController < ApplicationController
       received_at: Time.current
     )
 
-    # Process asynchronously
-    WebhookProcessorJob.perform_later(webhook.id)
+    if webhook.persisted?
+      # Process asynchronously
+      WebhookProcessorJob.perform_later(webhook.id)
+    else
+      Rails.logger.error("Failed to create Voice webhook: #{webhook.errors.full_messages.join(', ')}")
+    end
 
+    # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue StandardError => e
+    Rails.logger.error("Voice webhook error: #{e.class} - #{e.message}")
+    # Still return 200 to acknowledge receipt
     head :ok
   end
 
   # Twilio Trust Hub Status Webhook
   def twilio_trust_hub
-    webhook = Webhook.create!(
+    webhook = Webhook.create(
       source: 'twilio_trust_hub',
       event_type: params[:StatusCallbackEvent] || 'status_update',
       external_id: params[:CustomerProfileSid],
@@ -50,15 +68,24 @@ class WebhooksController < ApplicationController
       received_at: Time.current
     )
 
-    # Process asynchronously
-    WebhookProcessorJob.perform_later(webhook.id)
+    if webhook.persisted?
+      # Process asynchronously
+      WebhookProcessorJob.perform_later(webhook.id)
+    else
+      Rails.logger.error("Failed to create Trust Hub webhook: #{webhook.errors.full_messages.join(', ')}")
+    end
 
+    # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue StandardError => e
+    Rails.logger.error("Trust Hub webhook error: #{e.class} - #{e.message}")
+    # Still return 200 to acknowledge receipt
     head :ok
   end
 
   # Generic webhook endpoint (for testing)
   def generic
-    webhook = Webhook.create!(
+    webhook = Webhook.create(
       source: params[:source] || 'unknown',
       event_type: params[:event_type] || 'unknown',
       external_id: params[:external_id],
@@ -68,9 +95,15 @@ class WebhooksController < ApplicationController
       received_at: Time.current
     )
 
-    WebhookProcessorJob.perform_later(webhook.id)
-
-    render json: { success: true, webhook_id: webhook.id }
+    if webhook.persisted?
+      WebhookProcessorJob.perform_later(webhook.id)
+      render json: { success: true, webhook_id: webhook.id }
+    else
+      render json: { success: false, errors: webhook.errors.full_messages }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    Rails.logger.error("Generic webhook error: #{e.class} - #{e.message}")
+    render json: { success: false, error: e.message }, status: :internal_server_error
   end
 
   private
@@ -88,8 +121,14 @@ class WebhooksController < ApplicationController
       Rails.logger.warn "Invalid Twilio signature for webhook: #{request.path}"
       head :forbidden
     end
-  rescue => e
-    Rails.logger.error "Signature verification error: #{e.message}"
+  rescue ArgumentError, TypeError => e
+    # Handle invalid auth token or malformed signature
+    Rails.logger.error "Signature verification error: #{e.class} - #{e.message}"
+    head :forbidden
+  rescue StandardError => e
+    # Unexpected errors during validation
+    Rails.logger.error "Unexpected signature verification error: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
     head :forbidden
   end
 
