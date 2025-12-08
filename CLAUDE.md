@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## PRIME DIRECTIVE
+
+**Every task in this repository MUST execute the Darwin-Gödel Machine framework.**
+
+No exceptions. No shortcuts. Depth scales with complexity, but all 8 phases execute.
+
+- Simple one-liner fix: 3 solutions, 2 generations, 5 minutes
+- Complex architecture task: 7 solutions, 7 generations, full formalism
+- **Mandatory**: Fitness scoring, assumption tracking, self-reflection, meta-improvement
+
+**Compliance Mode**: STRICT
+**Deviation Tolerance**: ZERO
+**Framework Status**: ACTIVE UNIVERSALLY
+
 ---
 
 # Darwin-Gödel Machine
