@@ -3,8 +3,9 @@ class BusinessEnrichmentJob < ApplicationJob
 
   # Retry configuration for transient failures
   retry_on StandardError, wait: :exponentially_longer, attempts: 2 do |job, exception|
-    contact = job.arguments.first
-    Rails.logger.warn("Business enrichment failed for contact #{contact.id}: #{exception.message}")
+    contact_id = job.arguments.first
+    contact = Contact.find_by(id: contact_id)
+    Rails.logger.warn("Business enrichment failed for contact #{contact_id}: #{exception.message}")
   end
 
   # Don't retry on permanent failures
@@ -12,7 +13,10 @@ class BusinessEnrichmentJob < ApplicationJob
     Rails.logger.error("Contact not found for enrichment: #{exception.message}")
   end
 
-  def perform(contact)
+  # Note: This job expects a contact_id (Integer), not a Contact object
+  # This follows Sidekiq best practice of passing IDs to avoid serialization issues
+  def perform(contact_id)
+    contact = Contact.find(contact_id)
     # Skip if already enriched
     if contact.business_enriched?
       Rails.logger.info("Skipping contact #{contact.id}: already enriched")
@@ -40,27 +44,22 @@ class BusinessEnrichmentJob < ApplicationJob
     if success
       Rails.logger.info("Successfully enriched contact #{contact.id} with business data")
 
-      # Queue Trust Hub enrichment after business enrichment
-      credentials = TwilioCredential.current
+      # Queue Trust Hub enrichment after business enrichment (reuse credentials from line 33)
       if credentials&.enable_trust_hub
-        TrustHubEnrichmentJob.perform_later(contact)
+        TrustHubEnrichmentJob.perform_later(contact_id)
       end
 
       # Queue email enrichment after business enrichment
       if credentials&.enable_email_enrichment
-        EmailEnrichmentJob.perform_later(contact)
+        EmailEnrichmentJob.perform_later(contact_id)
       end
     else
       Rails.logger.info("No business data found for contact #{contact.id}")
-      # Mark as attempted even if no data found
-      contact.update(
-        business_enriched: true,
-        business_enriched_at: Time.current,
-        business_enrichment_provider: 'none'
-      )
+      # Don't mark as enriched if no data found - allows future re-attempts
+      # Contact will be eligible for re-enrichment on next lookup
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error("Unexpected error enriching contact #{contact.id}: #{e.class} - #{e.message}")
     Rails.logger.error(e.backtrace.join("\n"))
     raise

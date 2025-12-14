@@ -81,11 +81,14 @@ class AiAssistantService
   def natural_language_search(search_query)
     return { error: "AI features not enabled" } unless ai_enabled?
 
+    # Sanitize user input to prevent prompt injection
+    safe_query = PromptSanitizer.sanitize(search_query, max_length: 500, field_name: 'search_query')
+
     # Use GPT to convert natural language to SQL-like query
     prompt = <<~PROMPT
       Convert this natural language query into structured search criteria for a contact database:
 
-      Query: "#{search_query}"
+      Query: "#{safe_query}"
 
       Available fields:
       - business_name, business_industry, business_type
@@ -192,19 +195,21 @@ class AiAssistantService
   def call_openai(messages)
     uri = URI('https://api.openai.com/v1/chat/completions')
 
-    request = Net::HTTP::Post.new(uri)
-    request['Authorization'] = "Bearer #{@api_key}"
-    request['Content-Type'] = 'application/json'
-
-    request.body = {
+    body = {
       model: @model,
       messages: messages,
       max_tokens: @max_tokens,
       temperature: 0.7
-    }.to_json
+    }
 
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 30) do |http|
-      http.request(request)
+    # AI generation requires longer timeout (30s vs 10s default)
+    response = HttpClient.post(uri,
+                               body: body,
+                               circuit_name: 'openai-api',
+                               read_timeout: 30,
+                               open_timeout: 10,
+                               connect_timeout: 10) do |request|
+      request['Authorization'] = "Bearer #{@api_key}"
     end
 
     return nil unless response.code == '200'
@@ -214,36 +219,48 @@ class AiAssistantService
       content: data.dig('choices', 0, 'message', 'content'),
       usage: data['usage']
     }
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.error("OpenAI API timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.error("OpenAI circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.error("OpenAI API invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.error("OpenAI API error: #{e.message}")
     nil
   end
 
   def build_contact_profile(contact)
+    # Sanitize all user-controlled fields to prevent prompt injection
+    safe = PromptSanitizer.sanitize_contact(contact)
+
     profile = []
 
     # Basic info
-    profile << "Phone: #{contact.formatted_phone_number || contact.raw_phone_number}"
-    profile << "Name: #{contact.full_name}" if contact.full_name.present?
-    profile << "Email: #{contact.email}" if contact.email.present?
+    profile << "Phone: #{safe[:phone]}"
+    profile << "Name: #{safe[:full_name]}" if safe[:full_name].present?
+    profile << "Email: #{safe[:email]}" if safe[:email].present?
 
     # Contact type
     if contact.business?
       profile << "\nBusiness Contact:"
-      profile << "- Company: #{contact.business_name}" if contact.business_name.present?
-      profile << "- Industry: #{contact.business_industry}" if contact.business_industry.present?
+      profile << "- Company: #{safe[:business_name]}" if safe[:business_name].present?
+      profile << "- Industry: #{safe[:business_industry]}" if safe[:business_industry].present?
       profile << "- Size: #{contact.business_size_category}" if contact.business_employee_range.present?
       profile << "- Revenue: #{contact.business_revenue_range}" if contact.business_revenue_range.present?
-      profile << "- Location: #{contact.business_city}, #{contact.business_state}" if contact.business_city.present?
-      profile << "- Website: #{contact.business_website}" if contact.business_website.present?
-      profile << "- Description: #{contact.business_description}" if contact.business_description.present?
+      profile << "- Location: #{safe[:business_city]}, #{safe[:business_state]}" if safe[:business_city].present?
+      profile << "- Website: #{safe[:business_website]}" if safe[:business_website].present?
+      profile << "- Description: #{safe[:business_description]}" if safe[:business_description].present?
     else
       profile << "\nConsumer Contact"
     end
 
     # Contact quality/risk
     profile << "\nData Quality:"
-    profile << "- Phone Valid: #{contact.valid ? 'Yes' : 'Unknown'}"
+    profile << "- Phone Valid: #{contact.phone_valid ? 'Yes' : 'Unknown'}"
     profile << "- Line Type: #{contact.line_type_display}" if contact.line_type.present?
     profile << "- Fraud Risk: #{contact.fraud_risk_display}" if contact.sms_pumping_risk_level.present?
 
@@ -254,8 +271,8 @@ class AiAssistantService
     end
 
     # Position/role
-    profile << "- Position: #{contact.position}" if contact.position.present?
-    profile << "- Department: #{contact.department}" if contact.department.present?
+    profile << "- Position: #{safe[:position]}" if safe[:position].present?
+    profile << "- Department: #{safe[:department]}" if safe[:department].present?
 
     profile.join("\n")
   end

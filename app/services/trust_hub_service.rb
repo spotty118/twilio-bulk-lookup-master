@@ -36,7 +36,7 @@ class TrustHubService
 
   def should_enrich?
     # Only enrich businesses that haven't been enriched yet or need re-verification
-    @contact.is_business && (!@contact.trust_hub_enriched || should_reverify?)
+    @contact.is_business? && (!@contact.trust_hub_enriched || should_reverify?)
   end
 
   def should_reverify?

@@ -80,6 +80,5 @@ test:
 #
 production:
   <<: *default
-  database: bulk_lookup_production
-  username: bulk_lookup
-  password: <%= ENV['BULK_LOOKUP_DATABASE_PASSWORD'] %>
+  url: <%= ENV['DATABASE_URL'] %>
+

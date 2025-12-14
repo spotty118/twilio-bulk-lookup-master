@@ -76,7 +76,7 @@ class HealthController < ApplicationController
       pool_size: ActiveRecord::Base.connection_pool.size,
       active_connections: ActiveRecord::Base.connection_pool.connections.size
     }
-  rescue => e
+  rescue StandardError => e
     {
       status: 'error',
       error: e.message
@@ -86,16 +86,20 @@ class HealthController < ApplicationController
   def check_redis
     start_time = Time.current
     redis = Redis.new(url: AppConfig.redis_url)
-    redis.ping
-    response_time = ((Time.current - start_time) * 1000).round(2)  # in ms
-    
-    {
-      status: 'ok',
-      response_time_ms: response_time,
-      connected_clients: redis.info['connected_clients'],
-      used_memory_human: redis.info['used_memory_human']
-    }
-  rescue => e
+    begin
+      redis.ping
+      response_time = ((Time.current - start_time) * 1000).round(2)  # in ms
+      
+      {
+        status: 'ok',
+        response_time_ms: response_time,
+        connected_clients: redis.info['connected_clients'],
+        used_memory_human: redis.info['used_memory_human']
+      }
+    ensure
+      redis.close
+    end
+  rescue StandardError => e
     {
       status: 'error',
       error: e.message
@@ -122,7 +126,7 @@ class HealthController < ApplicationController
       dead: stats.dead_size,
       failed: stats.failed
     }
-  rescue => e
+  rescue StandardError => e
     {
       status: 'error',
       error: e.message
@@ -145,7 +149,7 @@ class HealthController < ApplicationController
       configured: true,
       source: creds[:source]
     }
-  rescue => e
+  rescue StandardError => e
     {
       status: 'error',
       error: e.message
@@ -167,7 +171,7 @@ class HealthController < ApplicationController
       processes: stats.processes_size,
       workers: stats.workers_size
     }
-  rescue => e
+  rescue StandardError => e
     { error: e.message }
   end
   
@@ -175,7 +179,7 @@ class HealthController < ApplicationController
     # Try to get version from git
     begin
       `git rev-parse --short HEAD 2>/dev/null`.strip.presence || 'unknown'
-    rescue
+    rescue StandardError => e
       'unknown'
     end
   end

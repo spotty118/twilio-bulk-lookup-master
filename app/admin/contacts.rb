@@ -1,5 +1,27 @@
 ActiveAdmin.register Contact do
-  active_admin_import validate: true
+  # Configure CSV import with security limits
+  active_admin_import validate: true,
+                      before_batch_import: ->(importer) {
+                        # Limit file size to 10MB to prevent DoS attacks
+                        max_size = 10.megabytes
+                        file = importer.file
+
+                        if file.present? && file.size > max_size
+                          raise "File size (#{(file.size / 1.megabyte.to_f).round(2)}MB) exceeds maximum allowed size of 10MB"
+                        end
+
+                        # Limit row count to 50,000 rows
+                        max_rows = 50_000
+                        row_count = begin
+                          CSV.read(file.path).count
+                        rescue StandardError => e
+                          0
+                        end
+
+                        if row_count > max_rows
+                          raise "CSV contains #{row_count} rows, exceeds maximum of #{max_rows} rows"
+                        end
+                      }
   
   # ========================================
   # Menu & Configuration
@@ -61,7 +83,7 @@ ActiveAdmin.register Contact do
   filter :raw_phone_number
   filter :formatted_phone_number
   filter :country_code, as: :select
-  filter :valid, as: :select, collection: [[  'Valid', true], ['Invalid', false]]
+  filter :phone_valid, as: :select, collection: [[  'Valid', true], ['Invalid', false]]
   filter :sms_pumping_risk_level, as: :select, collection: ['low', 'medium', 'high'], label: "Fraud Risk"
   filter :sms_pumping_risk_score, label: "Risk Score (0-100)"
   filter :sms_pumping_number_blocked, as: :select, collection: [['Blocked', true], ['Not Blocked', false]]
@@ -157,9 +179,9 @@ ActiveAdmin.register Contact do
     end
 
     column "Valid" do |contact|
-      if contact.valid.nil?
+      if contact.phone_valid.nil?
         span "—", class: "empty"
-      elsif contact.valid
+      elsif contact.phone_valid
         status_tag "Yes", class: "ok"
       else
         status_tag "No", class: "error"
@@ -259,8 +281,8 @@ ActiveAdmin.register Contact do
       end
       row :raw_phone_number
       row :formatted_phone_number
-      row :valid do |contact|
-        status_tag(contact.valid ? "Valid" : "Invalid", class: contact.valid ? "ok" : "error") unless contact.valid.nil?
+      row "Valid" do |contact|
+        status_tag(contact.phone_valid ? "Valid" : "Invalid", class: contact.phone_valid ? "ok" : "error") unless contact.phone_valid.nil?
       end
       row :validation_errors do |contact|
         if contact.validation_errors.present? && contact.validation_errors.any?
@@ -520,7 +542,7 @@ ActiveAdmin.register Contact do
           end
         end
 
-        if !contact.business_description.present? && !contact.business_tags.any? && !contact.business_tech_stack.any?
+        if !contact.business_description.present? && contact.business_tags.blank? && contact.business_tech_stack.blank?
           para "No description or tags available.", style: "color: #6c757d;"
         end
       else
@@ -720,8 +742,13 @@ ActiveAdmin.register Contact do
             div do
               c.merge_history.each do |merge|
                 div style: "margin-bottom: 5px;" do
-                  text_node "Merged contact ##{merge['contact_id']} "
-                  small "(#{Time.parse(merge['merged_at']).strftime('%b %d, %Y')})", style: "color: #6c757d;"
+                  text_node "Merged contact ##{merge['duplicate_id'] || merge['contact_id']} "
+                  merged_at = begin
+                    Time.parse(merge['merged_at'].to_s).strftime('%b %d, %Y')
+                  rescue ArgumentError, TypeError
+                    'unknown date'
+                  end
+                  small "(#{merged_at})", style: "color: #6c757d;"
                 end
               end
             end
@@ -952,14 +979,14 @@ ActiveAdmin.register Contact do
   batch_action :reprocess, confirm: "Reprocess selected contacts?" do |ids|
     contacts = Contact.where(id: ids)
     count = 0
-    
+
     contacts.each do |contact|
       next if contact.status == 'completed'
-      contact.update(status: 'pending')
-      LookupRequestJob.perform_later(contact)
+      contact.update!(status: 'pending')
+      LookupRequestJob.perform_later(contact.id)
       count += 1
     end
-    
+
     redirect_to collection_path, notice: "#{count} contacts queued for reprocessing"
   end
   
@@ -977,14 +1004,14 @@ ActiveAdmin.register Contact do
   # Member Actions
   # ========================================
   member_action :retry, method: :post do
-    resource.update(status: 'pending')
-    LookupRequestJob.perform_later(resource)
+    resource.update!(status: 'pending')
+    LookupRequestJob.perform_later(resource.id)
     redirect_to resource_path, notice: "Contact queued for retry"
   end
 
   member_action :enrich_business, method: :post do
     if resource.lookup_completed?
-      BusinessEnrichmentJob.perform_later(resource)
+      BusinessEnrichmentJob.perform_later(resource.id)
       redirect_to resource_path, notice: "Business enrichment queued"
     else
       redirect_to resource_path, alert: "Complete phone lookup first before enriching business data"
@@ -993,7 +1020,7 @@ ActiveAdmin.register Contact do
 
   member_action :enrich_email, method: :post do
     if resource.lookup_completed?
-      EmailEnrichmentJob.perform_later(resource)
+      EmailEnrichmentJob.perform_later(resource.id)
       redirect_to resource_path, notice: "Email enrichment queued"
     else
       redirect_to resource_path, alert: "Complete phone lookup first before enriching email data"
@@ -1002,7 +1029,7 @@ ActiveAdmin.register Contact do
 
   member_action :check_duplicates, method: :post do
     if resource.lookup_completed?
-      DuplicateDetectionJob.perform_later(resource)
+      DuplicateDetectionJob.perform_later(resource.id)
       redirect_to resource_path, notice: "Duplicate detection queued"
     else
       redirect_to resource_path, alert: "Complete phone lookup first before checking for duplicates"
@@ -1011,7 +1038,7 @@ ActiveAdmin.register Contact do
 
   member_action :enrich_address, method: :post do
     if resource.consumer?
-      AddressEnrichmentJob.perform_later(resource)
+      AddressEnrichmentJob.perform_later(resource.id)
       redirect_to resource_path, notice: "Address enrichment queued"
     else
       redirect_to resource_path, alert: "Address enrichment is only for consumer contacts"
@@ -1037,7 +1064,7 @@ ActiveAdmin.register Contact do
     column :raw_phone_number
     column :formatted_phone_number
     column :status
-    column :valid
+    column :phone_valid
     column :country_code
     column :calling_country_code
     column :line_type
@@ -1131,7 +1158,7 @@ ActiveAdmin.register Contact do
   # ========================================
   permit_params :raw_phone_number, :formatted_phone_number, :mobile_network_code, 
                 :error_code, :mobile_country_code, :carrier_name, :device_type, :status,
-                :valid, :country_code, :calling_country_code, :line_type,
+                :phone_valid, :country_code, :calling_country_code, :line_type,
                 :caller_name, :caller_type, :sms_pumping_risk_score, :sms_pumping_risk_level,
                 # Email enrichment fields
                 :email, :email_verified, :email_status, :email_score,

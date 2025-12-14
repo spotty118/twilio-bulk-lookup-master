@@ -1,12 +1,23 @@
 class DuplicateDetectionJob < ApplicationJob
   queue_as :default
 
-  def perform(contact)
+  retry_on StandardError, wait: :exponentially_longer, attempts: 3
+
+  # Don't retry if contact was deleted
+  discard_on ActiveRecord::RecordNotFound do |job, exception|
+    Rails.logger.error("[DuplicateDetectionJob] Contact not found: #{exception.message}")
+  end
+
+  # Note: This job expects a contact_id (Integer), not a Contact object
+  # This follows Sidekiq best practice of passing IDs to avoid serialization issues
+  def perform(contact_id)
+    contact = Contact.find(contact_id)
+
     # Skip if already marked as duplicate
     return if contact.is_duplicate?
 
     credentials = TwilioCredential.current
-    return unless credentials&.enable_duplicate_detection
+    return if credentials && !credentials.enable_duplicate_detection
 
     Rails.logger.info("Checking for duplicates: contact #{contact.id}")
 
@@ -17,10 +28,10 @@ class DuplicateDetectionJob < ApplicationJob
       Rails.logger.info("Found #{duplicates.length} potential duplicates for contact #{contact.id}")
 
       # Store duplicate check timestamp
-      contact.update(duplicate_checked_at: Time.current)
+      contact.update!(duplicate_checked_at: Time.current)
 
       # Auto-merge if enabled and high confidence
-      if credentials.auto_merge_duplicates
+      if credentials&.auto_merge_duplicates
         duplicates.each do |dup|
           if dup[:confidence] >= 95
             Rails.logger.info("Auto-merging contact #{dup[:contact].id} into #{contact.id} (confidence: #{dup[:confidence]}%)")
@@ -30,10 +41,11 @@ class DuplicateDetectionJob < ApplicationJob
       end
     else
       Rails.logger.info("No duplicates found for contact #{contact.id}")
-      contact.update(duplicate_checked_at: Time.current)
+      contact.update!(duplicate_checked_at: Time.current)
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error("Duplicate detection error for contact #{contact.id}: #{e.message}")
+    raise # Re-raise to trigger retry logic
   end
 end

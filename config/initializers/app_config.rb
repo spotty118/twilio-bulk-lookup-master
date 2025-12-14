@@ -85,14 +85,22 @@ module AppConfig
         auth_token: ENV['TWILIO_AUTH_TOKEN'],
         source: :environment
       }
-    elsif Rails.application.credentials.dig(:twilio, :account_sid).present?
+    elsif (twilio_creds = begin
+      Rails.application.credentials.dig(:twilio)
+    rescue ActiveSupport::EncryptedFile::MissingKeyError, ActiveSupport::MessageEncryptor::InvalidMessage
+      nil
+    end).present? && twilio_creds[:account_sid].present?
       {
-        account_sid: Rails.application.credentials.dig(:twilio, :account_sid),
-        auth_token: Rails.application.credentials.dig(:twilio, :auth_token),
+        account_sid: twilio_creds[:account_sid],
+        auth_token: twilio_creds[:auth_token],
         source: :encrypted_credentials
       }
     elsif defined?(TwilioCredential)
-      cred = TwilioCredential.current
+      cred = begin
+        TwilioCredential.current
+      rescue ActiveRecord::ActiveRecordError
+        nil
+      end
       if cred
         {
           account_sid: cred.account_sid,

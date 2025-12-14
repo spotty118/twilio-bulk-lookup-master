@@ -3,6 +3,11 @@ class BusinessLookupJob < ApplicationJob
 
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
+  # Don't retry if zipcode lookup was deleted
+  discard_on ActiveRecord::RecordNotFound do |job, exception|
+    Rails.logger.error("[BusinessLookupJob] ZipcodeLookup not found: #{exception.message}")
+  end
+
   def perform(zipcode_lookup_id)
     zipcode_lookup = ZipcodeLookup.find(zipcode_lookup_id)
 
@@ -26,11 +31,16 @@ class BusinessLookupJob < ApplicationJob
                       "Found: #{stats[:found]}, Imported: #{stats[:imported]}, " \
                       "Updated: #{stats[:updated]}, Skipped: #{stats[:skipped]}"
 
-  rescue => e
-    Rails.logger.error "[BusinessLookupJob] Error processing zipcode #{zipcode_lookup.zipcode}: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-
-    zipcode_lookup.mark_failed!(e)
+  rescue StandardError => e
+    # Guard against undefined zipcode_lookup if error occurred during find
+    if defined?(zipcode_lookup) && zipcode_lookup
+      Rails.logger.error "[BusinessLookupJob] Error processing zipcode #{zipcode_lookup.zipcode}: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      zipcode_lookup.mark_failed!(e)
+    else
+      Rails.logger.error "[BusinessLookupJob] Error processing zipcode_lookup_id #{zipcode_lookup_id}: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
     raise e
   end
 end

@@ -146,6 +146,8 @@ GEM
     factory_bot_rails (6.5.1)
       factory_bot (~> 6.5)
       railties (>= 6.1.0)
+    faker (3.5.3)
+      i18n (>= 1.8.11, < 2)
     faraday (2.14.0)
       faraday-net_http (>= 2.0, < 3.5)
       json
@@ -405,6 +407,8 @@ GEM
       rexml (~> 3.2, >= 3.2.5)
       rubyzip (>= 1.2.2, < 3.0)
       websocket (~> 1.0)
+    shoulda-matchers (6.5.0)
+      activesupport (>= 5.2.0)
     sidekiq (7.3.9)
       base64
       connection_pool (>= 2.3.0)
@@ -481,6 +485,7 @@ DEPENDENCIES
   debug
   devise (~> 4.9)
   factory_bot_rails (~> 6.4)
+  faker (~> 3.2)
   image_processing (~> 1.13)
   inherited_resources (~> 1.14)
   jbuilder (~> 2.13)
@@ -499,6 +504,7 @@ DEPENDENCIES
   rubocop-rspec (~> 3.2)
   sassc-rails (~> 2.1)
   selenium-webdriver (~> 4.10)
+  shoulda-matchers (~> 6.0)
   sidekiq (~> 7.3)
   sprockets-rails
   stimulus-rails (~> 1.3)

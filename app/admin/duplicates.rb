@@ -139,9 +139,13 @@ ActiveAdmin.register_page "Duplicates" do
           column("Duplicate Contact") { |c| c.business_display_name }
           column("Phone") { |c| c.formatted_phone_number }
           column("Merged Into") do |c|
-            if c.duplicate_of_id && Contact.exists?(c.duplicate_of_id)
-              primary = Contact.find(c.duplicate_of_id)
-              link_to primary.business_display_name, admin_contact_path(primary)
+            if c.duplicate_of_id
+              primary = Contact.find_by(id: c.duplicate_of_id)
+              if primary
+                link_to primary.business_display_name, admin_contact_path(primary)
+              else
+                "Contact deleted"
+              end
             else
               "Contact deleted"
             end
@@ -160,21 +164,39 @@ ActiveAdmin.register_page "Duplicates" do
 
   # Merge action
   page_action :merge, method: :post do
-    primary = Contact.find(params[:primary_id])
-    duplicate = Contact.find(params[:duplicate_id])
+    primary = Contact.find_by(id: params[:primary_id])
+    duplicate = Contact.find_by(id: params[:duplicate_id])
+
+    unless primary && duplicate
+      redirect_to admin_duplicates_path, alert: "❌ One or both contacts not found. They may have been deleted."
+      return
+    end
 
     if DuplicateDetectionService.merge(primary, duplicate)
       redirect_to admin_duplicates_path, notice: "✅ Successfully merged #{duplicate.business_display_name} into #{primary.business_display_name}"
     else
       redirect_to admin_duplicates_path, alert: "❌ Failed to merge contacts. Check logs for details."
     end
+  rescue StandardError => e
+    Rails.logger.error("Merge action error: #{e.message}")
+    redirect_to admin_duplicates_path, alert: "❌ Error merging contacts: #{e.message}"
   end
 
   # Mark as not duplicate
   page_action :mark_not_duplicate, method: :post do
-    contact = Contact.find(params[:contact_id])
-    contact.update(duplicate_checked_at: Time.current)
+    contact = Contact.find_by(id: params[:contact_id])
+    not_duplicate = Contact.find_by(id: params[:not_duplicate_id])
 
+    unless contact
+      redirect_to admin_duplicates_path, alert: "❌ Contact not found. It may have been deleted."
+      return
+    end
+
+    contact.update(duplicate_checked_at: Time.current)
+    not_duplicate&.update(duplicate_checked_at: Time.current)
     redirect_to admin_duplicates_path, notice: "✅ Marked as not a duplicate"
+  rescue StandardError => e
+    Rails.logger.error("Mark not duplicate error: #{e.message}")
+    redirect_to admin_duplicates_path, alert: "❌ Error updating contact: #{e.message}"
   end
 end

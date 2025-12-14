@@ -41,7 +41,7 @@ class VerizonCoverageService
       false
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "[VerizonCoverageService] Error checking coverage for contact #{@contact.id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     mark_coverage_checked
@@ -91,22 +91,20 @@ class VerizonCoverageService
       }
     }
 
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    request['Accept'] = 'application/json'
-    request['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    request.body = payload.to_json
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 10) do |http|
-      http.request(request)
+    response = HttpClient.post(uri, body: payload, circuit_name: 'verizon-api') do |request|
+      request['Accept'] = 'application/json'
+      request['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     end
 
-    return nil unless response.is_a?(Net::HTTPSuccess)
+    return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     parse_verizon_response(data)
 
-  rescue => e
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn "[VerizonCoverageService] Verizon API error: #{e.message}"
+    nil
+  rescue StandardError => e
     Rails.logger.error "[VerizonCoverageService] Verizon API error: #{e.message}"
     nil
   end
@@ -168,13 +166,16 @@ class VerizonCoverageService
 
     uri.query = URI.encode_www_form(params)
 
-    response = Net::HTTP.get_response(uri)
-    return nil unless response.is_a?(Net::HTTPSuccess)
+    response = HttpClient.get(uri, circuit_name: 'fcc-broadband-api')
+    return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     parse_fcc_data(data)
 
-  rescue => e
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn "[VerizonCoverageService] FCC API error: #{e.message}"
+    nil
+  rescue StandardError => e
     Rails.logger.error "[VerizonCoverageService] FCC API error: #{e.message}"
     nil
   end
@@ -209,6 +210,9 @@ class VerizonCoverageService
     state = @contact.consumer_state
 
     return nil unless zipcode && state
+
+    # Validate zipcode length before slicing
+    return nil if zipcode.length < 3
 
     # Verizon 5G Home is available in limited markets
     # Major cities and suburbs typically have coverage
@@ -276,14 +280,13 @@ class VerizonCoverageService
   # ========================================
 
   def get_latitude
-    # Could use geocoding service or cache
-    # For now, return nil (would need geocoding API)
-    nil
+    # Use contact's geocoded coordinates if available
+    @contact.latitude
   end
 
   def get_longitude
-    # Could use geocoding service or cache
-    nil
+    # Use contact's geocoded coordinates if available
+    @contact.longitude
   end
 
   # ========================================

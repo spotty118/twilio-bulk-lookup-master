@@ -3,16 +3,22 @@ class LookupRequestJob < ApplicationJob
   
   # Retry configuration for transient failures
   retry_on Twilio::REST::RestError, wait: :exponentially_longer, attempts: 3 do |job, exception|
-    contact = job.arguments.first
-    contact.mark_failed!("Twilio API error after retries: #{exception.message}")
+    contact_id = job.arguments.first
+    contact = Contact.find_by(id: contact_id)
+    contact&.mark_failed!("Twilio API error after retries: #{exception.message}")
   end
-  
+
   # Retry on network errors (Faraday is loaded by twilio-ruby gem)
-  retry_on StandardError, wait: :exponentially_longer, attempts: 3, if: ->(error) {
-    error.is_a?(Faraday::Error) rescue false
-  } do |job, exception|
-    contact = job.arguments.first
-    contact.mark_failed!("Network error after retries: #{exception.message}")
+  # Explicit rescue is safer than conditional StandardError filtering
+  begin
+    retry_on Faraday::Error, wait: :exponentially_longer, attempts: 3 do |job, exception|
+      contact_id = job.arguments.first
+      contact = Contact.find_by(id: contact_id)
+      contact&.mark_failed!("Network error after retries: #{exception.message}")
+    end
+  rescue NameError
+    # Faraday not loaded - skip network retry configuration
+    Rails.logger.debug("Faraday::Error not defined, network retry logic disabled")
   end
   
   # Don't retry on permanent failures
@@ -20,7 +26,11 @@ class LookupRequestJob < ApplicationJob
     Rails.logger.error("Contact not found: #{exception.message}")
   end
 
-  def perform(contact)
+  # Note: This job expects a contact_id (Integer), not a Contact object
+  # This follows Sidekiq best practice of passing IDs to avoid serialization issues
+  def perform(contact_id)
+    contact = Contact.find(contact_id)
+
     # Idempotency check: skip if already completed
     if contact.lookup_completed?
       Rails.logger.info("Skipping contact #{contact.id}: already completed")
@@ -46,18 +56,23 @@ class LookupRequestJob < ApplicationJob
     begin
       # Use cached credentials to avoid N+1 queries
       credentials = TwilioCredential.current
-      
-      unless credentials
+      app_creds = defined?(AppConfig) ? AppConfig.twilio_credentials : nil
+
+      # Follow AppConfig priority (env/credentials before DB) and treat blanks as missing
+      account_sid = app_creds&.dig(:account_sid)&.presence || credentials&.account_sid&.presence
+      auth_token = app_creds&.dig(:auth_token)&.presence || credentials&.auth_token&.presence
+
+      unless account_sid.present? && auth_token.present?
         contact.mark_failed!('No Twilio credentials configured')
         return
       end
-      
+
       # Initialize Twilio client
-      client = Twilio::REST::Client.new(credentials.account_sid, credentials.auth_token)
+      client = Twilio::REST::Client.new(account_sid, auth_token)
       
       # Perform Twilio Lookup API v2 with configured data packages
       # Build fields parameter from enabled packages
-      fields = credentials.data_packages
+      fields = credentials&.data_packages
       
       lookup_result = if fields.present?
                         client.lookups
@@ -95,7 +110,7 @@ class LookupRequestJob < ApplicationJob
       
       # Extract SMS Pumping Risk data
       sms_risk_data = lookup_result.sms_pumping_risk || {}
-      sms_risk_score = sms_risk_data['sms_pumping_risk_ratio']&.to_i
+      sms_risk_score = sms_risk_data['sms_pumping_risk_score']&.to_i
       
       # Determine risk level based on score
       sms_risk_level = case sms_risk_score
@@ -112,7 +127,7 @@ class LookupRequestJob < ApplicationJob
       contact.update!(
         # Basic validation
         formatted_phone_number: phone_number,
-        valid: valid,
+        phone_valid: valid,
         validation_errors: validation_errors,
         country_code: country_code,
         calling_country_code: calling_country_code,
@@ -141,25 +156,31 @@ class LookupRequestJob < ApplicationJob
       
       # Mark as completed
       contact.mark_completed!
-      
+
       Rails.logger.info("Successfully processed contact #{contact.id}: #{contact.formatted_phone_number}")
 
-      # Queue business enrichment if enabled
-      credentials = TwilioCredential.current
+      # Queue business enrichment if enabled (reuse credentials from line 54)
       if credentials&.enable_business_enrichment
-        BusinessEnrichmentJob.perform_later(contact)
+        BusinessEnrichmentJob.perform_later(contact.id)
       end
 
       # Queue address enrichment for consumers if enabled
       if credentials&.enable_address_enrichment && contact.consumer?
-        AddressEnrichmentJob.perform_later(contact)
+        AddressEnrichmentJob.perform_later(contact.id)
       end
       
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
-      raise # Allow retry mechanism to work
-      
+      # handle_twilio_error will re-raise for transient errors only
+
     rescue StandardError => e
+      # Network errors from twilio-ruby/Faraday should be retried (if configured)
+      if defined?(Faraday::Error) && e.is_a?(Faraday::Error)
+        Rails.logger.warn("Network error for contact #{contact.id}: #{e.class} - #{e.message}")
+        contact.mark_failed!("Network error: #{e.message}")
+        raise
+      end
+
       # Unexpected errors
       Rails.logger.error("Unexpected error for contact #{contact.id}: #{e.class} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
@@ -172,30 +193,34 @@ class LookupRequestJob < ApplicationJob
   def handle_twilio_error(contact, error)
     error_code = error.code
     error_message = error.message
-    
+
     Rails.logger.warn("Twilio error for contact #{contact.id}: [#{error_code}] #{error_message}")
-    
+
     # Determine if error is permanent or transient
     case error_code
     when 20404 # Resource not found - invalid number
       contact.mark_failed!("Invalid phone number: #{error_message}")
-      raise Twilio::REST::RestError, 'Permanent failure' # Don't retry
-      
+      # Don't re-raise for permanent failures - prevent retries
+
     when 20003, 20005 # Authentication errors
       contact.mark_failed!("Authentication error: #{error_message}")
-      raise Twilio::REST::RestError, 'Auth failure' # Don't retry (will fail for all)
-      
+      # Don't re-raise for auth failures - will fail for all contacts
+
     when 20429 # Rate limit exceeded
+      contact.mark_failed!("Rate limit exceeded: #{error_message}")
       Rails.logger.warn("Rate limit exceeded, will retry")
-      # Let retry mechanism handle this
-      
+      # Let retry mechanism handle this by re-raising
+      raise error
+
     when 21211, 21212, 21213, 21214, 21215, 21216, 21217, 21218, 21219 # Invalid number formats
       contact.mark_failed!("Invalid number format: #{error_message}")
-      raise Twilio::REST::RestError, 'Permanent failure' # Don't retry
-      
+      # Don't re-raise for permanent failures - prevent retries
+
     else
-      # Unknown error - allow retry
+      # Unknown error - allow retry by re-raising
+      contact.mark_failed!("Twilio error #{error_code}: #{error_message}")
       Rails.logger.warn("Unknown Twilio error #{error_code}, will retry")
+      raise error
     end
   end
 end

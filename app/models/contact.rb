@@ -3,26 +3,35 @@ class Contact < ApplicationRecord
   include ErrorTrackable
   include StatusManageable
 
+  # Thread-local flag to skip expensive callbacks during bulk operations
+  # Usage: Contact.skip_bulk_callbacks { Contact.insert_all(records) }
+  thread_mattr_accessor :skip_callbacks_for_bulk_import
+  self.skip_callbacks_for_bulk_import = false
+
   # Broadcast changes for real-time dashboard updates
+  # Use throttled broadcasting to prevent overwhelming Redis during bulk operations
   after_update_commit :broadcast_status_update, if: :saved_change_to_status?
-  after_create_commit :broadcast_refresh
-  after_destroy_commit :broadcast_refresh
+  after_create_commit :broadcast_refresh_throttled, unless: -> { Contact.skip_callbacks_for_bulk_import }
+  after_destroy_commit :broadcast_refresh_throttled
 
   # Update fingerprints for duplicate detection
-  after_save :update_fingerprints_if_needed, if: :should_update_fingerprints?
-  after_save :calculate_quality_score_if_needed, if: :should_calculate_quality?
+  # Skip during bulk imports to prevent N+1 queries
+  after_save :update_fingerprints_if_needed,
+             if: -> { should_update_fingerprints? && !Contact.skip_callbacks_for_bulk_import }
+  after_save :calculate_quality_score_if_needed,
+             if: -> { should_calculate_quality? && !Contact.skip_callbacks_for_bulk_import }
   
   # Status workflow: pending -> processing -> completed/failed
   STATUSES = %w[pending processing completed failed].freeze
   
   # Validations
   validates :raw_phone_number, presence: true
-  validates :raw_phone_number, 
+  validates :raw_phone_number,
             format: {
               with: /\A\+?[1-9]\d{1,14}\z/,
               message: "must be a valid phone number (E.164 format recommended, e.g., +14155551234)"
             },
-            on: :create
+            if: ->(contact) { contact.raw_phone_number_changed? && contact.raw_phone_number.present? }
   validates :status, inclusion: { in: STATUSES }, allow_nil: true
   
   # Scopes for filtering
@@ -45,8 +54,8 @@ class Contact < ApplicationRecord
   scope :toll_free, -> { where(line_type: 'tollFree') }
 
   # Validation scopes
-  scope :valid_numbers, -> { where(valid: true) }
-  scope :invalid_numbers, -> { where(valid: false) }
+  scope :valid_numbers, -> { where(phone_valid: true) }
+  scope :invalid_numbers, -> { where(phone_valid: false) }
 
   # Business intelligence scopes
   scope :businesses, -> { where(is_business: true) }
@@ -103,7 +112,7 @@ class Contact < ApplicationRecord
     ["carrier_name", "created_at", "device_type", "error_code",
      "formatted_phone_number", "id", "mobile_country_code",
      "mobile_network_code", "raw_phone_number", "updated_at",
-     "status", "lookup_performed_at", "valid", "country_code",
+     "status", "lookup_performed_at", "phone_valid", "country_code",
      "calling_country_code", "line_type", "line_type_confidence",
      "caller_name", "caller_type", "sms_pumping_risk_score",
      "sms_pumping_risk_level", "sms_pumping_carrier_risk_category",
@@ -114,7 +123,7 @@ class Contact < ApplicationRecord
      "business_state", "business_country", "business_website",
      "business_enriched", "business_enrichment_provider",
      "email", "email_verified", "email_score", "email_status",
-     "first_name", "last_name", "full_name", "position", "department",
+     "first_name", "last_name", "full_name", "position", "department", "seniority",
      "linkedin_url", "email_enriched", "is_duplicate", "duplicate_of_id",
      "data_quality_score", "completeness_percentage",
      "consumer_address", "consumer_city", "consumer_state", "consumer_postal_code",
@@ -128,7 +137,26 @@ class Contact < ApplicationRecord
   def self.ransackable_associations(auth_object = nil)
     []
   end
-  
+
+  # Bulk operation helper - skips callbacks for performance
+  # Example: Contact.with_callbacks_skipped { Contact.insert_all(records) }
+  def self.with_callbacks_skipped
+    original_value = skip_callbacks_for_bulk_import
+    self.skip_callbacks_for_bulk_import = true
+    yield
+  ensure
+    self.skip_callbacks_for_bulk_import = original_value
+  end
+
+  # Batch recalculate fingerprints and quality scores for contacts
+  # Useful after bulk imports that skipped callbacks
+  def self.recalculate_bulk_metrics(contact_ids)
+    where(id: contact_ids).find_each do |contact|
+      contact.update_fingerprints!
+      contact.calculate_quality_score!
+    end
+  end
+
   # Check if lookup has been performed successfully
   def lookup_completed?
     status == 'completed' && formatted_phone_number.present?
@@ -176,6 +204,7 @@ class Contact < ApplicationRecord
   def business?
     is_business == true
   end
+  alias_method :is_business?, :business?
 
   def consumer?
     !business?
@@ -357,7 +386,7 @@ class Contact < ApplicationRecord
     score = 0
 
     # Phone validation (20 points)
-    score += 20 if valid == true
+    score += 20 if phone_valid == true
 
     # Email quality (20 points)
     score += 20 if email_verified
@@ -388,16 +417,22 @@ class Contact < ApplicationRecord
   
   # Mark as processing
   def mark_processing!
-    update(status: 'processing')
+    update!(status: 'processing')
   end
-  
+
   # Mark as completed with timestamp
   def mark_completed!
-    update(status: 'completed', lookup_performed_at: Time.current)
+    update!(status: 'completed', lookup_performed_at: Time.current)
   end
-  
+
+  # Mark as failed with error message
+  def mark_failed!(error_message)
+    update!(status: 'failed', error_code: error_message)
+  end
+
   # Callback conditions
   def should_update_fingerprints?
+    saved_change_to_raw_phone_number? ||
     saved_change_to_formatted_phone_number? || 
     saved_change_to_business_name? || 
     saved_change_to_full_name? || 
@@ -407,7 +442,7 @@ class Contact < ApplicationRecord
   def should_calculate_quality?
     saved_change_to_email? || 
     saved_change_to_business_enriched? || 
-    saved_change_to_valid? ||
+    saved_change_to_phone_valid? ||
     saved_change_to_full_name?
   end
 
@@ -423,7 +458,8 @@ class Contact < ApplicationRecord
   def calculate_phone_fingerprint
     return nil unless formatted_phone_number.present? || raw_phone_number.present?
     phone = (formatted_phone_number || raw_phone_number).gsub(/\D/, '')
-    phone.last(10) # Last 10 digits for matching
+    # Use last 10 digits for matching (handles country codes), or entire number if shorter
+    phone.length > 10 ? phone[-10..-1] : phone
   end
 
   def calculate_name_fingerprint
@@ -449,7 +485,7 @@ class Contact < ApplicationRecord
     filled_fields = 0
 
     filled_fields += 1 if formatted_phone_number.present?
-    filled_fields += 1 if valid == true
+    filled_fields += 1 if phone_valid == true
     filled_fields += 1 if email.present?
     filled_fields += 1 if email_verified == true
     filled_fields += 1 if full_name.present?
@@ -482,11 +518,32 @@ class Contact < ApplicationRecord
 
   # Broadcast turbo stream updates for real-time dashboard
   def broadcast_status_update
-    broadcast_refresh
+    broadcast_refresh_throttled
+  end
+
+  def broadcast_refresh_throttled
+    # Throttle broadcasts to once per second to prevent overwhelming Redis
+    # during bulk operations (e.g., processing 1000s of contacts)
+    throttle_key = 'contact_broadcast_throttle'
+    
+    # Check if we've broadcast recently (within last second)
+    last_broadcast = Rails.cache.read(throttle_key)
+    return if last_broadcast && last_broadcast > 1.second.ago
+    
+    # Set throttle timestamp
+    Rails.cache.write(throttle_key, Time.current, expires_in: 2.seconds)
+    
+    # Schedule the actual broadcast slightly delayed to batch multiple changes
+    # This uses ActiveJob to defer the broadcast, allowing multiple rapid changes
+    # to be coalesced into a single broadcast
+    DashboardBroadcastJob.perform_later
+  rescue StandardError => e
+    # Don't let broadcast failures affect contact operations
+    Rails.logger.warn("Dashboard broadcast failed: #{e.message}")
   end
 
   def broadcast_refresh
-    # Broadcast to dashboard channel to refresh stats
+    # Direct broadcast without throttling (for backwards compatibility)
     broadcast_replace_to(
       "dashboard_stats",
       target: "dashboard_stats",

@@ -3,8 +3,9 @@ class TrustHubEnrichmentJob < ApplicationJob
 
   # Retry configuration for transient failures
   retry_on StandardError, wait: :exponentially_longer, attempts: 2 do |job, exception|
-    contact = job.arguments.first
-    Rails.logger.warn("Trust Hub enrichment failed for contact #{contact.id}: #{exception.message}")
+    contact_id = job.arguments.first
+    contact = Contact.find_by(id: contact_id)
+    Rails.logger.warn("Trust Hub enrichment failed for contact #{contact_id}: #{exception.message}")
   end
 
   # Don't retry on permanent failures
@@ -13,12 +14,16 @@ class TrustHubEnrichmentJob < ApplicationJob
   end
 
   discard_on Twilio::REST::TwilioError do |job, exception|
-    contact = job.arguments.first
-    Rails.logger.error("Twilio API error for contact #{contact.id}: #{exception.message}")
-    contact.update(trust_hub_error: exception.message)
+    contact_id = job.arguments.first
+    contact = Contact.find_by(id: contact_id)
+    Rails.logger.error("Twilio API error for contact #{contact_id}: #{exception.message}")
+    contact&.update(trust_hub_error: exception.message)
   end
 
-  def perform(contact)
+  # Note: This job expects a contact_id (Integer), not a Contact object
+  # This follows Sidekiq best practice of passing IDs to avoid serialization issues
+  def perform(contact_id)
+    contact = Contact.find(contact_id)
     # Skip if already enriched and verified
     if contact.trust_hub_enriched? && contact.trust_hub_verified? && !needs_reverification?(contact)
       Rails.logger.info("Skipping contact #{contact.id}: already Trust Hub verified")
@@ -54,11 +59,8 @@ class TrustHubEnrichmentJob < ApplicationJob
       log_verification_status(contact)
     else
       Rails.logger.info("No Trust Hub data found for contact #{contact.id}")
-      # Mark as attempted even if no data found
-      contact.update(
-        trust_hub_enriched: true,
-        trust_hub_enriched_at: Time.current
-      )
+      # Don't mark as enriched if no data found - allows future re-attempts
+      # Contact will be eligible for re-enrichment on next lookup
     end
 
   rescue Twilio::REST::RestError => e
@@ -68,7 +70,7 @@ class TrustHubEnrichmentJob < ApplicationJob
       trust_hub_enriched: true,
       trust_hub_enriched_at: Time.current
     )
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error("Unexpected error enriching contact #{contact.id}: #{e.class} - #{e.message}")
     Rails.logger.error(e.backtrace.join("\n"))
     raise

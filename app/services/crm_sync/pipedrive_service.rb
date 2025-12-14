@@ -42,7 +42,7 @@ module CrmSync
         end
 
         result
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Pipedrive sync error for contact #{@contact.id}: #{e.message}"
         { success: false, error: e.message }
       end
@@ -77,13 +77,11 @@ module CrmSync
     end
 
     def create_pipedrive_person
-      uri = URI("#{base_url}/persons?api_token=#{@credentials.pipedrive_api_key}")
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request.body = build_pipedrive_payload.to_json
+      uri = URI("#{base_url}/persons")
+      body = build_pipedrive_payload
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.post(uri, body: body, circuit_name: 'pipedrive-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.pipedrive_api_key}"
       end
 
       if response.code.to_i == 201
@@ -93,16 +91,16 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['error'] || 'Pipedrive create error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def update_pipedrive_person
-      uri = URI("#{base_url}/persons/#{@contact.pipedrive_id}?api_token=#{@credentials.pipedrive_api_key}")
-      request = Net::HTTP::Put.new(uri)
-      request['Content-Type'] = 'application/json'
-      request.body = build_pipedrive_payload.to_json
+      uri = URI("#{base_url}/persons/#{@contact.pipedrive_id}")
+      body = build_pipedrive_payload
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.put(uri, body: body, circuit_name: 'pipedrive-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.pipedrive_api_key}"
       end
 
       if response.code.to_i == 200
@@ -111,6 +109,8 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['error'] || 'Pipedrive update error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def build_pipedrive_payload
@@ -128,13 +128,11 @@ module CrmSync
       # This is a simplified version - in production you'd search first
       return nil unless @contact.business_name.present?
 
-      uri = URI("#{base_url}/organizations?api_token=#{@credentials.pipedrive_api_key}")
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request.body = { name: @contact.business_name }.to_json
+      uri = URI("#{base_url}/organizations")
+      body = { name: @contact.business_name }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.post(uri, body: body, circuit_name: 'pipedrive-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.pipedrive_api_key}"
       end
 
       if response.code.to_i == 201
@@ -143,7 +141,7 @@ module CrmSync
       else
         nil
       end
-    rescue
+    rescue StandardError => e
       nil
     end
 

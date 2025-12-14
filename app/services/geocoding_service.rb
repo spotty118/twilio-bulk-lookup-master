@@ -48,17 +48,24 @@ class GeocodingService
         }
       else
         error_msg = response['error_message'] || response['status']
+        
+        # Map internal error statuses to appropriate log statuses
+        log_status = case response['status']
+                     when 'TIMEOUT' then 'timeout'
+                     when 'CIRCUIT_OPEN' then 'error'
+                     else 'failed'
+                     end
 
         log_api_usage(
           service: 'geocode',
-          status: 'failed',
+          status: log_status,
           error_message: error_msg,
           response_time_ms: ((Time.current - start_time) * 1000).to_i
         )
 
         { success: false, error: error_msg }
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Geocoding error for contact #{@contact.id}: #{e.message}"
 
       log_api_usage(
@@ -87,7 +94,8 @@ class GeocodingService
       }
       uri.query = URI.encode_www_form(params)
 
-      response = JSON.parse(Net::HTTP.get(uri))
+      http_response = HttpClient.get(uri, circuit_name: 'google-geocoding-api')
+      response = JSON.parse(http_response.body)
 
       if response['status'] == 'OK' && response['results'].present?
         result = response['results'].first
@@ -117,7 +125,21 @@ class GeocodingService
 
         { success: false, error: error_msg }
       end
-    rescue => e
+    rescue HttpClient::TimeoutError => e
+      Rails.logger.error "Reverse geocoding timeout: #{e.message}"
+
+      log_api_usage(
+        service: 'reverse_geocode',
+        status: 'timeout',
+        error_message: e.message,
+        response_time_ms: ((Time.current - start_time) * 1000).to_i
+      )
+
+      { success: false, error: "Request timed out" }
+    rescue HttpClient::CircuitOpenError => e
+      Rails.logger.warn "Reverse geocoding circuit open: #{e.message}"
+      { success: false, error: "Service temporarily unavailable" }
+    rescue StandardError => e
       Rails.logger.error "Reverse geocoding error: #{e.message}"
 
       log_api_usage(
@@ -198,8 +220,14 @@ class GeocodingService
     }
     uri.query = URI.encode_www_form(params)
 
-    response = Net::HTTP.get(uri)
-    JSON.parse(response)
+    response = HttpClient.get(uri, circuit_name: 'google-geocoding-api')
+    JSON.parse(response.body)
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Google Geocoding API timeout: #{e.message}")
+    { 'status' => 'TIMEOUT', 'error_message' => e.message }
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Google Geocoding circuit open: #{e.message}")
+    { 'status' => 'CIRCUIT_OPEN', 'error_message' => e.message }
   end
 
   def map_accuracy(google_accuracy)

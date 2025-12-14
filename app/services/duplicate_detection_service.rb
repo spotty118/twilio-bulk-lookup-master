@@ -35,9 +35,11 @@ class DuplicateDetectionService
 
     # Score and rank candidates
     scored_candidates = candidates.uniq.map do |candidate|
+      match_reason = determine_match_reason(@contact, candidate)
       {
         contact: candidate,
-        confidence: calculate_match_confidence(@contact, candidate)
+        confidence: calculate_match_confidence(@contact, candidate),
+        reason: match_reason
       }
     end
 
@@ -51,33 +53,51 @@ class DuplicateDetectionService
     return false if @contact.id == duplicate_contact.id
 
     ActiveRecord::Base.transaction do
+      # Lock both contacts to prevent concurrent modifications
+      ids = [@contact.id, duplicate_contact.id].sort
+      locked = Contact.lock.where(id: ids).order(:id).index_by(&:id)
+      primary = locked[@contact.id]
+      duplicate = locked[duplicate_contact.id]
+
+      return false unless primary && duplicate
+
+      # Double-check neither is already a duplicate after acquiring lock
+      return false if primary.is_duplicate? || duplicate.is_duplicate?
+
       # Merge all data, preferring primary contact's data
-      merged_data = merge_data(@contact, duplicate_contact)
+      merged_data = merge_data(primary, duplicate)
+      merged_data[:duplicate_checked_at] = Time.current
 
       # Update primary contact with merged data
-      @contact.update!(merged_data)
+      primary.update!(merged_data)
 
       # Record merge history
       merge_record = {
         merged_at: Time.current,
-        duplicate_id: duplicate_contact.id,
-        duplicate_data: duplicate_contact.attributes.except('id', 'created_at', 'updated_at')
+        duplicate_id: duplicate.id,
+        duplicate_data: duplicate.attributes.except('id', 'created_at', 'updated_at')
       }
 
-      @contact.merge_history ||= []
-      @contact.merge_history << merge_record
-      @contact.save!
+      # Reassign array to ensure Rails detects the change
+      merge_history = primary.merge_history || []
+      merge_history << merge_record
+      primary.merge_history = merge_history
+      primary.save!
 
       # Mark duplicate as merged
-      duplicate_contact.update!(
+      duplicate.update!(
         is_duplicate: true,
-        duplicate_of_id: @contact.id,
-        duplicate_confidence: 100
+        duplicate_of_id: primary.id,
+        duplicate_confidence: 100,
+        duplicate_checked_at: Time.current
       )
 
       # Update fingerprints and quality scores
-      @contact.update_fingerprints!
-      @contact.calculate_quality_score!
+      primary.update_fingerprints!
+      primary.calculate_quality_score!
+
+      # Update instance variable to reflect changes
+      @contact.reload
 
       true
     end
@@ -94,6 +114,7 @@ class DuplicateDetectionService
     Contact.where(formatted_phone_number: @contact.formatted_phone_number)
            .where.not(id: @contact.id)
            .where(is_duplicate: false)
+           .to_a
   end
 
   def find_by_phone_fuzzy
@@ -102,14 +123,23 @@ class DuplicateDetectionService
     Contact.where(phone_fingerprint: @contact.phone_fingerprint)
            .where.not(id: @contact.id)
            .where(is_duplicate: false)
+           .to_a
   end
 
   def find_by_email
     return [] unless @contact.email.present?
 
-    Contact.where(email: @contact.email)
-           .where.not(id: @contact.id)
-           .where(is_duplicate: false)
+    if @contact.email_fingerprint.present?
+      Contact.where(email_fingerprint: @contact.email_fingerprint)
+             .where.not(id: @contact.id)
+             .where(is_duplicate: false)
+             .to_a
+    else
+      Contact.where(email: @contact.email)
+             .where.not(id: @contact.id)
+             .where(is_duplicate: false)
+             .to_a
+    end
   end
 
   def find_by_business_identity
@@ -140,9 +170,14 @@ class DuplicateDetectionService
     Contact.where(name_fingerprint: @contact.name_fingerprint)
            .where.not(id: @contact.id)
            .where(is_duplicate: false)
+           .to_a
   end
 
   def calculate_match_confidence(contact1, contact2)
+    # Skip empty contacts - no meaningful data to compare
+    return 0 if contact1.formatted_phone_number.blank? && contact1.email.blank? && contact1.full_name.blank? && contact1.business_name.blank?
+    return 0 if contact2.formatted_phone_number.blank? && contact2.email.blank? && contact2.full_name.blank? && contact2.business_name.blank?
+
     score = 0
     max_score = 0
 
@@ -200,8 +235,8 @@ class DuplicateDetectionService
     p2 = phone2.gsub(/\D/, '')
 
     # Check last 10 digits (for international numbers)
-    p1_last10 = p1.last(10)
-    p2_last10 = p2.last(10)
+    p1_last10 = p1.length > 10 ? p1[-10..-1] : p1
+    p2_last10 = p2.length > 10 ? p2[-10..-1] : p2
 
     return 1.0 if p1_last10 == p2_last10
 
@@ -214,9 +249,54 @@ class DuplicateDetectionService
   end
 
   def email_domain_match?(email1, email2)
+    return false unless email1.include?('@') && email2.include?('@')
+
     domain1 = email1.split('@').last
     domain2 = email2.split('@').last
     domain1.downcase == domain2.downcase
+  end
+
+  def determine_match_reason(contact1, contact2)
+    reasons = []
+
+    # Check phone match
+    if contact1.formatted_phone_number.present? && contact2.formatted_phone_number.present?
+      if contact1.formatted_phone_number == contact2.formatted_phone_number
+        reasons << "Exact phone match"
+      elsif phone_similarity(contact1.raw_phone_number, contact2.raw_phone_number) > 0.8
+        reasons << "Similar phone number"
+      end
+    end
+
+    # Check email match
+    if contact1.email.present? && contact2.email.present?
+      if contact1.email.downcase == contact2.email.downcase
+        reasons << "Exact email match"
+      elsif email_domain_match?(contact1.email, contact2.email)
+        reasons << "Same email domain"
+      end
+    end
+
+    # Check business name match
+    if contact1.business? && contact1.business_name.present? && contact2.business_name.present?
+      similarity = string_similarity(contact1.business_name, contact2.business_name)
+      reasons << "Similar business name (#{(similarity * 100).round}%)" if similarity > 0.7
+    end
+
+    # Check person name match
+    if !contact1.business? && contact1.full_name.present? && contact2.full_name.present?
+      similarity = string_similarity(contact1.full_name, contact2.full_name)
+      reasons << "Similar name (#{(similarity * 100).round}%)" if similarity > 0.7
+    end
+
+    # Check location match
+    if contact1.business_city.present? && contact2.business_city.present?
+      if contact1.business_city.downcase == contact2.business_city.downcase
+        reasons << "Same city"
+      end
+    end
+
+    reasons.any? ? reasons.join(", ") : "Multiple field similarities"
   end
 
   def string_similarity(str1, str2)

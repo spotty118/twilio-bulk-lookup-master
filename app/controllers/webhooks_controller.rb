@@ -4,24 +4,34 @@ class WebhooksController < ApplicationController
 
   # Twilio SMS Status Webhook
   def twilio_sms_status
-    webhook = Webhook.create(
+    # Use find_or_create_by for idempotency - prevents replay attacks
+    # If duplicate MessageSid is received, return existing webhook (already processed)
+    webhook = Webhook.find_or_create_by(
       source: 'twilio_sms',
-      event_type: 'sms_status',
-      external_id: params[:MessageSid],
-      payload: webhook_params,
-      headers: extract_headers,
-      status: 'pending',
-      received_at: Time.current
-    )
+      external_id: params[:MessageSid]
+    ) do |new_webhook|
+      # Only set these attributes on creation, not on find
+      new_webhook.event_type = 'sms_status'
+      new_webhook.payload = webhook_params
+      new_webhook.headers = extract_headers
+      new_webhook.status = 'pending'
+      new_webhook.received_at = Time.current
+    end
 
-    if webhook.persisted?
-      # Process asynchronously
+    if webhook.persisted? && webhook.status == 'pending'
+      # Process asynchronously only if this is a new webhook
       WebhookProcessorJob.perform_later(webhook.id)
+    elsif webhook.status != 'pending'
+      Rails.logger.info("Duplicate SMS webhook rejected (already #{webhook.status}): #{params[:MessageSid]}")
     else
       Rails.logger.error("Failed to create SMS webhook: #{webhook.errors.full_messages.join(', ')}")
     end
 
     # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue ActiveRecord::RecordNotUnique => e
+    # Race condition: another request created the webhook between find and create
+    Rails.logger.warn("Duplicate SMS webhook (race condition): #{params[:MessageSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("SMS webhook error: #{e.class} - #{e.message}")
@@ -31,24 +41,31 @@ class WebhooksController < ApplicationController
 
   # Twilio Voice Status Webhook
   def twilio_voice_status
-    webhook = Webhook.create(
+    # Use find_or_create_by for idempotency - prevents replay attacks
+    webhook = Webhook.find_or_create_by(
       source: 'twilio_voice',
-      event_type: 'voice_status',
-      external_id: params[:CallSid],
-      payload: webhook_params,
-      headers: extract_headers,
-      status: 'pending',
-      received_at: Time.current
-    )
+      external_id: params[:CallSid]
+    ) do |new_webhook|
+      new_webhook.event_type = 'voice_status'
+      new_webhook.payload = webhook_params
+      new_webhook.headers = extract_headers
+      new_webhook.status = 'pending'
+      new_webhook.received_at = Time.current
+    end
 
-    if webhook.persisted?
-      # Process asynchronously
+    if webhook.persisted? && webhook.status == 'pending'
+      # Process asynchronously only if this is a new webhook
       WebhookProcessorJob.perform_later(webhook.id)
+    elsif webhook.status != 'pending'
+      Rails.logger.info("Duplicate Voice webhook rejected (already #{webhook.status}): #{params[:CallSid]}")
     else
       Rails.logger.error("Failed to create Voice webhook: #{webhook.errors.full_messages.join(', ')}")
     end
 
     # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue ActiveRecord::RecordNotUnique => e
+    Rails.logger.warn("Duplicate Voice webhook (race condition): #{params[:CallSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("Voice webhook error: #{e.class} - #{e.message}")
@@ -58,24 +75,31 @@ class WebhooksController < ApplicationController
 
   # Twilio Trust Hub Status Webhook
   def twilio_trust_hub
-    webhook = Webhook.create(
+    # Use find_or_create_by for idempotency - prevents replay attacks
+    webhook = Webhook.find_or_create_by(
       source: 'twilio_trust_hub',
-      event_type: params[:StatusCallbackEvent] || 'status_update',
-      external_id: params[:CustomerProfileSid],
-      payload: webhook_params,
-      headers: extract_headers,
-      status: 'pending',
-      received_at: Time.current
-    )
+      external_id: params[:CustomerProfileSid]
+    ) do |new_webhook|
+      new_webhook.event_type = params[:StatusCallbackEvent] || 'status_update'
+      new_webhook.payload = webhook_params
+      new_webhook.headers = extract_headers
+      new_webhook.status = 'pending'
+      new_webhook.received_at = Time.current
+    end
 
-    if webhook.persisted?
-      # Process asynchronously
+    if webhook.persisted? && webhook.status == 'pending'
+      # Process asynchronously only if this is a new webhook
       WebhookProcessorJob.perform_later(webhook.id)
+    elsif webhook.status != 'pending'
+      Rails.logger.info("Duplicate Trust Hub webhook rejected (already #{webhook.status}): #{params[:CustomerProfileSid]}")
     else
       Rails.logger.error("Failed to create Trust Hub webhook: #{webhook.errors.full_messages.join(', ')}")
     end
 
     # Always return 200 to prevent Twilio retry storms
+    head :ok
+  rescue ActiveRecord::RecordNotUnique => e
+    Rails.logger.warn("Duplicate Trust Hub webhook (race condition): #{params[:CustomerProfileSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("Trust Hub webhook error: #{e.class} - #{e.message}")
@@ -117,7 +141,11 @@ class WebhooksController < ApplicationController
     signature = request.headers['HTTP_X_TWILIO_SIGNATURE']
     url = request.original_url
 
-    unless validator.validate(url, request.POST, signature)
+    # Combine POST parameters and query parameters for signature validation
+    # Twilio may send data in either or both locations
+    params_for_validation = request.POST.merge(request.query_parameters)
+
+    unless validator.validate(url, params_for_validation, signature)
       Rails.logger.warn "Invalid Twilio signature for webhook: #{request.path}"
       head :forbidden
     end

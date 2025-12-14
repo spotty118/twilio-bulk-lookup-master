@@ -57,7 +57,7 @@ module CrmSync
         end
 
         result
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Salesforce sync error for contact #{@contact.id}: #{e.message}"
         { success: false, error: e.message }
       end
@@ -70,12 +70,9 @@ module CrmSync
 
       begin
         uri = URI("#{@credentials.salesforce_instance_url}/services/data/#{SALESFORCE_API_VERSION}/sobjects/Contact/#{salesforce_id}")
-        request = Net::HTTP::Get.new(uri)
-        request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
-        request['Content-Type'] = 'application/json'
 
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-          http.request(request)
+        response = HttpClient.get(uri, circuit_name: 'salesforce-api') do |request|
+          request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
         end
 
         if response.code.to_i == 200
@@ -85,7 +82,9 @@ module CrmSync
           error_data = JSON.parse(response.body) rescue {}
           { success: false, error: error_data['message'] || 'Salesforce API error' }
         end
-      rescue => e
+      rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+        { success: false, error: "Service unavailable: #{e.message}" }
+      rescue StandardError => e
         Rails.logger.error "Salesforce pull error: #{e.message}"
         { success: false, error: e.message }
       end
@@ -121,17 +120,25 @@ module CrmSync
           code: code
         )
 
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+        response = Net::HTTP.start(uri.hostname, uri.port,
+                                    use_ssl: true,
+                                    read_timeout: 15,
+                                    open_timeout: 10,
+                                    connect_timeout: 10) do |http|
           http.request(request)
         end
 
         if response.code.to_i == 200
           data = JSON.parse(response.body)
+          
+          # Salesforce access tokens typically expire in 2 hours
+          expires_at = Time.current + 2.hours
 
           credentials.update!(
             salesforce_access_token: data['access_token'],
             salesforce_refresh_token: data['refresh_token'],
-            salesforce_instance_url: data['instance_url']
+            salesforce_instance_url: data['instance_url'],
+            salesforce_token_expires_at: expires_at
           )
 
           { success: true, data: data }
@@ -139,7 +146,7 @@ module CrmSync
           error_data = JSON.parse(response.body) rescue {}
           { success: false, error: error_data['error_description'] || 'OAuth error' }
         end
-      rescue => e
+      rescue StandardError => e
         { success: false, error: e.message }
       end
     end
@@ -169,19 +176,72 @@ module CrmSync
 
     def valid_access_token?
       return false unless @credentials.salesforce_access_token.present?
-      # In production, you'd validate token expiration here
+      return false unless @credentials.salesforce_instance_url.present?
+      
+      # Check if token is expired (with 5 minute buffer)
+      if @credentials.salesforce_token_expires_at.present?
+        if @credentials.salesforce_token_expires_at <= 5.minutes.from_now
+          # Token expired or expiring soon - attempt refresh
+          return refresh_access_token
+        end
+      end
+      
       true
+    end
+
+    def refresh_access_token
+      return false unless @credentials.salesforce_refresh_token.present?
+      
+      Rails.logger.info "Refreshing Salesforce access token"
+      
+      begin
+        uri = URI('https://login.salesforce.com/services/oauth2/token')
+        request = Net::HTTP::Post.new(uri)
+        request.set_form_data(
+          grant_type: 'refresh_token',
+          client_id: @credentials.salesforce_client_id,
+          client_secret: @credentials.salesforce_client_secret,
+          refresh_token: @credentials.salesforce_refresh_token
+        )
+
+        response = Net::HTTP.start(uri.hostname, uri.port,
+                                    use_ssl: true,
+                                    read_timeout: 15,
+                                    open_timeout: 10) do |http|
+          http.request(request)
+        end
+
+        if response.code.to_i == 200
+          data = JSON.parse(response.body)
+          
+          # Salesforce access tokens typically expire in 2 hours
+          expires_at = Time.current + 2.hours
+          
+          @credentials.update!(
+            salesforce_access_token: data['access_token'],
+            salesforce_instance_url: data['instance_url'] || @credentials.salesforce_instance_url,
+            salesforce_token_expires_at: expires_at
+          )
+          
+          Rails.logger.info "Salesforce token refreshed successfully"
+          true
+        else
+          error_data = JSON.parse(response.body) rescue {}
+          Rails.logger.error "Salesforce token refresh failed: #{error_data['error_description'] || response.code}"
+          false
+        end
+      rescue StandardError => e
+        Rails.logger.error "Salesforce token refresh error: #{e.message}"
+        false
+      end
     end
 
     def create_salesforce_contact
       uri = URI("#{@credentials.salesforce_instance_url}/services/data/#{SALESFORCE_API_VERSION}/sobjects/Contact")
-      request = Net::HTTP::Post.new(uri)
-      request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
-      request['Content-Type'] = 'application/json'
-      request.body = build_salesforce_payload.to_json
+      body = build_salesforce_payload
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.post(uri, body: body, circuit_name: 'salesforce-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
       end
 
       if response.code.to_i == 201
@@ -191,17 +251,16 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['message'] || 'Salesforce create error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def update_salesforce_contact
       uri = URI("#{@credentials.salesforce_instance_url}/services/data/#{SALESFORCE_API_VERSION}/sobjects/Contact/#{@contact.salesforce_id}")
-      request = Net::HTTP::Patch.new(uri)
-      request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
-      request['Content-Type'] = 'application/json'
-      request.body = build_salesforce_payload.to_json
+      body = build_salesforce_payload
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.patch(uri, body: body, circuit_name: 'salesforce-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.salesforce_access_token}"
       end
 
       if response.code.to_i == 204
@@ -210,6 +269,8 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['message'] || 'Salesforce update error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def build_salesforce_payload

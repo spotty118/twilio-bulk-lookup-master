@@ -80,6 +80,96 @@ ActiveAdmin.register_page "Dashboard" do
           end
         end
       end
+
+      column do
+        panel "📞 Quick Phone Lookup" do
+          form action: admin_dashboard_phone_lookup_path, method: :post do |f|
+            f.input type: :hidden, name: :authenticity_token, value: form_authenticity_token
+
+            div class: "input string required", style: "margin-bottom: 15px;" do
+              label "Phone Number", for: "phone_number", class: "label"
+              input type: "text",
+                    name: "phone_number",
+                    id: "phone_number",
+                    value: flash[:phone_lookup_input],
+                    placeholder: "+14155552671",
+                    required: true,
+                    style: "width: 100%; padding: 10px; font-size: 16px; font-family: monospace;"
+              span "E.164 format recommended", class: "inline-hints", style: "color: #6c757d; font-size: 12px;"
+            end
+
+            div class: "actions" do
+              input type: "submit",
+                    value: "🔎 Lookup",
+                    class: "button primary",
+                    style: "font-size: 16px; padding: 12px 20px; width: 100%;"
+            end
+          end
+
+          if flash[:phone_lookup_error].present?
+            div style: "margin-top: 15px; padding: 12px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;" do
+              strong "Lookup failed", style: "color: #721c24;"
+              div style: "margin-top: 8px; color: #721c24; font-family: monospace; font-size: 12px; white-space: pre-wrap;" do
+                text_node flash[:phone_lookup_error]
+              end
+            end
+          elsif flash[:phone_lookup_result].present?
+            result = flash[:phone_lookup_result]
+            result = result.with_indifferent_access if result.respond_to?(:with_indifferent_access)
+
+            lti = result[:line_type_intelligence] || {}
+            lti = lti.with_indifferent_access if lti.respond_to?(:with_indifferent_access)
+
+            cnam = result[:caller_name] || {}
+            cnam = cnam.with_indifferent_access if cnam.respond_to?(:with_indifferent_access)
+
+            risk = result[:sms_pumping_risk] || {}
+            risk = risk.with_indifferent_access if risk.respond_to?(:with_indifferent_access)
+
+            attributes_table_for nil do
+              row("Formatted") { result[:phone_number].presence || "—" }
+              row("Valid") do
+                if result[:phone_valid].nil?
+                  status_tag "Unknown", class: "warning"
+                elsif result[:phone_valid]
+                  status_tag "Valid", class: "ok"
+                else
+                  status_tag "Invalid", class: "error"
+                end
+              end
+
+              row("Country") do
+                parts = [result[:country_code], result[:calling_country_code]].compact
+                parts.any? ? parts.join(" / ") : "—"
+              end
+
+              row("Line Type") do
+                if lti[:type].present?
+                  status_tag lti[:type], class: lti[:type]
+                else
+                  "—"
+                end
+              end
+
+              row("Carrier") { lti[:carrier_name].presence || "—" }
+              row("CNAM") { cnam[:caller_name].presence || "—" }
+              row("Caller Type") { cnam[:caller_type].presence || "—" }
+
+              row("Fraud Risk Score") { risk[:sms_pumping_risk_score].presence || "—" }
+              row("Blocked") do
+                blocked = risk[:number_blocked]
+                if blocked.nil?
+                  "—"
+                elsif blocked
+                  status_tag "Yes", class: "error"
+                else
+                  status_tag "No", class: "ok"
+                end
+              end
+            end
+          end
+        end
+      end
     end
     
     # ========================================
@@ -643,12 +733,15 @@ ActiveAdmin.register_page "Dashboard" do
           attributes_table_for nil do
             row("Redis Connection") do
               begin
-                if Redis.new.ping == "PONG"
+                redis = Redis.new
+                result = redis.ping == "PONG"
+                redis.close rescue nil  # Ensure connection is closed
+                if result
                   status_tag "Connected", class: "completed"
                 else
                   status_tag "Disconnected", class: "failed"
                 end
-              rescue => e
+              rescue StandardError => e
                 status_tag "Error: #{e.message}", class: "failed"
               end
             end
@@ -678,7 +771,7 @@ ActiveAdmin.register_page "Dashboard" do
               begin
                 config = YAML.load_file(Rails.root.join('config', 'sidekiq.yml'))
                 config.dig(Rails.env, 'concurrency') || config['concurrency'] || "Default (5)"
-              rescue
+              rescue StandardError => e
                 "Not configured"
               end
             end
@@ -686,5 +779,63 @@ ActiveAdmin.register_page "Dashboard" do
         end
       end
     end
+  end
+
+  page_action :phone_lookup, method: :post do
+    phone_number = params[:phone_number].to_s.strip
+
+    if phone_number.blank?
+      redirect_to admin_dashboard_path, alert: "Please enter a phone number"
+      return
+    end
+
+    credentials = TwilioCredential.current
+    app_creds = defined?(AppConfig) ? AppConfig.twilio_credentials : nil
+
+    account_sid = app_creds&.dig(:account_sid)&.presence || credentials&.account_sid&.presence
+    auth_token = app_creds&.dig(:auth_token)&.presence || credentials&.auth_token&.presence
+
+    unless account_sid.present? && auth_token.present?
+      redirect_to admin_dashboard_path, alert: "No Twilio credentials configured"
+      return
+    end
+
+    client = Twilio::REST::Client.new(account_sid, auth_token)
+    fields = credentials&.data_packages
+
+    lookup_result = if fields.present?
+                      client.lookups
+                            .v2
+                            .phone_numbers(phone_number)
+                            .fetch(fields: fields)
+                    else
+                      client.lookups
+                            .v2
+                            .phone_numbers(phone_number)
+                            .fetch
+                    end
+
+    flash[:phone_lookup_input] = phone_number
+    flash[:phone_lookup_result] = {
+      phone_number: lookup_result.phone_number,
+      national_format: lookup_result.national_format,
+      country_code: lookup_result.country_code,
+      calling_country_code: lookup_result.calling_country_code,
+      phone_valid: lookup_result.valid,
+      validation_errors: lookup_result.validation_errors || [],
+      line_type_intelligence: lookup_result.line_type_intelligence || {},
+      caller_name: lookup_result.caller_name || {},
+      sms_pumping_risk: lookup_result.sms_pumping_risk || {}
+    }
+
+    redirect_to admin_dashboard_path
+  rescue Twilio::REST::RestError => e
+    flash[:phone_lookup_input] = phone_number
+    flash[:phone_lookup_error] = e.message
+    redirect_to admin_dashboard_path, alert: "Twilio lookup failed"
+  rescue StandardError => e
+    flash[:phone_lookup_input] = phone_number
+    flash[:phone_lookup_error] = "#{e.class}: #{e.message}"
+    redirect_to admin_dashboard_path, alert: "Lookup failed"
   end
 end

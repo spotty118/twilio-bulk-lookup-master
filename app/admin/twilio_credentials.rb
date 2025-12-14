@@ -32,14 +32,23 @@ ActiveAdmin.register TwilioCredential do
     end
     
     column "Status" do |cred|
-      # Test credentials
-      begin
-        client = Twilio::REST::Client.new(cred.account_sid, cred.auth_token)
-        # Make a simple API call to verify credentials
-        client.api.accounts(cred.account_sid).fetch
+      # Check cached validation status instead of making blocking API call
+      # Use Rails cache to avoid hitting Twilio API on every page load
+      cache_key = "twilio_cred_valid_#{cred.id}_#{cred.updated_at.to_i}"
+      is_valid = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
+        begin
+          client = Twilio::REST::Client.new(cred.account_sid, cred.auth_token)
+          client.api.accounts(cred.account_sid).fetch
+          true
+        rescue StandardError
+          false
+        end
+      end
+      
+      if is_valid
         status_tag "Valid", class: "completed"
-      rescue => e
-        status_tag "Invalid", class: "failed", title: e.message
+      else
+        status_tag "Invalid", class: "failed", title: "Click to revalidate"
       end
     end
     
@@ -1036,7 +1045,7 @@ ActiveAdmin.register TwilioCredential do
               li "Ensure you have API access enabled"
             end
           end
-        rescue => e
+        rescue StandardError => e
           div style: "color: #dc3545;" do
             strong "Connection Error: "
             span e.message
@@ -1083,11 +1092,11 @@ ActiveAdmin.register TwilioCredential do
     begin
       client = Twilio::REST::Client.new(resource.account_sid, resource.auth_token)
       account = client.api.accounts(resource.account_sid).fetch
-      
+
       redirect_to resource_path, notice: "✅ Credentials are valid! Account: #{account.friendly_name}"
     rescue Twilio::REST::RestError => e
       redirect_to resource_path, alert: "❌ Credential test failed: #{e.message}"
-    rescue => e
+    rescue StandardError => e
       redirect_to resource_path, alert: "❌ Connection error: #{e.message}"
     end
   end
@@ -1099,7 +1108,7 @@ ActiveAdmin.register TwilioCredential do
     def create
       # Enforce singleton pattern
       if TwilioCredential.any?
-        redirect_to edit_admin_twilio_credential_path(TwilioCredential.first),
+        redirect_to edit_admin_twilio_credential_path(TwilioCredential.current || TwilioCredential.first),
                     alert: "Credentials already exist. Please update them instead."
         return
       end

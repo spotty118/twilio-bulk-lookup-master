@@ -66,11 +66,8 @@ class MultiLlmService
 
     begin
       uri = URI(OPENAI_API_URL)
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request['Authorization'] = "Bearer #{@credentials.openai_api_key}"
-
-      request.body = {
+      
+      body = {
         model: model,
         messages: [
           { role: 'system', content: 'You are a helpful assistant for a contact intelligence platform.' },
@@ -78,10 +75,16 @@ class MultiLlmService
         ],
         max_tokens: max_tokens,
         temperature: options[:temperature] || 0.7
-      }.to_json
+      }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 30) do |http|
-        http.request(request)
+      # Use HttpClient for circuit breaker and timeout protection
+      response = HttpClient.post(uri,
+                                 body: body,
+                                 circuit_name: 'openai-api',
+                                 read_timeout: 30,
+                                 open_timeout: 10,
+                                 connect_timeout: 10) do |request|
+        request['Authorization'] = "Bearer #{@credentials.openai_api_key}"
       end
 
       if response.code.to_i == 200
@@ -116,7 +119,22 @@ class MultiLlmService
 
         { success: false, error: error_msg }
       end
-    rescue => e
+    rescue HttpClient::CircuitOpenError => e
+      Rails.logger.warn "OpenAI circuit open: #{e.message}"
+      { success: false, error: "Service temporarily unavailable (Circuit Open)" }
+    rescue HttpClient::TimeoutError => e
+      Rails.logger.error "OpenAI API timeout: #{e.message}"
+      
+      log_api_usage(
+        provider: 'openai',
+        service: model,
+        status: 'timeout',
+        error_message: e.message,
+        response_time_ms: ((Time.current - start_time) * 1000).to_i
+      )
+      
+      { success: false, error: "Request timed out" }
+    rescue StandardError => e
       Rails.logger.error "OpenAI API error: #{e.message}"
 
       log_api_usage(
@@ -145,22 +163,24 @@ class MultiLlmService
 
     begin
       uri = URI(ANTHROPIC_API_URL)
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request['x-api-key'] = @credentials.anthropic_api_key
-      request['anthropic-version'] = '2023-06-01'
-
-      request.body = {
+      
+      body = {
         model: model,
         messages: [
           { role: 'user', content: prompt }
         ],
         max_tokens: max_tokens,
         temperature: options[:temperature] || 0.7
-      }.to_json
+      }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 30) do |http|
-        http.request(request)
+      response = HttpClient.post(uri,
+                                 body: body,
+                                 circuit_name: 'anthropic-api',
+                                 read_timeout: 30,
+                                 open_timeout: 10,
+                                 connect_timeout: 10) do |request|
+        request['x-api-key'] = @credentials.anthropic_api_key
+        request['anthropic-version'] = '2023-06-01'
       end
 
       if response.code.to_i == 200
@@ -194,7 +214,22 @@ class MultiLlmService
 
         { success: false, error: error_msg }
       end
-    rescue => e
+    rescue HttpClient::CircuitOpenError => e
+      Rails.logger.warn "Anthropic circuit open: #{e.message}"
+      { success: false, error: "Service temporarily unavailable (Circuit Open)" }
+    rescue HttpClient::TimeoutError => e
+      Rails.logger.error "Anthropic API timeout: #{e.message}"
+      
+      log_api_usage(
+        provider: 'anthropic',
+        service: model,
+        status: 'timeout',
+        error_message: e.message,
+        response_time_ms: ((Time.current - start_time) * 1000).to_i
+      )
+      
+      { success: false, error: "Request timed out" }
+    rescue StandardError => e
       Rails.logger.error "Anthropic API error: #{e.message}"
 
       log_api_usage(
@@ -221,11 +256,9 @@ class MultiLlmService
     model = options[:model] || @credentials.google_ai_model || 'gemini-1.5-flash'
 
     begin
-      uri = URI("#{GOOGLE_AI_API_URL}/#{model}:generateContent?key=#{@credentials.google_ai_api_key}")
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-
-      request.body = {
+      uri = URI("#{GOOGLE_AI_API_URL}/#{model}:generateContent")
+      
+      body = {
         contents: [
           {
             parts: [
@@ -237,10 +270,15 @@ class MultiLlmService
           temperature: options[:temperature] || 0.7,
           maxOutputTokens: options[:max_tokens] || @credentials.ai_max_tokens || 500
         }
-      }.to_json
+      }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 30) do |http|
-        http.request(request)
+      response = HttpClient.post(uri,
+                                 body: body,
+                                 circuit_name: 'google-ai-api',
+                                 read_timeout: 30,
+                                 open_timeout: 10,
+                                 connect_timeout: 10) do |request|
+        request['x-goog-api-key'] = @credentials.google_ai_api_key
       end
 
       if response.code.to_i == 200
@@ -274,7 +312,22 @@ class MultiLlmService
 
         { success: false, error: error_msg }
       end
-    rescue => e
+    rescue HttpClient::CircuitOpenError => e
+      Rails.logger.warn "Google AI circuit open: #{e.message}"
+      { success: false, error: "Service temporarily unavailable (Circuit Open)" }
+    rescue HttpClient::TimeoutError => e
+      Rails.logger.error "Google AI API timeout: #{e.message}"
+      
+      log_api_usage(
+        provider: 'google_ai',
+        service: model,
+        status: 'timeout',
+        error_message: e.message,
+        response_time_ms: ((Time.current - start_time) * 1000).to_i
+      )
+      
+      { success: false, error: "Request timed out" }
+    rescue StandardError => e
       Rails.logger.error "Google AI API error: #{e.message}"
 
       log_api_usage(
@@ -294,11 +347,14 @@ class MultiLlmService
   # ========================================
 
   def build_query_parsing_prompt(query)
+    # Sanitize user input to prevent prompt injection
+    safe_query = PromptSanitizer.sanitize(query, max_length: 500, field_name: 'search_query')
+    
     <<~PROMPT
       Parse the following natural language query into contact search filters.
       Return a JSON object with the appropriate filter criteria.
 
-      Query: "#{query}"
+      Query: "#{safe_query}"
 
       Available fields:
       - line_type: mobile, landline, voip, toll_free
@@ -307,23 +363,26 @@ class MultiLlmService
       - business_employee_range: 1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001-10000, 10000+
       - business_state: US state codes
       - email_verified: true/false
-      - valid: true/false
+      - phone_valid: true/false
 
       Return only the JSON object, no explanation.
     PROMPT
   end
 
   def build_sales_intelligence_prompt(contact)
+    # Sanitize contact fields to prevent prompt injection
+    safe = PromptSanitizer.sanitize_contact(contact)
+    
     <<~PROMPT
       Analyze this contact for sales potential and provide insights:
 
-      Business: #{contact.business_name || 'Unknown'}
-      Industry: #{contact.business_industry || 'Unknown'}
+      Business: #{safe[:business_name].presence || 'Unknown'}
+      Industry: #{safe[:business_industry].presence || 'Unknown'}
       Size: #{contact.business_employee_range || 'Unknown'}
       Revenue: #{contact.business_revenue_range || 'Unknown'}
-      Location: #{contact.business_city}, #{contact.business_state}
-      Contact: #{contact.full_name || 'Unknown'}
-      Title: #{contact.position || 'Unknown'}
+      Location: #{safe[:business_city]}, #{safe[:business_state]}
+      Contact: #{safe[:full_name].presence || 'Unknown'}
+      Title: #{safe[:position].presence || 'Unknown'}
 
       Provide:
       1. Sales potential score (1-10)
@@ -334,15 +393,18 @@ class MultiLlmService
   end
 
   def build_outreach_prompt(contact, message_type)
+    # Sanitize contact fields to prevent prompt injection
+    safe = PromptSanitizer.sanitize_contact(contact)
+    
     case message_type
     when 'intro'
       <<~PROMPT
         Write a brief, professional introduction SMS for:
 
-        Contact: #{contact.full_name || contact.business_name}
-        Title: #{contact.position}
-        Company: #{contact.business_name}
-        Industry: #{contact.business_industry}
+        Contact: #{safe[:full_name].presence || safe[:business_name]}
+        Title: #{safe[:position]}
+        Company: #{safe[:business_name]}
+        Industry: #{safe[:business_industry]}
 
         Keep it under 160 characters. Be concise and value-focused.
       PROMPT
@@ -350,8 +412,8 @@ class MultiLlmService
       <<~PROMPT
         Write a brief follow-up SMS for:
 
-        Contact: #{contact.full_name || contact.business_name}
-        Company: #{contact.business_name}
+        Contact: #{safe[:full_name].presence || safe[:business_name]}
+        Company: #{safe[:business_name]}
 
         Previous contact was made. Keep it under 160 characters.
       PROMPT
@@ -359,10 +421,10 @@ class MultiLlmService
       <<~PROMPT
         Write a professional email introduction for:
 
-        Contact: #{contact.full_name}
-        Title: #{contact.position}
-        Company: #{contact.business_name}
-        Industry: #{contact.business_industry}
+        Contact: #{safe[:full_name]}
+        Title: #{safe[:position]}
+        Company: #{safe[:business_name]}
+        Industry: #{safe[:business_industry]}
 
         Keep it concise (2-3 paragraphs). Focus on value proposition.
       PROMPT

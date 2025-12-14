@@ -44,7 +44,7 @@ module CrmSync
         end
 
         result
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "HubSpot sync error for contact #{@contact.id}: #{e.message}"
         { success: false, error: e.message }
       end
@@ -75,13 +75,10 @@ module CrmSync
 
     def create_hubspot_contact
       uri = URI("#{HUBSPOT_API_URL}/crm/v3/objects/contacts")
-      request = Net::HTTP::Post.new(uri)
-      request['Authorization'] = "Bearer #{@credentials.hubspot_api_key}"
-      request['Content-Type'] = 'application/json'
-      request.body = { properties: build_hubspot_properties }.to_json
+      body = { properties: build_hubspot_properties }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.post(uri, body: body, circuit_name: 'hubspot-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.hubspot_api_key}"
       end
 
       if response.code.to_i == 201
@@ -91,17 +88,16 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['message'] || 'HubSpot create error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def update_hubspot_contact
       uri = URI("#{HUBSPOT_API_URL}/crm/v3/objects/contacts/#{@contact.hubspot_id}")
-      request = Net::HTTP::Patch.new(uri)
-      request['Authorization'] = "Bearer #{@credentials.hubspot_api_key}"
-      request['Content-Type'] = 'application/json'
-      request.body = { properties: build_hubspot_properties }.to_json
+      body = { properties: build_hubspot_properties }
 
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-        http.request(request)
+      response = HttpClient.patch(uri, body: body, circuit_name: 'hubspot-api') do |request|
+        request['Authorization'] = "Bearer #{@credentials.hubspot_api_key}"
       end
 
       if response.code.to_i == 200
@@ -110,6 +106,8 @@ module CrmSync
         error_data = JSON.parse(response.body) rescue {}
         { success: false, error: error_data['message'] || 'HubSpot update error' }
       end
+    rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+      { success: false, error: "Service unavailable: #{e.message}" }
     end
 
     def build_hubspot_properties

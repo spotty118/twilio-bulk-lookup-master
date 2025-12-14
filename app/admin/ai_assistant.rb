@@ -62,17 +62,19 @@ ActiveAdmin.register_page "AI Assistant" do
                 begin
                   contacts = Contact.all
 
+                  # Fields that support partial matching with ILIKE
+                  ILIKE_FIELDS = %w[business_name business_city business_state business_country].freeze
+
                   result[:filters].each do |field, value|
-                    case field
-                    when 'business_name'
-                      contacts = contacts.where('business_name ILIKE ?', "%#{value}%")
-                    when 'business_industry', 'business_type', 'business_employee_range', 'business_revenue_range'
+                    # Type-safe query building using Arel with runtime column validation
+                    if ILIKE_FIELDS.include?(field) && Contact.column_names.include?(field)
+                      # Arel provides SQL injection protection via parameterized queries
+                      contacts = contacts.where(Contact.arel_table[field].matches("%#{value}%"))
+                    elsif %w[business_industry business_type business_employee_range business_revenue_range line_type sms_pumping_risk_level status].include?(field)
+                      # Exact match fields - hash-based where is always safe
                       contacts = contacts.where(field => value)
-                    when 'business_city', 'business_state', 'business_country'
-                      contacts = contacts.where("#{field} ILIKE ?", "%#{value}%")
-                    when 'line_type', 'sms_pumping_risk_level', 'status'
-                      contacts = contacts.where(field => value)
-                    when 'is_business', 'email_verified'
+                    elsif %w[is_business email_verified].include?(field)
+                      # Boolean fields with string conversion
                       contacts = contacts.where(field => value == 'true' || value == true)
                     end
                   end
@@ -105,7 +107,7 @@ ActiveAdmin.register_page "AI Assistant" do
                   else
                     para "No contacts found matching these criteria.", style: "color: #6c757d; padding: 20px; text-align: center;"
                   end
-                rescue => e
+                rescue StandardError => e
                   div style: "color: #dc3545; padding: 15px; background: #f8d7da; border-radius: 4px;" do
                     strong "Search Error: "
                     text_node e.message

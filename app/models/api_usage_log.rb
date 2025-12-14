@@ -1,6 +1,18 @@
 class ApiUsageLog < ApplicationRecord
   belongs_to :contact, optional: true
 
+  # Sensitive keys that should be redacted before logging (GDPR/PII compliance)
+  SENSITIVE_KEYS = %w[
+    password token secret key api_key auth_token access_token refresh_token
+    authorization bearer credentials account_sid auth_code
+    ssn social_security_number tax_id ein passport drivers_license
+    credit_card card_number cvv ccv security_code bank_account routing_number
+    private_key certificate pem
+  ].freeze
+
+  # Redact sensitive data before saving
+  before_save :redact_sensitive_data
+
   # Validations
   validates :provider, :service, :requested_at, presence: true
   validates :status, inclusion: { in: %w[success failed rate_limited error timeout] }, allow_nil: true
@@ -129,7 +141,7 @@ class ApiUsageLog < ApplicationRecord
       error_message: params[:error_message],
       requested_at: params[:requested_at] || Time.current
     )
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Failed to log API usage: #{e.message}"
     nil
   end
@@ -142,5 +154,40 @@ class ApiUsageLog < ApplicationRecord
 
   def self.ransackable_associations(auth_object = nil)
     ["contact"]
+  end
+
+  private
+
+  def redact_sensitive_data
+    # Redact sensitive keys from request_params
+    if request_params.present?
+      self.request_params = deep_redact(request_params)
+    end
+
+    # Redact sensitive keys from response_data
+    if response_data.present?
+      self.response_data = deep_redact(response_data)
+    end
+  end
+
+  def deep_redact(data)
+    case data
+    when Hash
+      data.each_with_object({}) do |(key, value), new_hash|
+        key_str = key.to_s.downcase
+        # Check if key matches any sensitive patterns
+        is_sensitive = SENSITIVE_KEYS.any? { |sensitive_key| key_str.include?(sensitive_key) }
+
+        new_hash[key] = if is_sensitive
+                          '[REDACTED]'
+                        else
+                          deep_redact(value)
+                        end
+      end
+    when Array
+      data.map { |item| deep_redact(item) }
+    else
+      data
+    end
   end
 end

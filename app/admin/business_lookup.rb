@@ -57,7 +57,7 @@ ActiveAdmin.register_page "Business Lookup" do
       # Single Zipcode Lookup
       column do
         panel "🎯 Single Zipcode Lookup" do
-          form action: lookup_single_admin_business_lookup_path, method: :post do |f|
+          form action: admin_business_lookup_lookup_single_path, method: :post do |f|
             f.input type: :hidden, name: :authenticity_token, value: form_authenticity_token
 
             div class: "input string required", style: "margin-bottom: 20px;" do
@@ -95,7 +95,7 @@ ActiveAdmin.register_page "Business Lookup" do
       # Bulk Zipcode Lookup
       column do
         panel "📦 Bulk Zipcode Lookup" do
-          form action: lookup_bulk_admin_business_lookup_path, method: :post do |f|
+          form action: admin_business_lookup_lookup_bulk_path, method: :post do |f|
             f.input type: :hidden, name: :authenticity_token, value: form_authenticity_token
 
             div class: "input text required", style: "margin-bottom: 20px;" do
@@ -238,8 +238,15 @@ ActiveAdmin.register_page "Business Lookup" do
                      admin_contacts_path(q: { business_postal_code_eq: lookup.zipcode }),
                      class: "button"
             elsif lookup.status == 'failed' && lookup.error_message.present?
+              # Safely escape error message for JavaScript context
+              safe_message = lookup.error_message.to_s
+                .gsub('\\', '\\\\\\\\')  # Escape backslashes first
+                .gsub("'", "\\\\'")       # Escape single quotes
+                .gsub("\n", '\\n')        # Escape newlines
+                .gsub("\r", '\\r')        # Escape carriage returns
+                .gsub('</script>', '<\\/script>')  # Prevent script injection
               link_to "View Error", "#",
-                     onclick: "alert('#{lookup.error_message.gsub("'", "\\'")}'); return false;",
+                     onclick: "alert('#{safe_message}'); return false;",
                      class: "button",
                      style: "background: #dc3545;"
             end

@@ -37,6 +37,9 @@ class MessagingService
         last_engagement_at: Time.current
       )
 
+      # Increment rate limit counter after successful send
+      increment_sms_rate_limit!
+
       # Log API usage
       log_api_usage(
         service: 'sms_send',
@@ -71,6 +74,8 @@ class MessagingService
 
   # Send SMS using template
   def send_sms_from_template(template_type: 'intro', options: {})
+    return { success: false, error: 'No credentials configured' } unless @credentials
+
     template = case template_type
     when 'intro'
       @credentials.sms_intro_template
@@ -129,6 +134,9 @@ class MessagingService
         voice_last_called_at: Time.current,
         last_engagement_at: Time.current
       )
+
+      # Increment rate limit counter after successful call
+      increment_voice_rate_limit!
 
       # Log API usage
       log_api_usage(
@@ -218,7 +226,12 @@ class MessagingService
 
   def check_sms_rate_limit
     max_per_hour = @credentials.max_sms_per_hour || 100
-    sent_this_hour = Contact.where('sms_last_sent_at >= ?', 1.hour.ago).count
+
+    # Use atomic counter for accurate rate limiting across workers
+    cache_key = "sms_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
+    
+    # Read current count (don't increment yet - that happens after successful send)
+    sent_this_hour = Rails.cache.read(cache_key) || 0
 
     if sent_this_hour >= max_per_hour
       { success: false, error: "Rate limit exceeded: #{sent_this_hour}/#{max_per_hour} SMS sent in the last hour" }
@@ -227,9 +240,19 @@ class MessagingService
     end
   end
 
+  def increment_sms_rate_limit!
+    cache_key = "sms_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
+    Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
+  end
+
   def check_voice_rate_limit
     max_per_hour = @credentials.max_calls_per_hour || 50
-    calls_this_hour = Contact.where('voice_last_called_at >= ?', 1.hour.ago).count
+
+    # Use atomic counter for accurate rate limiting across workers
+    cache_key = "voice_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
+    
+    # Read current count (don't increment yet - that happens after successful call)
+    calls_this_hour = Rails.cache.read(cache_key) || 0
 
     if calls_this_hour >= max_per_hour
       { success: false, error: "Rate limit exceeded: #{calls_this_hour}/#{max_per_hour} calls in the last hour" }
@@ -238,23 +261,45 @@ class MessagingService
     end
   end
 
+  def increment_voice_rate_limit!
+    cache_key = "voice_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
+    Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
+  end
+
   def build_status_callback_url(type)
-    # This would be your Rails app's webhook endpoint
-    # For example: https://yourdomain.com/webhooks/twilio/sms_status
-    if defined?(Rails) && Rails.application
-      case type
-      when 'sms'
-        "#{Rails.application.config.action_mailer.default_url_options[:host]}/webhooks/twilio/sms_status"
-      when 'voice'
-        "#{Rails.application.config.action_mailer.default_url_options[:host]}/webhooks/twilio/voice_status"
-      end
+    # Get base host from config, credentials, or environment
+    host = Rails.application.config.action_mailer.default_url_options&.dig(:host) ||
+           @credentials&.webhook_base_url ||
+           ENV['APP_HOST']
+
+    return nil unless host.present?
+
+    # Build full webhook URL
+    case type
+    when 'sms'
+      "#{host}/webhooks/twilio/sms_status"
+    when 'voice'
+      "#{host}/webhooks/twilio/voice_status"
     end
   end
 
   def interpolate_template(template)
-    template.gsub(/\{\{(\w+)\}\}/) do |match|
-      field = $1
-      @contact.send(field) rescue match
+    # Allowlist of safe fields that can be interpolated in templates
+    # This prevents arbitrary method execution via public_send
+    safe_fields = %w[
+      first_name last_name full_name email formatted_phone_number
+      business_name business_industry business_city business_state
+      position department caller_name
+    ].freeze
+
+    template.gsub(/\{\{(\w+)\}\}/) do
+      field = Regexp.last_match(1)
+      if safe_fields.include?(field)
+        @contact.public_send(field).to_s
+      else
+        Rails.logger.warn("Attempted to interpolate unsafe field in template: #{field}")
+        "{{#{field}}}" # Return original placeholder for unsafe fields
+      end
     end
   end
 

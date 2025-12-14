@@ -24,12 +24,11 @@
 
 # Lifecycle events
 :lifecycle_events:
-  :startup:
-    - 'BulkLookup::Startup'
-  :quiet:
-    - 'BulkLookup::Quiet'
-  :shutdown:
-    - 'BulkLookup::Shutdown'
+  :startup: []
+  :heartbeat: []
+  :beat: []
+  :quiet: []
+  :shutdown: []
 
 # Production-specific settings
 :production:

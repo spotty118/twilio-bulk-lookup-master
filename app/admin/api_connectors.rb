@@ -2,7 +2,7 @@ ActiveAdmin.register_page "API Connectors" do
   menu priority: 4, label: "API Connectors"
 
   content title: "API Connectors Dashboard" do
-    credentials = TwilioCredential.first
+    credentials = TwilioCredential.current
 
     # If no credentials exist, show setup prompt
     unless credentials
@@ -15,7 +15,7 @@ ActiveAdmin.register_page "API Connectors" do
                   style: "margin-top: 20px; font-size: 16px; padding: 15px 30px;"
         end
       end
-      return
+      next
     end
 
     # ========================================
@@ -138,7 +138,7 @@ ActiveAdmin.register_page "API Connectors" do
                 strong "✅ Connected", style: "color: #155724;"
                 para "Account: #{account.friendly_name} (#{account.status})", style: "margin: 5px 0 0 0; font-size: 12px; color: #155724;"
               end
-            rescue => e
+            rescue StandardError => e
               div style: "padding: 10px; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px; margin-bottom: 12px;" do
                 strong "❌ Connection Failed", style: "color: #721c24;"
                 para e.message, style: "margin: 5px 0 0 0; font-size: 11px; color: #721c24;"

@@ -2,10 +2,17 @@ class CrmSyncJob < ApplicationJob
   queue_as :default
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
+  # Don't retry if contact was deleted
+  discard_on ActiveRecord::RecordNotFound do |job, exception|
+    Rails.logger.error("[CrmSyncJob] Record not found: #{exception.message}")
+  end
+
   def perform(contact_id, crm_type = nil)
     contact = Contact.find(contact_id)
     credentials = TwilioCredential.current
 
+    # Guard: skip if no credentials or CRM sync disabled for contact
+    return unless credentials
     return unless contact.crm_sync_enabled
 
     results = {}
@@ -30,9 +37,7 @@ class CrmSyncJob < ApplicationJob
 
     Rails.logger.info "CRM sync completed for contact #{contact_id}: #{results}"
     results
-  rescue ActiveRecord::RecordNotFound => e
-    Rails.logger.error "Contact not found for CRM sync: #{contact_id}"
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "CRM sync job failed for contact #{contact_id}: #{e.message}"
     raise
   end

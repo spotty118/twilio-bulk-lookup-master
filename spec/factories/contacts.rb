@@ -8,7 +8,7 @@ FactoryBot.define do
     trait :completed do
       status { 'completed' }
       formatted_phone_number { raw_phone_number }
-      valid { true }
+      phone_valid { true }
       lookup_performed_at { Time.current }
     end
 

@@ -146,7 +146,7 @@ RSpec.describe Contact, type: :model do
 
   describe '#calculate_quality_score!' do
     it 'scores valid phone number' do
-      contact = create(:contact, valid: true)
+      contact = create(:contact, phone_valid: true)
       contact.calculate_quality_score!
       expect(contact.reload.data_quality_score).to be >= 20
     end

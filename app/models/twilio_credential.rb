@@ -13,13 +13,27 @@ class TwilioCredential < ApplicationRecord
               message: "must be a valid Twilio Auth Token (32 alphanumeric characters)"
             }
   
-  # Ensure only one credential record exists
-  validate :only_one_credential_allowed, on: :create
+  # Singleton enforcement via defense-in-depth:
+  # Layer 1 (this validation): User-friendly error message
+  # Layer 2 (DB unique index): Absolute guarantee even if validation bypassed
+  validate :singleton_constraint, on: :create
+
+  def singleton_constraint
+    # Only enforce if creating an active singleton record
+    return unless is_singleton?
+
+    if TwilioCredential.where(is_singleton: true).exists?
+      errors.add(:base, "Only one Twilio credential record is allowed. Please update the existing record.")
+    end
+  end
   
   # Class method to get current credentials (cached)
+  # race_condition_ttl prevents cache stampede during concurrent updates
   def self.current
-    Rails.cache.fetch('twilio_credentials', expires_in: 1.hour) do
-      first
+    Rails.cache.fetch('twilio_credential_singleton',
+                      expires_in: 1.hour,
+                      race_condition_ttl: 10.seconds) do
+      find_by(is_singleton: true)
     end
   end
 
@@ -41,19 +55,18 @@ class TwilioCredential < ApplicationRecord
       enable_sim_swap || enable_reassigned_number
   end
   
-  # Clear cache after save
-  after_save :clear_cache
-  after_destroy :clear_cache
-  
+  # Clear singleton cache after save/destroy to prevent stale credentials
+  after_save :clear_singleton_cache
+  after_destroy :clear_singleton_cache
+
   private
-  
-  def only_one_credential_allowed
-    if TwilioCredential.count >= 1
-      errors.add(:base, "Only one Twilio credential record is allowed. Please update the existing record.")
-    end
-  end
-  
-  def clear_cache
-    Rails.cache.delete('twilio_credentials')
+
+  # Invalidate cached singleton credentials
+  # Only runs for singleton records to avoid unnecessary cache churn
+  def clear_singleton_cache
+    return unless is_singleton?
+
+    Rails.cache.delete('twilio_credential_singleton')
+    Rails.logger.info("TwilioCredential cache invalidated for singleton record (ID: #{id})")
   end
 end

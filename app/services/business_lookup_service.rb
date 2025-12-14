@@ -2,6 +2,8 @@ require 'net/http'
 require 'json'
 
 class BusinessLookupService
+  class ProviderError < StandardError; end
+
   attr_reader :zipcode, :zipcode_lookup, :stats
 
   def initialize(zipcode, zipcode_lookup: nil)
@@ -44,23 +46,43 @@ class BusinessLookupService
 
   def fetch_businesses_from_providers(limit)
     businesses = []
+    provider_errors = []
+    any_provider_succeeded = false
 
     # Try Google Places first
     if @credentials&.google_places_api_key.present?
-      businesses = try_google_places(limit)
-      @zipcode_lookup&.update(provider: 'google_places') if businesses.any?
-      return businesses if businesses.any?
+      begin
+        businesses = try_google_places(limit)
+        any_provider_succeeded = true
+        @zipcode_lookup&.update(provider: 'google_places')
+        return businesses if businesses.any?
+      rescue ProviderError => e
+        provider_errors << "Google Places: #{e.message}"
+        Rails.logger.warn "[BusinessLookupService] Google Places failed: #{e.message}"
+      end
     end
 
     # Fallback to Yelp
     if @credentials&.yelp_api_key.present?
-      businesses = try_yelp(limit)
-      @zipcode_lookup&.update(provider: 'yelp') if businesses.any?
-      return businesses if businesses.any?
+      begin
+        businesses = try_yelp(limit)
+        any_provider_succeeded = true
+        @zipcode_lookup&.update(provider: 'yelp')
+        return businesses if businesses.any?
+      rescue ProviderError => e
+        provider_errors << "Yelp: #{e.message}"
+        Rails.logger.warn "[BusinessLookupService] Yelp failed: #{e.message}"
+      end
+    end
+
+    return [] if any_provider_succeeded
+
+    if provider_errors.any?
+      raise ProviderError, provider_errors.join(' | ')
     end
 
     Rails.logger.warn "[BusinessLookupService] No business directory API configured"
-    businesses
+    raise ProviderError, "No business directory API configured. Configure Google Places or Yelp in Twilio Settings."
   end
 
   # ========================================
@@ -68,6 +90,16 @@ class BusinessLookupService
   # ========================================
 
   def try_google_places(limit)
+    try_google_places_legacy(limit)
+  rescue ProviderError => legacy_error
+    begin
+      try_google_places_new(limit)
+    rescue ProviderError => new_error
+      raise ProviderError, "#{legacy_error.message} | Places API (New): #{new_error.message}"
+    end
+  end
+
+  def try_google_places_legacy(limit)
     api_key = @credentials.google_places_api_key
 
     # Use Text Search to find businesses in zipcode
@@ -79,26 +111,111 @@ class BusinessLookupService
     }
     uri.query = URI.encode_www_form(params)
 
-    response = Net::HTTP.get_response(uri)
-    return [] unless response.is_a?(Net::HTTPSuccess)
+    response = HttpClient.get(uri, circuit_name: 'google-places-api')
+    raise ProviderError, "HTTP #{response.code}" unless response.code == '200'
 
     data = JSON.parse(response.body)
-    return [] unless data['status'] == 'OK'
+    status = data['status']
+    unless status == 'OK'
+      return [] if status == 'ZERO_RESULTS'
+
+      error_msg = data['error_message'].presence || status
+      raise ProviderError, "#{status} - #{error_msg}. Check that Places API is enabled, billing is active, and API key restrictions allow server requests."
+    end
 
     results = data['results'].take(limit)
 
+    # Batch fetch place details to reduce N+1 API calls
+    # Only fetch details for places that have a place_id
+    place_ids = results.map { |p| p['place_id'] }.compact
+    details_cache = batch_fetch_place_details(place_ids)
+
     results.map do |place|
-      parse_google_place(place)
+      parse_google_place(place, details_cache)
     end.compact
 
-  rescue => e
-    Rails.logger.error "[BusinessLookupService] Google Places error: #{e.message}"
-    []
+  rescue HttpClient::TimeoutError => e
+    raise ProviderError, "Timeout - #{e.message}"
+  rescue HttpClient::CircuitOpenError => e
+    raise ProviderError, "Temporarily unavailable - #{e.message}"
+  rescue JSON::ParserError => e
+    raise ProviderError, "Invalid JSON response - #{e.message}"
+  rescue StandardError => e
+    raise ProviderError, e.message
   end
 
-  def parse_google_place(place)
-    # Get place details for more info
-    details = fetch_google_place_details(place['place_id']) if place['place_id']
+  def try_google_places_new(limit)
+    api_key = @credentials.google_places_api_key
+
+    uri = URI('https://places.googleapis.com/v1/places:searchText')
+    body = {
+      textQuery: "businesses in #{@zipcode}",
+      maxResultCount: limit,
+      languageCode: 'en',
+      regionCode: 'US'
+    }
+    field_mask = 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.websiteUri,places.nationalPhoneNumber,places.internationalPhoneNumber'
+
+    response = HttpClient.post(uri, body: body, circuit_name: 'google-places-api') do |request|
+      request['X-Goog-Api-Key'] = api_key
+      request['X-Goog-FieldMask'] = field_mask
+    end
+
+    unless response.code == '200'
+      begin
+        data = JSON.parse(response.body)
+        error = data['error']
+        error_status = error&.[]('status')
+        error_message = error&.[]('message')
+      rescue JSON::ParserError
+        error_status = nil
+        error_message = nil
+      end
+
+      message = "HTTP #{response.code}"
+      if error_status.present? || error_message.present?
+        message = "#{error_status || message} - #{error_message || message}"
+      end
+      raise ProviderError, message
+    end
+
+    data = JSON.parse(response.body)
+    places = data['places'] || []
+
+    places.take(limit).map do |place|
+      name = place.dig('displayName', 'text') || place['displayName']
+      phone = place['internationalPhoneNumber'] || place['nationalPhoneNumber']
+
+      {
+        name: name,
+        address: place['formattedAddress'],
+        phone: phone,
+        website: place['websiteUri'],
+        business_type: place['types']&.first,
+        rating: place['rating'],
+        latitude: place.dig('location', 'latitude'),
+        longitude: place.dig('location', 'longitude'),
+        place_id: place['id'],
+        source: 'google_places'
+      }
+    end.compact
+  rescue HttpClient::TimeoutError => e
+    raise ProviderError, "Timeout - #{e.message}"
+  rescue HttpClient::CircuitOpenError => e
+    raise ProviderError, "Temporarily unavailable - #{e.message}"
+  rescue JSON::ParserError => e
+    raise ProviderError, "Invalid JSON response - #{e.message}"
+  rescue StandardError => e
+    raise ProviderError, e.message
+  end
+
+  def parse_google_place(place, details_cache = {})
+    # Get place details from cache (batch fetched) or fetch individually as fallback
+    details = if place['place_id'] && details_cache.key?(place['place_id'])
+                details_cache[place['place_id']]
+              elsif place['place_id']
+                fetch_google_place_details(place['place_id'])
+              end
 
     {
       name: place['name'],
@@ -114,6 +231,36 @@ class BusinessLookupService
     }
   end
 
+  def batch_fetch_place_details(place_ids)
+    return {} if place_ids.empty?
+
+    details_cache = {}
+    
+    # Google Places API doesn't support true batch requests, but we can
+    # use threading to parallelize requests (limited to 5 concurrent)
+    # This reduces total wait time significantly compared to sequential calls
+    place_ids.each_slice(5) do |batch|
+      threads = batch.map do |place_id|
+        Thread.new do
+          details = fetch_google_place_details(place_id)
+          [place_id, details] if details
+        end
+      end
+
+      threads.each do |thread|
+        result = thread.value
+        details_cache[result[0]] = result[1] if result
+      end
+    end
+
+    details_cache
+  rescue ProviderError
+    raise
+  rescue StandardError => e
+    Rails.logger.warn "[BusinessLookupService] Batch fetch error: #{e.message}, falling back to individual fetches"
+    {}
+  end
+
   def fetch_google_place_details(place_id)
     api_key = @credentials.google_places_api_key
 
@@ -125,15 +272,23 @@ class BusinessLookupService
     }
     uri.query = URI.encode_www_form(params)
 
-    response = Net::HTTP.get_response(uri)
-    return nil unless response.is_a?(Net::HTTPSuccess)
+    response = HttpClient.get(uri, circuit_name: 'google-places-api')
+    raise ProviderError, "Place details HTTP #{response.code}" unless response.code == '200'
 
     data = JSON.parse(response.body)
-    data['result'] if data['status'] == 'OK'
+    status = data['status']
+    return data['result'] if status == 'OK'
+    return nil if %w[NOT_FOUND ZERO_RESULTS].include?(status)
 
-  rescue => e
-    Rails.logger.error "[BusinessLookupService] Google Place details error: #{e.message}"
+    error_msg = data['error_message'].presence || status
+    raise ProviderError, "Place details #{status} - #{error_msg}"
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn "[BusinessLookupService] Google Place details error: #{e.message}"
     nil
+  rescue JSON::ParserError => e
+    raise ProviderError, "Place details invalid JSON - #{e.message}"
+  rescue StandardError => e
+    raise ProviderError, e.message
   end
 
   # ========================================
@@ -150,14 +305,21 @@ class BusinessLookupService
     }
     uri.query = URI.encode_www_form(params)
 
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{api_key}"
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-      http.request(request)
+    response = HttpClient.get(uri, circuit_name: 'yelp-api') do |request|
+      request['Authorization'] = "Bearer #{api_key}"
     end
 
-    return [] unless response.is_a?(Net::HTTPSuccess)
+    unless response.code == '200'
+      begin
+        data = JSON.parse(response.body)
+        error_desc = data.dig('error', 'description') || data.dig('error', 'code')
+      rescue JSON::ParserError
+        error_desc = nil
+      end
+      message = "HTTP #{response.code}"
+      message = "#{message} - #{error_desc}" if error_desc.present?
+      raise ProviderError, message
+    end
 
     data = JSON.parse(response.body)
     businesses = data['businesses'] || []
@@ -166,9 +328,14 @@ class BusinessLookupService
       parse_yelp_business(biz)
     end.compact
 
-  rescue => e
-    Rails.logger.error "[BusinessLookupService] Yelp error: #{e.message}"
-    []
+  rescue HttpClient::TimeoutError => e
+    raise ProviderError, "Timeout - #{e.message}"
+  rescue HttpClient::CircuitOpenError => e
+    raise ProviderError, "Temporarily unavailable - #{e.message}"
+  rescue JSON::ParserError => e
+    raise ProviderError, "Invalid JSON response - #{e.message}"
+  rescue StandardError => e
+    raise ProviderError, e.message
   end
 
   def parse_yelp_business(biz)
@@ -226,7 +393,7 @@ class BusinessLookupService
       end
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "[BusinessLookupService] Error processing business #{business_data[:name]}: #{e.message}"
     @stats[:skipped] += 1
   end
@@ -280,7 +447,7 @@ class BusinessLookupService
     )
 
     # Update fingerprints before saving
-    contact.save
+    contact.save!
     contact.update_fingerprints! if contact.persisted?
     contact.calculate_quality_score! if contact.persisted?
 
@@ -327,9 +494,9 @@ class BusinessLookupService
   def trigger_enrichment(contact)
     # Queue enrichment jobs if needed
     if contact.raw_phone_number.present? && !contact.lookup_completed?
-      LookupRequestJob.perform_later(contact)
+      LookupRequestJob.perform_later(contact.id)
     elsif contact.business? && !contact.email_enriched?
-      EmailEnrichmentJob.perform_later(contact)
+      EmailEnrichmentJob.perform_later(contact.id)
     end
   end
 

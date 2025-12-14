@@ -2,15 +2,19 @@ class EmailEnrichmentJob < ApplicationJob
   queue_as :default
 
   retry_on StandardError, wait: :exponentially_longer, attempts: 2 do |job, exception|
-    contact = job.arguments.first
-    Rails.logger.warn("Email enrichment failed for contact #{contact.id}: #{exception.message}")
+    contact_id = job.arguments.first
+    contact = Contact.find_by(id: contact_id)
+    Rails.logger.warn("Email enrichment failed for contact #{contact_id}: #{exception.message}")
   end
 
   discard_on ActiveRecord::RecordNotFound do |job, exception|
     Rails.logger.error("Contact not found for email enrichment: #{exception.message}")
   end
 
-  def perform(contact)
+  # Note: This job expects a contact_id (Integer), not a Contact object
+  # This follows Sidekiq best practice of passing IDs to avoid serialization issues
+  def perform(contact_id)
+    contact = Contact.find(contact_id)
     # Skip if already enriched
     if contact.email_enriched?
       Rails.logger.info("Skipping contact #{contact.id}: email already enriched")
@@ -34,13 +38,13 @@ class EmailEnrichmentJob < ApplicationJob
 
       # Queue duplicate detection after email enrichment
       if credentials&.enable_duplicate_detection
-        DuplicateDetectionJob.perform_later(contact)
+        DuplicateDetectionJob.perform_later(contact_id)
       end
     else
       Rails.logger.info("No email data found for contact #{contact.id}")
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error("Unexpected error enriching email for contact #{contact.id}: #{e.class} - #{e.message}")
     raise
   end

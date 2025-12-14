@@ -2,6 +2,11 @@ class GeocodingJob < ApplicationJob
   queue_as :default
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
+  # Don't retry if contact was deleted
+  discard_on ActiveRecord::RecordNotFound do |job, exception|
+    Rails.logger.error("[GeocodingJob] Contact not found: #{exception.message}")
+  end
+
   def perform(contact_id)
     contact = Contact.find(contact_id)
     credentials = TwilioCredential.current
@@ -18,9 +23,7 @@ class GeocodingJob < ApplicationJob
     end
 
     result
-  rescue ActiveRecord::RecordNotFound => e
-    Rails.logger.error "Contact not found for geocoding: #{contact_id}"
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Geocoding job failed for contact #{contact_id}: #{e.message}"
     raise
   end

@@ -65,8 +65,8 @@ module StatusManageable
   end
   
   # Instance methods
-  def status_valid_transition?(new_status)
-    case status
+  def status_valid_transition?(new_status, from_status: status)
+    case from_status
     when 'pending'
       ['processing', 'failed'].include?(new_status)
     when 'processing'
@@ -136,13 +136,28 @@ module StatusManageable
   private
 
   def track_status_change
-    if status_changed? && status_was.present? && !status_valid_transition?(status)
-      error_message = "Invalid status transition: #{status_was} -> #{status}"
-      Rails.logger.error("#{self.class.name} ##{id}: #{error_message}")
-      errors.add(:status, error_message)
-      # Restore previous status
-      self.status = status_was
-      throw :abort
+    if status_changed?
+      # On create, ensure status starts in a valid initial state
+      if new_record? && status.present? && status != 'pending' && status != 'failed'
+        error_message = "New records must start with status 'pending' or 'failed', got: #{status}"
+        Rails.logger.error("#{self.class.name}: #{error_message}")
+        errors.add(:status, error_message)
+        throw :abort
+      end
+
+      # On update, validate status transitions
+      if !new_record? && status_change_to_be_saved.present?
+        old_status, new_status = status_change_to_be_saved
+
+        if old_status.present? && !status_valid_transition?(new_status, from_status: old_status)
+          error_message = "Invalid status transition: #{old_status} -> #{new_status}"
+          Rails.logger.error("#{self.class.name} ##{id}: #{error_message}")
+          errors.add(:status, error_message)
+          # Restore previous status in memory to prevent confusion
+          restore_attributes([:status])
+          throw :abort
+        end
+      end
     end
   end
   

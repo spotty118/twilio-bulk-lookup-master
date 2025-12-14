@@ -1,103 +1,66 @@
+# frozen_string_literal: true
+
+# Rack::Attack Configuration - Rate Limiting for Public Endpoints
+#
+# Protects against DoS attacks, credential stuffing, and webhook replay floods
+# Uses Redis (via Rails.cache) for distributed rate limiting across servers
+
 class Rack::Attack
-  ### Configure Cache ###
-  # Use Redis for rate limit tracking (already available in app)
-  Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(
-    url: ENV['REDIS_URL'] || 'redis://localhost:6379/1'
-  )
+  # Use Rails cache (Redis) for counter storage
+  Rack::Attack.cache.store = Rails.cache
 
-  ### Throttle Configuration ###
-
-  # General throttle: Limit all requests by IP to prevent abuse
-  # Allow 300 requests per 5 minutes per IP
-  throttle('req/ip', limit: 300, period: 5.minutes) do |req|
-    req.ip unless req.path.start_with?('/assets')
+  # Webhook endpoints: 100 req/min per IP
+  throttle('webhooks/ip', limit: 100, period: 1.minute) do |req|
+    req.ip if req.path.start_with?('/webhooks/')
   end
 
-  # Admin login throttle: Prevent brute force login attempts
-  # Allow 5 login attempts per 20 seconds per IP
-  throttle('admin/logins/ip', limit: 5, period: 20.seconds) do |req|
+  # Health checks: 60 req/min per IP
+  throttle('health/ip', limit: 60, period: 1.minute) do |req|
+    req.ip if req.path.match?(/\/(health|up)/)
+  end
+
+  # Admin login: 5 failed attempts per 20 min per email
+  throttle('admin_login/email', limit: 5, period: 20.minutes) do |req|
     if req.path == '/admin_users/sign_in' && req.post?
-      req.ip
+      req.params['admin_user']&.[]('email')&.to_s&.downcase&.presence
     end
   end
 
-  # Admin login email throttle: Prevent credential stuffing
-  # Allow 5 attempts per email per 20 seconds
-  throttle('admin/logins/email', limit: 5, period: 20.seconds) do |req|
-    if req.path == '/admin_users/sign_in' && req.post?
-      # Extract and normalize email from request
-      email = req.params.dig('admin_user', 'email')
-      email&.downcase&.strip&.presence
-    end
+  # General API: 300 req/5min per IP
+  throttle('api/ip', limit: 300, period: 5.minutes) do |req|
+    req.ip unless req.path.start_with?('/assets', '/packs', '/favicon')
   end
 
-  # Lookup endpoint throttle: Prevent API abuse
-  # Allow 10 lookup triggers per minute per IP
-  throttle('lookup/ip', limit: 10, period: 1.minute) do |req|
-    req.ip if req.path == '/lookup'
+  # Block suspicious user agents on webhooks
+  blocklist('block scanners') do |req|
+    suspicious = %w[masscan nmap nikto sqlmap metasploit burp acunetix]
+    user_agent = req.user_agent.to_s.downcase
+    req.path.start_with?('/webhooks/') && suspicious.any? { |s| user_agent.include?(s) }
   end
 
-  # Sidekiq dashboard access throttle
-  # Allow 60 requests per minute per IP (generous for dashboard interaction)
-  throttle('sidekiq/ip', limit: 60, period: 1.minute) do |req|
-    req.ip if req.path.start_with?('/sidekiq')
+  # Custom 429 response with Retry-After header
+  self.throttled_responder = lambda do |env|
+    match_data = env['rack.attack.match_data']
+    retry_after = match_data[:period] - (match_data[:epoch_time] % match_data[:period])
+
+    [429, { 'Content-Type' => 'application/json', 'Retry-After' => retry_after.to_s },
+     [{ error: 'Rate limit exceeded', retry_after_seconds: retry_after }.to_json]]
   end
 
-  ### Blocklist Configuration ###
-
-  # Block requests from known bad IPs (can be populated from external source)
-  # Example: Rack::Attack::Allow2Ban will automatically blocklist repeat offenders
-  blocklist('block/bad-actors') do |req|
-    # Add IPs to blocklist
-    # Example: Rack::Attack::Fail2Ban.filter("pentesters-#{req.ip}", maxretry: 5, findtime: 10.minutes, bantime: 1.hour) { true }
-    false # Disabled by default
-  end
-
-  ### Safelist Configuration ###
-
-  # Never throttle localhost (development/health checks)
-  safelist('allow/localhost') do |req|
-    req.ip == '127.0.0.1' || req.ip == '::1'
-  end
-
-  # Allow health check endpoints without throttling
-  safelist('allow/health-checks') do |req|
-    req.path.start_with?('/health') || req.path == '/up'
-  end
-
-  ### Custom Response ###
-
-  # Customize response for throttled requests
-  self.throttled_responder = lambda do |request|
-    match_data = request.env['rack.attack.match_data']
-    now = Time.now
-
-    # Calculate when the throttle will reset
-    period = match_data[:period]
-    limit = match_data[:limit]
-    retry_after = (period - (now.to_i % period)).to_i
-
-    headers = {
-      'Content-Type' => 'text/plain',
-      'Retry-After' => retry_after.to_s,
-      'X-RateLimit-Limit' => limit.to_s,
-      'X-RateLimit-Remaining' => '0',
-      'X-RateLimit-Reset' => (now + retry_after).to_i.to_s
-    }
-
-    body = "Rate limit exceeded. Try again in #{retry_after} seconds.\n"
-
-    [429, headers, [body]]
-  end
-
-  ### Logging ###
-
-  # Log blocked and throttled requests
-  ActiveSupport::Notifications.subscribe('rack.attack') do |name, start, finish, request_id, payload|
+  # Logging for security monitoring
+  ActiveSupport::Notifications.subscribe('throttle.rack_attack') do |_name, _start, _finish, _id, payload|
     req = payload[:request]
-
-    if [:throttle, :blocklist].include?(payload[:match_type])
-      Rails.logger.warn("[Rack::Attack] #{payload[:match_type].to_s.upcase}: #{req.ip} #{req.request_method} #{req.fullpath} - Matched: #{payload[:matched]}")
-    end
+    Rails.logger.warn("[Rack::Attack] Throttled: #{req.ip} #{req.request_method} #{req.fullpath}")
   end
+
+  ActiveSupport::Notifications.subscribe('blocklist.rack_attack') do |_name, _start, _finish, _id, payload|
+    req = payload[:request]
+    Rails.logger.warn("[Rack::Attack] Blocked: #{req.ip} #{req.request_method} #{req.fullpath}")
+  end
+end
+
+# Enable in production/staging only
+if Rails.env.production? || Rails.env.staging?
+  Rails.application.config.middleware.use Rack::Attack
+  Rails.logger.info('Rack::Attack enabled')
 end

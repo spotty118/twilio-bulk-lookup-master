@@ -42,6 +42,7 @@ class BusinessEnrichmentService
   def try_clearbit
     api_key = ENV['CLEARBIT_API_KEY'] || TwilioCredential.current&.clearbit_api_key
     return nil unless api_key.present?
+    return nil unless @phone_number.present?
 
     # First, try phone lookup
     data = clearbit_phone_lookup(api_key)
@@ -59,21 +60,29 @@ class BusinessEnrichmentService
   end
 
   def clearbit_phone_lookup(api_key)
+    return nil unless @phone_number.present?
+
     # Clearbit Prospector API for phone lookup
     uri = URI("https://prospector.clearbit.com/v1/people/search")
     uri.query = URI.encode_www_form(phone: @phone_number)
 
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{api_key}"
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 10) do |http|
-      http.request(request)
+    response = HttpClient.get(uri, circuit_name: 'clearbit-phone') do |request|
+      request['Authorization'] = "Bearer #{api_key}"
     end
 
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     data['results']&.first
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Clearbit phone lookup timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Clearbit phone circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Clearbit phone lookup invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Clearbit phone lookup error: #{e.message}")
     nil
@@ -83,15 +92,21 @@ class BusinessEnrichmentService
     uri = URI("https://company.clearbit.com/v2/companies/find")
     uri.query = URI.encode_www_form(domain: domain)
 
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{api_key}"
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 10) do |http|
-      http.request(request)
+    response = HttpClient.get(uri, circuit_name: 'clearbit-company') do |request|
+      request['Authorization'] = "Bearer #{api_key}"
     end
 
     return nil unless response.code == '200'
     JSON.parse(response.body)
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Clearbit company lookup timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Clearbit company circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Clearbit company lookup invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Clearbit company lookup error: #{e.message}")
     nil
@@ -134,20 +149,28 @@ class BusinessEnrichmentService
   def try_numverify
     api_key = ENV['NUMVERIFY_API_KEY'] || TwilioCredential.current&.numverify_api_key
     return nil unless api_key.present?
+    return nil unless @phone_number.present?
 
     phone = @phone_number.gsub(/[^0-9]/, '')
-    uri = URI("http://apilayer.net/api/validate")
+    uri = URI("https://apilayer.net/api/validate")
     uri.query = URI.encode_www_form(
       access_key: api_key,
       number: phone,
       format: 1
     )
 
-    response = Net::HTTP.get_response(uri)
+    # Use centralized HttpClient with circuit breaker
+    response = HttpClient.get(uri, circuit_name: 'numverify-api')
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     parse_numverify_response(data) if data && data['valid']
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("NumVerify API timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("NumVerify circuit open: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("NumVerify API error: #{e.message}")
     nil

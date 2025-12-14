@@ -44,7 +44,7 @@ class AddressEnrichmentService
       Rails.logger.warn "[AddressEnrichmentService] No address found for contact #{@contact.id}"
       false
     end
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "[AddressEnrichmentService] Error enriching contact #{@contact.id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     false
@@ -94,7 +94,7 @@ class AddressEnrichmentService
     }
     uri.query = URI.encode_www_form(params)
 
-    response = Net::HTTP.get_response(uri)
+    response = HttpClient.get(uri, circuit_name: 'whitepages-api')
     return nil unless response.is_a?(Net::HTTPSuccess)
 
     data = JSON.parse(response.body)
@@ -108,7 +108,16 @@ class AddressEnrichmentService
 
     parse_whitepages_address(current_address, belongs_to)
 
-  rescue => e
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.error "[AddressEnrichmentService] Whitepages timeout: #{e.message}"
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.error "[AddressEnrichmentService] Whitepages circuit open: #{e.message}"
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.error "[AddressEnrichmentService] Whitepages invalid JSON: #{e.message}"
+    nil
+  rescue StandardError => e
     Rails.logger.error "[AddressEnrichmentService] Whitepages error: #{e.message}"
     nil
   end
@@ -146,11 +155,8 @@ class AddressEnrichmentService
     }
     uri.query = URI.encode_www_form(params)
 
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{api_key}"
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-      http.request(request)
+    response = HttpClient.get(uri, circuit_name: 'truecaller-api') do |request|
+      request['Authorization'] = "Bearer #{api_key}"
     end
 
     return nil unless response.is_a?(Net::HTTPSuccess)
@@ -173,7 +179,16 @@ class AddressEnrichmentService
       last_name: data.dig('data', 0, 'name', 'last')
     }
 
-  rescue => e
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.error "[AddressEnrichmentService] TrueCaller timeout: #{e.message}"
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.error "[AddressEnrichmentService] TrueCaller circuit open: #{e.message}"
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.error "[AddressEnrichmentService] TrueCaller invalid JSON: #{e.message}"
+    nil
+  rescue StandardError => e
     Rails.logger.error "[AddressEnrichmentService] TrueCaller error: #{e.message}"
     nil
   end
@@ -253,7 +268,10 @@ class AddressEnrichmentService
 
   def normalize_phone(phone)
     return nil if phone.blank?
-    phone.gsub(/\D/, '').gsub(/^1/, '') # Remove +1 and non-digits
+    digits = phone.gsub(/\D/, '') # Remove non-digits
+    # Only remove leading 1 if it's an 11-digit number (US country code)
+    # Don't remove leading 1 from toll-free numbers like 800, 888, etc.
+    digits.length == 11 && digits[0] == '1' ? digits[1..-1] : digits
   end
 
   def calculate_confidence(address_data)

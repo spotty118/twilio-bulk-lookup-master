@@ -71,13 +71,22 @@ class EmailEnrichmentService
       api_key: api_key
     )
 
-    response = Net::HTTP.get_response(uri)
+    response = HttpClient.get(uri, circuit_name: 'hunter-api')
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     return nil unless data['data'] && data['data']['email']
 
     parse_hunter_response(data['data'])
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Hunter phone search timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Hunter circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Hunter phone search invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Hunter phone search error: #{e.message}")
     nil
@@ -87,8 +96,8 @@ class EmailEnrichmentService
     uri = URI("https://api.hunter.io/v2/email-finder")
 
     # Parse first and last name
-    name_parts = @contact.full_name.split(' ')
-    first_name = name_parts.first
+    name_parts = @contact.full_name.to_s.split(' ')
+    first_name = name_parts.first || ''
     last_name = name_parts.length > 1 ? name_parts.last : ''
 
     uri.query = URI.encode_www_form(
@@ -98,13 +107,22 @@ class EmailEnrichmentService
       api_key: api_key
     )
 
-    response = Net::HTTP.get_response(uri)
+    response = HttpClient.get(uri, circuit_name: 'hunter-api')
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     return nil unless data['data'] && data['data']['email']
 
     parse_hunter_response(data['data'])
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Hunter email finder timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Hunter circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Hunter email finder invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Hunter email finder error: #{e.message}")
     nil
@@ -134,7 +152,7 @@ class EmailEnrichmentService
     return nil unless @contact.full_name.present? || @contact.caller_name.present?
 
     name = @contact.full_name || @contact.caller_name
-    name_parts = name.downcase.split(' ')
+    name_parts = name.to_s.downcase.split(' ').reject(&:empty?)
 
     return nil if name_parts.length < 2
 
@@ -145,7 +163,7 @@ class EmailEnrichmentService
     patterns = [
       "#{first}.#{last}@#{@contact.business_email_domain}",
       "#{first}#{last}@#{@contact.business_email_domain}",
-      "#{first[0]}#{last}@#{@contact.business_email_domain}",
+      "#{first[0..0]}#{last}@#{@contact.business_email_domain}",
       "#{first}@#{@contact.business_email_domain}"
     ]
 
@@ -168,24 +186,30 @@ class EmailEnrichmentService
     return nil unless api_key.present?
     return nil unless @contact.business_email_domain.present? && @contact.full_name.present?
 
-    name_parts = @contact.full_name.split(' ')
+    name_parts = @contact.full_name.to_s.split(' ').reject(&:empty?)
     uri = URI("https://person.clearbit.com/v1/people/email/#{@contact.business_email_domain}")
     uri.query = URI.encode_www_form(
-      given_name: name_parts.first,
+      given_name: name_parts.first || '',
       family_name: name_parts.length > 1 ? name_parts.last : ''
     )
 
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{api_key}"
-
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: 10) do |http|
-      http.request(request)
+    response = HttpClient.get(uri, circuit_name: 'clearbit-email') do |request|
+      request['Authorization'] = "Bearer #{api_key}"
     end
 
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
     parse_clearbit_email_response(data) if data['email']
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Clearbit email finder timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Clearbit email circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Clearbit email finder invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Clearbit email finder error: #{e.message}")
     nil
@@ -232,7 +256,7 @@ class EmailEnrichmentService
       ip_address: ''
     )
 
-    response = Net::HTTP.get_response(uri)
+    response = HttpClient.get(uri, circuit_name: 'zerobounce-api')
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
@@ -243,6 +267,15 @@ class EmailEnrichmentService
       email_score: score_from_status(data['status']),
       email_type: data['sub_status']
     }
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("ZeroBounce verification timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("ZeroBounce circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("ZeroBounce verification invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("ZeroBounce verification error: #{e.message}")
     nil
@@ -258,7 +291,7 @@ class EmailEnrichmentService
       api_key: api_key
     )
 
-    response = Net::HTTP.get_response(uri)
+    response = HttpClient.get(uri, circuit_name: 'hunter-api')
     return nil unless response.code == '200'
 
     data = JSON.parse(response.body)
@@ -270,6 +303,15 @@ class EmailEnrichmentService
       email_score: verification['score'],
       email_type: verification['result']
     }
+  rescue HttpClient::TimeoutError => e
+    Rails.logger.warn("Hunter verification timeout: #{e.message}")
+    nil
+  rescue HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Hunter circuit open: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Hunter verification invalid JSON: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("Hunter verification error: #{e.message}")
     nil
