@@ -43,6 +43,9 @@ gem 'httparty', '~> 0.21'
 # Parallel processing for API enrichment
 gem 'concurrent-ruby', '~> 1.2'
 
+# Circuit breaker for API resilience
+gem 'stoplight', '~> 3.0'
+
 # Rate limiting and abuse prevention
 gem 'rack-attack', '~> 6.7'
 

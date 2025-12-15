@@ -1,7 +1,25 @@
-require 'net/http'
-require 'json'
+# frozen_string_literal: true
 
+# BusinessEnrichmentService - Enriches contacts with business intelligence data
+#
+# This service attempts to enrich contact records with business information
+# from multiple providers in order of preference:
+# 1. Clearbit (most comprehensive)
+# 2. NumVerify (basic business intelligence)
+# 3. Twilio CNAM (fallback using existing caller ID)
+#
+# All external API calls are protected by circuit breakers to prevent cascade failures.
+#
+# Usage:
+#   BusinessEnrichmentService.enrich(contact)
+#
 class BusinessEnrichmentService
+  include HTTParty
+
+  # Configure HTTParty defaults
+  default_timeout 10
+  headers 'User-Agent' => 'TwilioBulkLookup/1.0'
+
   # Main entry point for enriching contact with business data
   def self.enrich(contact)
     new(contact).enrich
@@ -57,8 +75,8 @@ class BusinessEnrichmentService
     end
 
     parse_clearbit_response(data) if data
-  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Clearbit network error: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Clearbit HTTP error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit invalid response: #{e.message}")
@@ -68,23 +86,24 @@ class BusinessEnrichmentService
   def clearbit_phone_lookup(api_key)
     return nil unless @phone_number.present?
 
-    # Clearbit Prospector API for phone lookup
-    uri = URI("https://prospector.clearbit.com/v1/people/search")
-    uri.query = URI.encode_www_form(phone: @phone_number)
-
-    response = HttpClient.get(uri, circuit_name: 'clearbit-phone') do |request|
-      request['Authorization'] = "Bearer #{api_key}"
+    # Use circuit breaker for Clearbit API
+    result = CircuitBreakerService.call(:clearbit) do
+      self.class.get(
+        'https://prospector.clearbit.com/v1/people/search',
+        query: { phone: @phone_number },
+        headers: { 'Authorization' => "Bearer #{api_key}" }
+      )
     end
 
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     data['results']&.first
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Clearbit phone lookup timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Clearbit phone circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Clearbit phone lookup error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit phone lookup invalid JSON: #{e.message}")
@@ -92,20 +111,23 @@ class BusinessEnrichmentService
   end
 
   def clearbit_company_lookup(api_key, domain)
-    uri = URI("https://company.clearbit.com/v2/companies/find")
-    uri.query = URI.encode_www_form(domain: domain)
-
-    response = HttpClient.get(uri, circuit_name: 'clearbit-company') do |request|
-      request['Authorization'] = "Bearer #{api_key}"
+    # Use circuit breaker for Clearbit API
+    result = CircuitBreakerService.call(:clearbit) do
+      self.class.get(
+        'https://company.clearbit.com/v2/companies/find',
+        query: { domain: domain },
+        headers: { 'Authorization' => "Bearer #{api_key}" }
+      )
     end
 
-    return nil unless response.code == '200'
-    JSON.parse(response.body)
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Clearbit company lookup timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Clearbit company circuit open: #{e.message}")
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
+
+    return nil unless result.success?
+
+    result.parsed_response
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Clearbit company lookup error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit company lookup invalid JSON: #{e.message}")
@@ -129,7 +151,8 @@ class BusinessEnrichmentService
       business_annual_revenue: company['metrics']&.dig('annualRevenue'),
       business_revenue_range: revenue_range_from_amount(company['metrics']&.dig('annualRevenue')),
       business_founded_year: company['foundedYear'],
-      business_address: [company['location']&.dig('streetNumber'), company['location']&.dig('street')].compact.join(' '),
+      business_address: [company['location']&.dig('streetNumber'),
+                         company['location']&.dig('street')].compact.join(' '),
       business_city: company['location']&.dig('city'),
       business_state: company['location']&.dig('state'),
       business_country: company['location']&.dig('country'),
@@ -152,24 +175,28 @@ class BusinessEnrichmentService
     return nil unless @phone_number.present?
 
     phone = @phone_number.gsub(/[^0-9]/, '')
-    uri = URI("https://apilayer.net/api/validate")
-    uri.query = URI.encode_www_form(
-      access_key: api_key,
-      number: phone,
-      format: 1
-    )
 
-    # Use centralized HttpClient with circuit breaker
-    response = HttpClient.get(uri, circuit_name: 'numverify-api')
-    return nil unless response.code == '200'
+    # Use circuit breaker for NumVerify API
+    result = CircuitBreakerService.call(:numverify) do
+      self.class.get(
+        'https://apilayer.net/api/validate',
+        query: {
+          access_key: api_key,
+          number: phone,
+          format: 1
+        }
+      )
+    end
 
-    data = JSON.parse(response.body)
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
+
+    return nil unless result.success?
+
+    data = result.parsed_response
     parse_numverify_response(data) if data && data['valid']
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("NumVerify API timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("NumVerify circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("NumVerify API error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("NumVerify invalid JSON response: #{e.message}")
@@ -248,7 +275,7 @@ class BusinessEnrichmentService
     when 201..500 then '201-500'
     when 501..1000 then '501-1000'
     when 1001..5000 then '1001-5000'
-    when 5001..10000 then '5001-10000'
+    when 5001..10_000 then '5001-10000'
     else '10000+'
     end
   end
