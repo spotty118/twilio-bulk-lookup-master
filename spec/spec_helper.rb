@@ -8,7 +8,7 @@ SimpleCov.start 'rails' do
   # Output formatters
   formatter SimpleCov::Formatter::MultiFormatter.new([
                                                        SimpleCov::Formatter::HTMLFormatter, # HTML report in /coverage
-                                                       SimpleCov::Formatter::ConsoleFormatter # Terminal output
+                                                       SimpleCov::Formatter::Console # Terminal output
                                                      ])
 
   # Filters (exclude from coverage)
