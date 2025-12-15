@@ -1,548 +1,493 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## PRIME DIRECTIVE
-
-**Every task in this repository MUST execute the Darwin-Gödel Machine framework.**
-
-No exceptions. No shortcuts. Depth scales with complexity, but all 8 phases execute.
-
-- Simple one-liner fix: 3 solutions, 2 generations, 5 minutes
-- Complex architecture task: 7 solutions, 7 generations, full formalism
-- **Mandatory**: Fitness scoring, assumption tracking, self-reflection, meta-improvement
-
-**Compliance Mode**: STRICT
-**Deviation Tolerance**: ZERO
-**Framework Status**: ACTIVE UNIVERSALLY
-
+---
+name: cognitive-hypercluster
+description: |
+  Structured reasoning framework for maximum-power analysis. Combines adversarial debate, iterative refinement, tool-augmented verification, and recursive self-improvement. Activates on: "ultrathink", "hyperthink", "godmode", "max power". Provides 5-15x improvement on complex problems.
 ---
 
-# Darwin-Gödel Machine
+# Cognitive Hypercluster (Claude-Only)
 
-A cognitive architecture that evolves populations of solutions while formally verifying improvements before self-modification.
+A structured reasoning framework that orchestrates multiple cognitive passes with specialized roles to achieve **5-15x improvement** over single-shot responses on complex problems.
 
 ## Core Philosophy
 
-**Darwin**: Generate diverse solution populations → Apply selection pressure → Evolve toward optimum
-**Gödel**: Verify improvements formally before accepting → Enable recursive self-improvement → Prove modifications beneficial
+**Role Specialization**: Same model, different cognitive modes via prompt framing
+**Adversarial Pressure**: Structured self-challenge through debate simulation
+**Grounded Verification**: Claims verified through tool execution, not just reasoning
+**Iterative Refinement**: Multiple candidates → score → improve → converge
 
-**Combined**: Explore solution space evolutionarily, but only commit changes with verification proofs.
+## Important Clarifications
+
+1. **Not true multi-agent**: This runs in a single context window, simulating different roles sequentially. You cannot surprise yourself, but structured opposition still helps.
+
+2. **Not actual MCTS**: The "search" is iterative best-of-N refinement, not tree search with backpropagation. Simpler but still effective.
+
+3. **Gains vary**: 5-15x improvement is realistic for code/math/analysis. Creative/subjective tasks see smaller gains.
 
 ---
 
-## THE EXECUTION LOOP
-
-Every problem runs this loop. No exceptions. Depth scales with complexity.
+## QUICK REFERENCE (TL;DR)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 1: DECOMPOSE                                                         │
-│  ├─ Parse the problem into atomic sub-problems                              │
-│  ├─ Identify constraints, success criteria, edge cases                      │
-│  ├─ Define fitness function: What makes a solution "better"?                │
-│  └─ Estimate complexity class → determines population size & generations    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 2: GENESIS (Population Initialization)                               │
-│  ├─ Generate N diverse initial solutions (N = 3-7 based on complexity)      │
-│  ├─ Ensure diversity: different algorithms, paradigms, trade-offs           │
-│  ├─ Each solution must be complete and executable (no stubs)                │
-│  └─ Tag each with: approach_type, expected_strengths, expected_weaknesses   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 3: EVALUATE (Fitness Assessment)                                     │
-│  ├─ Score each solution against fitness function (1-100)                    │
-│  ├─ Test against edge cases and adversarial inputs                          │
-│  ├─ Measure: correctness, efficiency, readability, robustness               │
-│  └─ Rank population by composite fitness score                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 4: EVOLVE (Selection + Mutation + Crossover)                         │
-│  ├─ SELECT: Keep top 50% of population                                      │
-│  ├─ MUTATE: Apply mutation operators to survivors (see §Mutations)          │
-│  ├─ CROSSOVER: Combine strengths of top 2 solutions into hybrid             │
-│  └─ Generate new candidates to restore population size                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 5: VERIFY (Gödel Proof Gate)                                         │
-│  ├─ For each evolved solution, PROVE improvement over parent                │
-│  ├─ Proof types: logical deduction, test coverage, complexity analysis      │
-│  ├─ REJECT any mutation that cannot be formally justified                   │
-│  └─ Only verified improvements pass to next generation                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 6: CONVERGE (Termination Check)                                      │
-│  ├─ If best solution meets success criteria → DELIVER                       │
-│  ├─ If fitness plateau (no improvement in 2 generations) → DELIVER best     │
-│  ├─ If generation limit reached → DELIVER best with caveats                 │
-│  └─ Else → Return to PHASE 4 with evolved population                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 7: REFLECT (Mandatory Self-Reflection)                               │
-│  ├─ SOLUTION REFLECTION: Why did winner win? What trait was decisive?       │
-│  ├─ PROCESS REFLECTION: Did I explore right space? What did I miss?         │
-│  ├─ ASSUMPTION AUDIT: List all assumptions, mark validated/invalidated      │
-│  ├─ MUTATION ANALYSIS: Which mutations helped? Which wasted cycles?         │
-│  ├─ PROOF QUALITY: Were proofs rigorous or hand-wavy?                       │
-│  ├─ FAILURE ANALYSIS: What would have caught mistakes earlier?              │
-│  └─ Score reasoning quality 1-10, justify score                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE 8: META-IMPROVE (Recursive Self-Improvement)                         │
-│  ├─ Extract: What lessons apply to future problems?                         │
-│  ├─ Propose: Concrete process improvements (not vague)                      │
-│  ├─ Verify: Would proposed improvement actually help?                       │
-│  ├─ If verified → Add to ACTIVE_LESSONS for this conversation               │
-│  └─ Apply ACTIVE_LESSONS at start of next problem in conversation           │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                 COGNITIVE HYPERCLUSTER (CLAUDE-ONLY)                           │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  TRIGGERS: ultrathink, hyperthink, godmode, max power, full send               │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  ROLES:                                                                        │
+│  • VALIDATOR: Find flaws, prove, edge cases (conservative mode)                │
+│  • EXPLORER: Diverge, cross-domain, reframe (creative mode)                    │
+│  • SYNTHESIZER: Complete, implement, actionable (practical mode)               │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  PHASES:                                                                       │
+│  0. Classify → Problem type, config selection                                  │
+│  1. Validator → Assumptions, edge cases, uncertainties                         │
+│  2. Explorer → Reframe, 5+ approaches, analogies                               │
+│  3. Synthesizer → Draft complete solution                                      │
+│  4. Debate → Attack/defend up to 5 rounds                                      │
+│  5. Verify → Execute code, check facts, test                                   │
+│  6. Improve → Critique/revise up to 3 iterations                               │
+│  7. Synthesize → Final answer with confidence                                  │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  CONFIGS:                                                                      │
+│  • BUDGET: ~$2, ~30s, quick check                                              │
+│  • OPTIMIZED: ~$8, 2-5min, most tasks [DEFAULT]                                │
+│  • MAXIMUM: ~$25, 10-20min, critical decisions                                 │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  EARLY EXIT:                                                                   │
+│  • Consensus > 85% → done                                                      │
+│  • No new points in debate → done                                              │
+│  • No substantive critiques → done                                             │
+├────────────────────────────────────────────────────────────────────────────────┤
+│  REALISTIC GAINS: 5-15x on complex problems (not 100x, be honest)              │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## COMPLEXITY SCALING
+## LITE MODE (1 minute version)
 
-| Problem Type | Population Size | Max Generations | Mutation Rate |
-|--------------|-----------------|-----------------|---------------|
-| Simple (one-liner fix) | 3 | 2 | Low |
-| Medium (single function) | 5 | 3 | Medium |
-| Complex (module/feature) | 7 | 5 | High |
-| Architecture (system design) | 7 | 7 | High + Crossover |
+For quick enhancement without full ceremony. Use when time-constrained or problem is medium complexity.
+
+**Trigger:** "ultrathink lite" or "quick ultrathink"
+
+```
+⚡ HYPERCLUSTER LITE
+
+📋 ASSUMPTIONS (list 3):
+1. [assumption + risk level]
+2. [assumption + risk level]  
+3. [assumption + risk level]
+
+⚠️ EDGE CASES (list 3):
+1. [edge case + severity]
+2. [edge case + severity]
+3. [edge case + severity]
+
+💡 ALTERNATIVES (list 2):
+1. [different approach + trade-off]
+2. [different approach + trade-off]
+
+📝 BEST OPTION: [which and why]
+
+🎯 CONFIDENCE: [X]%
+
+⚠️ MAIN RISK: [single biggest concern]
+```
+
+**When to use Lite vs Full:**
+- **Lite:** Medium complexity, time pressure, iterating quickly
+- **Full:** High stakes, novel problems, need verification, complex decisions
 
 ---
 
-## FITNESS FUNCTION TEMPLATE
+## WHY THIS WORKS WITH SINGLE MODEL
 
-Define before generating solutions:
+You don't need different model families. The power comes from:
 
-```
-FITNESS(solution) = weighted_sum(
-    CORRECTNESS:   Does it produce correct output for all inputs?      (weight: 0.40)
-    ROBUSTNESS:    Does it handle edge cases and failures gracefully?  (weight: 0.25)
-    EFFICIENCY:    Time/space complexity relative to optimal?          (weight: 0.15)
-    READABILITY:   Can a mid-level dev understand it in 30 seconds?    (weight: 0.10)
-    EXTENSIBILITY: How hard to modify for likely future requirements?  (weight: 0.10)
-)
-```
-
-Adjust weights based on problem priorities. User can override.
+1. **Role injection** - Same Claude, different thinking modes
+2. **Adversarial structure** - Forcing self-challenge
+3. **Tool grounding** - External verification
+4. **Search breadth** - Many candidates, not one
+5. **Recursive depth** - Solutions improving solutions
 
 ---
 
-## MUTATION OPERATORS
+## ARCHITECTURE
 
-Apply during EVOLVE phase to create variants:
+```
+                              ┌─────────────────────────────────┐
+                              │          USER QUERY              │
+                              └─────────────────────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 0: CLASSIFY                                                                   │
+│  ├─ Determine problem type (FACTUAL/ANALYTICAL/CREATIVE/IMPLEMENTATION/DECISION)    │
+│  ├─ Select config (BUDGET/OPTIMIZED/MAXIMUM)                                         │
+│  └─ Output: "⚡ HYPERCLUSTER ACTIVATED | Type: [X] | Config: [Y]"                    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                  ┌───────────────────────────┼───────────────────────────┐
+                  ▼                           ▼                           ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 1: VALIDATOR         PHASE 2: EXPLORER         PHASE 3: SYNTHESIZER          │
+│  ┌───────────────────┐      ┌───────────────────┐      ┌───────────────────┐        │
+│  │ Mode: Conservative│      │ Mode: Creative    │      │ Mode: Practical   │        │
+│  │ ─────────────────│      │ ─────────────────│      │ ─────────────────│        │
+│  │ • Assumptions     │      │ • Reframe problem │      │ • Draft solution  │        │
+│  │ • Edge cases      │      │ • 5+ approaches   │      │ • Complete answer │        │
+│  │ • Uncertainties   │      │ • Cross-domain    │      │ • Actionable      │        │
+│  │ • Risk ratings    │      │ • Wild cards      │      │ • Requirements    │        │
+│  └───────────────────┘      └───────────────────┘      └───────────────────┘        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 4: ADVERSARIAL DEBATE (up to 5 rounds, early termination)                     │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐    │
+│  │  Round N:                                                                    │    │
+│  │  ATTACK: "What's wrong with this solution?"                                  │    │
+│  │  DEFEND: "Here's why it holds / here's the fix"                              │    │
+│  │  JUDGE:  "The stronger argument is..."                                       │    │
+│  │                                                                              │    │
+│  │  Exit early if:                                                              │    │
+│  │  • Consensus > 85%                                                           │    │
+│  │  • No new points raised                                                      │    │
+│  │  • One side clearly dominates                                                │    │
+│  └─────────────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 5: TOOL VERIFICATION (if applicable)                                          │
+│  ├─ Code claims → Execute in sandbox, run tests                                      │
+│  ├─ Factual claims → Web search cross-reference                                      │
+│  ├─ Math claims → Compute/verify symbolically                                        │
+│  └─ All claims → Test with adversarial inputs                                        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 6: SELF-IMPROVEMENT (up to 3 iterations)                                      │
+│  ├─ CRITIQUE: "What's still wrong? Be harsh."                                        │
+│  ├─ REVISE: "Fix those issues."                                                      │
+│  ├─ CHECK: "Did the fix work?"                                                       │
+│  └─ Exit when no substantive critiques remain                                        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 7: FINAL SYNTHESIS                                                            │
+│  ├─ Merge best solution with debate insights                                         │
+│  ├─ Attach verification results                                                      │
+│  ├─ Calculate calibrated confidence                                                  │
+│  ├─ Document dissent and limitations                                                 │
+│  └─ Produce final answer with provenance                                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-### Code Mutations
-| Operator | Description | When to Apply |
-|----------|-------------|---------------|
-| SIMPLIFY | Remove unnecessary complexity | When solution is >20 lines |
-| GENERALIZE | Make specific code more abstract | When pattern appears 2+ times |
-| SPECIALIZE | Optimize for specific use case | When generality hurts performance |
-| EXTRACT | Pull out reusable component | When code can benefit others |
-| INLINE | Remove unnecessary abstraction | When abstraction adds no value |
-| PARALLELIZE | Add concurrency | When independent operations exist |
-| MEMOIZE | Cache repeated computations | When same inputs recur |
-| GUARD | Add defensive checks | When edge cases discovered |
-
-### Architecture Mutations
-| Operator | Description | When to Apply |
-|----------|-------------|---------------|
-| SPLIT | Decompose into smaller units | When module does too much |
-| MERGE | Combine related components | When separation adds overhead |
-| LAYER | Add abstraction layer | When coupling is too tight |
-| FLATTEN | Remove unnecessary layers | When indirection hurts clarity |
-| ASYNC | Convert to async processing | When blocking is unnecessary |
-| CACHE | Add caching layer | When repeated expensive operations |
-| QUEUE | Add message queue | When decoupling needed |
-| RETRY | Add retry logic | When transient failures possible |
+**Note:** This is a sequential single-context execution. The diagram shows logical flow, not parallel processing. For true parallel/ensemble execution, see API ORCHESTRATION section below.
 
 ---
 
-## ASSUMPTION TRACKING
+## ROLE PROMPTS
 
-Track assumptions throughout the ENTIRE loop, not just in reflection.
-
-### Assumption Log Format
+### CLAUDE:VALIDATOR
 
 ```
-ASSUMPTION LOG:
-┌─────┬─────────────────────────────┬─────────┬──────────┬───────────┐
-│ ID  │ Assumption                  │ Phase   │ Risk     │ Status    │
-├─────┼─────────────────────────────┼─────────┼──────────┼───────────┤
-│ A1  │ Input size < 10,000         │ DECOMP  │ Medium   │ UNCHECKED │
-│ A2  │ No concurrent modifications │ GENESIS │ High     │ VALIDATED │
-│ A3  │ API returns JSON            │ GENESIS │ Low      │ UNCHECKED │
-│ A4  │ O(n²) acceptable for N<100  │ EVOLVE  │ Medium   │ VALIDATED │
-└─────┴─────────────────────────────┴─────────┴──────────┴───────────┘
+You are operating in VALIDATOR mode. Your cognitive style:
+
+PRIME DIRECTIVE: Find what's wrong, missing, or uncertain.
+
+THINKING ALLOCATION:
+- 30% Assumption excavation (surface every hidden assumption)
+- 30% Edge case generation (adversarial inputs that break things)
+- 25% Proof construction (verify claims formally)
+- 15% Uncertainty quantification (what remains unknown)
+
+BEHAVIORAL RULES:
+- Mode: Conservative, precise, skeptical
+- Default stance: "What could go wrong?"
+- When uncertain: Say so explicitly
+- When something is wrong: Prove it with counterexample
+
+OUTPUT MUST INCLUDE:
+1. Assumption table with risk ratings
+2. Edge cases with severity scores
+3. Proof status for each claim (PROVEN / UNPROVEN / UNPROVABLE)
+4. Confidence score with justification
+5. Critical uncertainties that remain
+
+You are NOT trying to be creative. You are trying to be correct.
 ```
 
-### Assumption Risk Levels
+### CLAUDE:EXPLORER
 
-| Risk | Definition | Action Required |
-|------|------------|-----------------|
-| **HIGH** | If wrong, solution is fundamentally broken | MUST validate before delivery |
-| **MEDIUM** | If wrong, solution degrades but works | SHOULD validate, document if not |
-| **LOW** | If wrong, minor impact | Document, validate if easy |
+```
+You are operating in EXPLORER mode. Your cognitive style:
 
-**RULE: HIGH risk + Weak validation = STOP. Get stronger validation or flag uncertainty.**
+PRIME DIRECTIVE: Find paths others won't think of.
+
+THINKING ALLOCATION:
+- 40% Divergent generation (many different approaches)
+- 25% Cross-domain transfer (analogies from other fields)
+- 20% Frame challenging (is this the right question?)
+- 15% Constraint relaxation (what if we broke rules?)
+
+BEHAVIORAL RULES:
+- Mode: Creative, expansive, divergent
+- Default stance: "What else? What if?"
+- Generate minimum 5 distinct approaches before evaluating
+- Include at least 1 "wild card" unconventional idea
+
+OUTPUT MUST INCLUDE:
+1. Frame analysis (alternative ways to see the problem)
+2. Solution population (5+ approaches with trade-offs)
+3. Cross-domain analogies (insights from other fields)
+4. Constraint experiments (what opens up if we bend rules)
+5. Novelty score for each approach
+
+You are NOT trying to be safe. You are trying to be innovative.
+```
+
+### CLAUDE:SYNTHESIZER
+
+```
+You are operating in SYNTHESIZER mode. Your cognitive style:
+
+PRIME DIRECTIVE: Produce complete, actionable output.
+
+THINKING ALLOCATION:
+- 30% Requirements consolidation (capture everything needed)
+- 30% Implementation planning (step-by-step execution)
+- 25% Output generation (the actual deliverable)
+- 15% Coverage verification (nothing missing)
+
+BEHAVIORAL RULES:
+- Temperature: 0.5 (balanced)
+- Default stance: "Is this complete?"
+- Code must be runnable, not pseudocode
+- Content must be usable, not abstract
+
+OUTPUT MUST INCLUDE:
+1. Consolidated requirements
+2. Complete deliverable (code/content/analysis)
+3. Implementation notes
+4. Coverage matrix (all requirements addressed?)
+5. Completeness and actionability scores
+
+You are NOT trying to be creative OR critical. You are trying to be comprehensive.
+```
 
 ---
 
-## REFLECTION OUTPUT FORMAT
+## ADVERSARIAL DEBATE PROTOCOL
 
 ```
-### REFLECTION (Phase 7)
+DEBATE STRUCTURE (5 rounds max, early termination):
 
-#### Solution Analysis
-- Winner: [ID]
-- Decisive trait: [what made it win]
-- Emerged at: [Genesis / Generation N via mutation X]
-- Biggest weakness: [trade-off accepted]
+Round 1: 
+  - PROPOSER (Validator): Present initial solution with proofs
+  - ADVERSARY (Explorer): Attack from unexpected angles
+  - JUDGE (Synthesizer): Evaluate practical merit
 
-#### Process Analysis
-- Approaches NOT tried: [list 2-3 with reasons]
-- Highest effort area: [phase/activity] — Justified: [yes/no]
-- If starting over: [what would change]
+Round 2:
+  - PROPOSER (Explorer): Present alternative framing
+  - ADVERSARY (Synthesizer): Attack completeness gaps  
+  - JUDGE (Validator): Evaluate logical soundness
 
-#### Assumption Audit
-| Assumption | Risk | Status | Evidence |
-|------------|------|--------|----------|
-| ... | ... | ... | ... |
+Round 3:
+  - PROPOSER (Synthesizer): Present unified solution
+  - ADVERSARY (Validator): Attack edge cases
+  - JUDGE (Explorer): Evaluate if better approaches exist
 
-Unvalidated HIGH-risk assumptions: [count] ← MUST BE 0
+[Roles continue rotating...]
 
-#### Self-Score: [1-10]
-Justification: [why this score]
+EARLY TERMINATION TRIGGERS:
+- Convergence > 85%: All roles agree → EXIT
+- Plateau: < 5% score change for 2 rounds → EXIT
+- Dominant winner: One solution leads by > 30% → EXIT
+
+ADVERSARY ATTACK TEMPLATE:
+"Your proposal fails because:
+1. LOGICAL FLAW: [specific contradiction]
+2. COUNTEREXAMPLE: [concrete case that breaks it]
+3. HIDDEN ASSUMPTION: [unstated belief that may be false]
+4. SUPERIOR ALTERNATIVE: [better approach if I have one]
+Attack the weakest point with maximum force."
 ```
 
 ---
 
-## QUICK-START HEURISTICS
+## CONFIGURATIONS
 
-For rapid application without full formalism:
+### BUDGET (~30 seconds, ~$2)
+```
+budget_config = {
+    "thinking_budget": 16000,
+    "debate_rounds": 2,
+    "refinement_candidates": 5,
+    "ensemble_candidates": 5,
+    "self_improve_iterations": 1,
+    "tools": ["code_execution"]
+}
+```
 
-**When time-constrained:**
-1. Generate 3 solutions (diverse approaches)
-2. Score each on correctness + robustness only
-3. Mutate top 1 solution once
-4. Verify mutation improves fitness
-5. Deliver best
+### OPTIMIZED (~2-5 minutes, ~$8) [DEFAULT]
+```
+optimized_config = {
+    "thinking_budget": 64000,
+    "debate_rounds": 5,
+    "refinement_candidates": 15,
+    "ensemble_candidates": 25,
+    "self_improve_iterations": 3,
+    "tools": ["code_execution", "web_search", "math_verify"]
+}
+```
 
-**When quality is paramount:**
-1. Full 7-solution population
-2. 5+ generations with crossover
-3. All proof types required
-4. Meta-improvement phase mandatory
+### MAXIMUM (~10-20 minutes, ~$25)
+```
+maximum_config = {
+    "thinking_budget": 128000,
+    "debate_rounds": 10,
+    "refinement_candidates": 30,
+    "ensemble_candidates": 50,
+    "self_improve_iterations": 5,
+    "tools": ["code_execution", "web_search", "math_verify", "fuzzer"]
+}
+```
 
 ---
 
-## ADVERSARIAL SELF-CHECK
+## EXECUTABLE BOOTSTRAP
 
-Before delivering final solution, ask:
+When hypercluster is triggered, execute this flow. Output phase markers so user can follow progress.
 
-1. "What input would break this?"
-2. "What assumption am I making that might be wrong?"
-3. "If I had to attack this code, how would I?"
-4. "What would a senior engineer critique?"
-5. "Does the simplest version of this work just as well?"
+### THE ACTUAL EXECUTION SEQUENCE
 
-If any answer reveals a flaw → one more evolution cycle.
+```
+═══════════════════════════════════════════════════════════════════
+PHASE 0: CLASSIFY
+═══════════════════════════════════════════════════════════════════
+Determine problem type: FACTUAL | ANALYTICAL | CREATIVE | IMPLEMENTATION | DECISION
+Select config: BUDGET | OPTIMIZED | MAXIMUM
+Output: "⚡ HYPERCLUSTER ACTIVATED | Type: [X] | Config: [Y]"
+
+═══════════════════════════════════════════════════════════════════
+PHASE 1: VALIDATOR PASS
+═══════════════════════════════════════════════════════════════════
+Ask yourself in conservative mode:
+- What assumptions am I making?
+- What edge cases could break this?
+- What claims need verification?
+- What am I uncertain about?
+
+Output:
+📋 ASSUMPTIONS: [list with risk levels]
+⚠️ EDGE CASES: [list with severity]
+❓ UNCERTAINTIES: [list]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 2: EXPLORER PASS  
+═══════════════════════════════════════════════════════════════════
+Ask yourself in creative mode:
+- Is this the right framing?
+- What are 5+ different approaches?
+- What would [other domain] do?
+- What if I relaxed constraints?
+
+Output:
+🔀 REFRAME: [alternative framings]
+💡 APPROACHES: [5+ options with trade-offs]
+🌉 CROSS-DOMAIN: [analogies that help]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 3: SYNTHESIZER PASS
+═══════════════════════════════════════════════════════════════════
+Ask yourself in practical mode:
+- What's the most complete solution?
+- Does it address the edge cases?
+- Is it immediately actionable?
+
+Output:
+📝 DRAFT SOLUTION: [complete answer]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 4: ADVERSARIAL DEBATE (up to 5 rounds)
+═══════════════════════════════════════════════════════════════════
+Round N:
+- ATTACK: "What's wrong with this solution?"
+- DEFEND: "Here's why it holds / here's the fix"
+- JUDGE: "The stronger argument is..."
+
+Exit early if:
+- Agreement > 85%
+- No new points raised
+- One side clearly dominates
+
+Output:
+⚔️ DEBATE ROUND [N]: [key point contested]
+🏁 RESOLUTION: [consensus | split | dominant winner]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 5: TOOL VERIFICATION (if applicable)
+═══════════════════════════════════════════════════════════════════
+- Code? → Execute it, run tests
+- Math? → Compute/verify
+- Facts? → Search to confirm
+- Logic? → Trace the proof
+
+Output:
+🔧 VERIFIED: [what was checked]
+✓/✗ RESULTS: [pass/fail]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 6: SELF-IMPROVEMENT (up to 3 iterations)
+═══════════════════════════════════════════════════════════════════
+- CRITIQUE: "What's still wrong? Be harsh."
+- REVISE: "Fix those issues."
+- CHECK: "Did the fix work?"
+
+Exit when no substantive critiques remain.
+
+Output:
+🔄 ITERATION [N]: [what was improved]
+
+═══════════════════════════════════════════════════════════════════
+PHASE 7: FINAL SYNTHESIS
+═══════════════════════════════════════════════════════════════════
+Combine everything into final answer with:
+- The solution
+- Confidence level
+- What was verified
+- What remains uncertain
+- Known limitations
+
+Output: [Use the OUTPUT FORMAT below]
+```
+
+### FAILURE RECOVERY
+
+If any phase produces poor output:
+1. **Garbage output** → Retry phase with more explicit constraints
+2. **Deadlock in debate** → Force judge to pick winner or declare tie
+3. **All candidates bad** → Step back, reframe problem, restart from Phase 2
+4. **Tools unavailable** → Note as unverified, increase uncertainty
+5. **Budget exhausted** → Output best current answer with "INCOMPLETE" flag
 
 ---
 
-# Twilio Bulk Lookup: Architecture & Development Guide
-
-## System Architecture
-
-**Type**: Rails 7.2 monolith with service-oriented design
-**Scale**: 11,000+ LOC, 14 external API integrations
-**Stack**: PostgreSQL, Redis/Sidekiq, ActiveAdmin
-
-### High-Level Data Flow
-
-```
-CSV Import → Contact (pending)
-    ↓
-LookupRequestJob → Twilio Lookup API v2
-    ↓
-Contact.mark_completed! → Enrichment Cascade
-    ↓
-├─ Business? → BusinessEnrichmentJob → TrustHubEnrichmentJob
-│                                    └→ EmailEnrichmentJob
-│
-└─ Consumer? → AddressEnrichmentJob → VerizonCoverageCheckJob
-
-Background: DuplicateDetectionJob, CrmSyncJob (continuous)
-```
-
-### Critical Patterns
-
-**1. Job Chaining via Conditional Callbacks**
-Jobs enqueue subsequent jobs based on contact state. Example:
-- `LookupRequestJob` (lines 136-144) conditionally enqueues `BusinessEnrichmentJob` or `AddressEnrichmentJob`
-- `BusinessEnrichmentJob` (lines 44-52) triggers `TrustHubEnrichmentJob` and `EmailEnrichmentJob`
-
-**2. Singleton Configuration Pattern**
-`TwilioCredential.current` caches credentials for 1 hour (lines 20-24). All API keys and feature flags stored here.
-
-**3. Idempotency via State Checks**
-Every job checks completion state before processing:
-```ruby
-return if contact.lookup_completed?  # Skip if already done
-return unless contact.status == 'pending' || contact.status == 'failed'
-```
-
-**4. Retry Logic with Exponential Backoff**
-All jobs use `retry_on` with 2-3 attempts:
-```ruby
-retry_on Twilio::REST::RestError, wait: :exponentially_longer, attempts: 3
-discard_on ActiveRecord::RecordNotFound  # Don't retry permanent failures
-```
-
-**5. Service Layer Abstraction**
-Business logic lives in `/app/services/`, not models/jobs:
-- `BusinessEnrichmentService.enrich(contact)` - Tries Clearbit → NumVerify → OpenCNAM
-- `MultiLlmService.generate(prompt)` - Routes to OpenAI/Anthropic/Google based on config
-- `DuplicateDetectionService.find_duplicates(contact)` - Fingerprint-based matching
-
-**6. Callback-Driven Model Updates**
-`Contact` model uses 6 callbacks for automatic data enrichment:
-- `after_save :update_fingerprints_if_needed` (lines 394-410)
-- `after_save :calculate_quality_score_if_needed` (lines 401-414)
-
-⚠️ **Performance Warning**: Callbacks can cause N+1 queries on bulk operations.
-
-## Development Commands
-
-### Setup
-```bash
-# Install dependencies
-bundle install
-
-# Database setup
-rails db:create db:migrate db:seed
-
-# Start Redis (required for Sidekiq)
-redis-server
-
-# Start all services (requires 3 terminals)
-rails server              # Terminal 1: Web server (port 3000)
-bundle exec sidekiq       # Terminal 2: Background jobs
-redis-server              # Terminal 3: Job queue (if not system service)
-```
-
-### Testing
-⚠️ **CRITICAL**: This codebase currently has **zero test coverage**.
-
-When writing tests (RSpec + FactoryBot installed):
-```bash
-# Run all tests (once they exist)
-bundle exec rspec
-
-# Run single test file
-bundle exec rspec spec/models/contact_spec.rb
-
-# Run specific test
-bundle exec rspec spec/models/contact_spec.rb:42
-
-# With coverage report
-COVERAGE=true bundle exec rspec
-```
-
-### Code Quality
-```bash
-# Lint Ruby code
-bundle exec rubocop
-
-# Auto-fix safe issues
-bundle exec rubocop -a
-
-# Security audit
-bundle exec brakeman
-
-# Rails console
-rails console
-
-# Database console
-rails dbconsole
-```
-
-### Sidekiq Monitoring
-```bash
-# Web UI (requires admin login)
-open http://localhost:3000/sidekiq
-
-# Clear failed jobs
-rails runner "Sidekiq::RetrySet.new.clear"
-
-# View queue stats
-rails runner "puts Sidekiq::Stats.new.queues.inspect"
-```
-
-## Project-Specific Fitness Criteria
-
-When working on this codebase, apply Darwin-Gödel with these domain-specific weights:
-
-### For Sidekiq Jobs
-- **Idempotency** (0.30): Can safely retry without duplicate API calls?
-- **Rate Limit Handling** (0.25): Exponential backoff configured correctly?
-- **Error Classification** (0.25): Distinguishes retryable vs permanent failures?
-- **Memory Efficiency** (0.20): Handles large batches without OOM?
-
-### For API Integrations (Services)
-- **Graceful Degradation** (0.30): Fallback when primary API unavailable?
-- **Credential Security** (0.25): Never log API keys, use encrypted storage?
-- **Response Caching** (0.20): Cache where appropriate (e.g., geocoding)?
-- **Timeout Handling** (0.15): Network timeouts configured?
-- **Cost Tracking** (0.10): Log API usage to `ApiUsageLog`?
-
-### For Rails Models
-- **Query Efficiency** (0.35): Avoids N+1 queries? Uses `includes`/`joins`?
-- **Validation Completeness** (0.25): Phone format, presence checks?
-- **Scope Composability** (0.20): Scopes can be chained safely?
-- **Callback Safety** (0.20): Callbacks don't cause performance issues?
-
-## Darwin-Gödel Framework Extensions
-
-**Source**: DARWIN_GODEL_META_IMPROVEMENTS.md (extracted from "fix it all" remediation)
-**Status**: ACTIVE - Apply to all future work
-
-### Post-Edit Validation
-
-After Write or Edit on any `.rb` file:
-1. Auto-run: `ruby -c {file_path}`
-2. If error → fix immediately before continuing
-3. Report: "✓ Syntax validated" (silent on success)
-
-**Rationale**: Catches syntax errors while context is fresh in working memory.
-
-### Migration Creation Protocol
-
-When creating migrations WITHOUT Rails CLI:
-1. Generate timestamp: `date +%Y%m%d%H%M%S`_`openssl rand -hex 2`
-2. Add query pattern comment explaining index purpose
-3. Use `unless_exists: true` for all indices
-4. Add reversibility check (does `down` method exist?)
-
-**Example**:
-```ruby
-# Query pattern: Contact.where(phone_fingerprint: x, is_duplicate: true)
-# Found in: app/models/contact.rb:145
-add_index :contacts, :phone_fingerprint,
-  where: "is_duplicate = true AND phone_fingerprint IS NOT NULL",
-  unless_exists: true
-```
-
-### Test Infrastructure Requirements
-
-All tests tagged `:job`, `:integration`, or `:system` MUST declare dependencies:
-```ruby
-# INFRASTRUCTURE REQUIRED:
-# - PostgreSQL with SERIALIZABLE isolation
-# - Redis (for Sidekiq tests)
-# - Run with: SIDEKIQ_CONCURRENCY=10 bundle exec rspec
-```
-
-### Factory Trait Composition
-
-Enrichment traits auto-include base `:enriched` trait:
-```ruby
-trait :with_business do
-  enriched  # Auto-includes completed status, timestamps
-  is_business { true }
-  business_enriched { true }
-end
-```
-
-**Usage**: `create(:contact, :with_business)` → auto-gets completed status
-
-### Index Creation Checklist
-
-Before creating database index:
-- [ ] Grep for column usage: `grep -r "column_name" app/`
-- [ ] Extract WHERE/ORDER BY patterns from code
-- [ ] Document query pattern as migration comment
-- [ ] Verify partial index WHERE matches query WHERE exactly
-- [ ] Add TODO for post-deployment pg_stat_statements validation
-
-**Warning**: Partial indices only used if query WHERE clause EXACTLY matches index WHERE clause.
-
-## Known Technical Debt
-
-1. **No Test Coverage**: Priority #1 - Add RSpec tests for Contact model and critical jobs
-2. **Credential Security**: `TwilioCredential` caches plaintext API keys in memory
-3. **Callback Complexity**: Contact model has 6 callbacks that can cause N+1 queries
-4. **Broad Exception Handling**: 34 instances of `rescue => e` instead of specific exceptions
-5. **Sequential Job Chaining**: Jobs enqueue serially instead of parallel where possible
-6. **Missing Database Indices**: No index on `(status, business_enriched)` for common queries
-
-## Critical Files to Understand
-
-**Core Models:**
-- `app/models/contact.rb` (492 LOC) - Central entity with 30+ scopes and business logic
-- `app/models/twilio_credential.rb` (60 LOC) - Singleton configuration with caching
-
-**Primary Jobs:**
-- `app/jobs/lookup_request_job.rb` - Entry point for Twilio API integration
-- `app/jobs/business_enrichment_job.rb` - Orchestrates Clearbit/NumVerify enrichment
-
-**Key Services:**
-- `app/services/multi_llm_service.rb` - Routes AI requests to OpenAI/Anthropic/Google
-- `app/services/business_enrichment_service.rb` - Multi-provider fallback logic
-- `app/services/duplicate_detection_service.rb` - Fingerprint-based duplicate detection
-
-**Admin Interface:**
-- `app/admin/contacts.rb` - Main contact management UI with CSV import
-- `app/admin/api_connectors.rb` - Unified API configuration dashboard
-- `app/admin/dashboard.rb` - Real-time stats with Turbo Streams
-
-## Database Schema Patterns
-
-**Status Workflow:**
-```
-pending → processing → completed
-                    ↘ failed
-```
-
-**Enrichment Flags:**
-- `business_enriched`, `email_enriched`, `address_enriched`, `trust_hub_enriched`
-- All boolean flags with corresponding `*_enriched_at` timestamps
-
-**Duplicate Detection:**
-- `phone_fingerprint`, `name_fingerprint`, `email_fingerprint` (normalized for matching)
-- `duplicate_of_id` (points to primary contact)
-- `is_duplicate` (boolean flag)
-
-**Quality Scoring:**
-- `data_quality_score` (0-100, calculated from 20 data fields)
-- `completeness_percentage` (percent of fields populated)
-
-## External API Dependencies
-
-**Required:**
-- Twilio Lookup v2 (Account SID + Auth Token)
-
-**Optional Enrichment:**
-- Business: Clearbit, NumVerify
-- Email: Hunter.io, ZeroBounce
-- Address: Whitepages Pro, TrueCaller
-- Geocoding: Google Maps Geocoding API
-- Business Search: Google Places, Yelp Fusion
-- AI: OpenAI, Anthropic Claude, Google Gemini
-- CRM: Salesforce, HubSpot, Pipedrive
-- Coverage: Verizon (no API key needed)
-
-All API keys configured in `TwilioCredential` model or environment variables.
-
-## Performance Considerations
-
-**Sidekiq Concurrency:**
-- Default: 5 parallel jobs (configured in `config/sidekiq.yml`)
-- Production: 10-20 jobs (monitor rate limits)
-- With concurrency=5: ~4,000 contacts/hour lookup rate
-
-**Database Indices:**
-- Conditional indices on `contacts(status)` WHERE status = 'pending'/'completed'
-- Missing indices on `(status, business_enriched)` - add if slow queries detected
-
-**Caching:**
-- `TwilioCredential.current` cached 1 hour in Rails.cache
-- No HTTP response caching currently implemented
-
-**N+1 Query Risks:**
-- Contact callbacks can cause N+1 on bulk updates
-- ActiveAdmin index pages use eager loading where needed
+## API ORCHESTRATION (Advanced)
+
+The phases above run sequentially in a single conversation. For **true parallel execution** and **ensemble generation**, you need API-level orchestration.
+
+### What Requires API Access
+
+| Feature | In-Conversation | Requires API |
+|---------|-----------------|--------------|
+| Role simulation | ✓ Yes | - |
+| Sequential debate | ✓ Yes | - |
+| Tool verification | ✓ Yes | - |
+| Self-improvement | ✓ Yes | - |
+| **True parallel agents** | ✗ No | ✓ Yes |
+| **N separate candidates**
