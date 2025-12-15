@@ -72,10 +72,18 @@ group :development do
 end
 
 group :test do
+  # Code coverage
+  gem 'simplecov', '~> 0.22', require: false
+  gem 'simplecov-console', '~> 0.9', require: false # Terminal output
+
   # System testing
   gem 'capybara', '~> 3.40'
   gem 'selenium-webdriver', '~> 4.10' # Compatible with webdrivers 5.3
   gem 'webdrivers', '~> 5.3' # Auto-manages driver binaries
+
+  # Test helpers
+  gem 'mock_redis', '~> 0.46' # Mock Redis for circuit breaker tests
+  gem 'webmock', '~> 3.19' # HTTP request stubbing
 end
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
