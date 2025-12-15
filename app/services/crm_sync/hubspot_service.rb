@@ -45,7 +45,12 @@ module CrmSync
 
         result
       rescue StandardError => e
-        Rails.logger.error "HubSpot sync error for contact #{@contact.id}: #{e.message}"
+        operation = @contact.hubspot_id.present? ? 'update' : 'create'
+        Rails.logger.error(
+          "HubSpot sync error for contact #{@contact.id} (operation: #{operation}, " \
+          "hubspot_id: #{@contact.hubspot_id || 'none'}): #{e.class} - #{e.message}"
+        )
+        Rails.logger.error(e.backtrace.first(3).join("\n"))
         { success: false, error: e.message }
       end
     end

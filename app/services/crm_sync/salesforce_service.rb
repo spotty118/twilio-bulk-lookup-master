@@ -58,7 +58,12 @@ module CrmSync
 
         result
       rescue StandardError => e
-        Rails.logger.error "Salesforce sync error for contact #{@contact.id}: #{e.message}"
+        operation = @contact.salesforce_id.present? ? 'update' : 'create'
+        Rails.logger.error(
+          "Salesforce sync error for contact #{@contact.id} (operation: #{operation}, " \
+          "salesforce_id: #{@contact.salesforce_id || 'none'}): #{e.class} - #{e.message}"
+        )
+        Rails.logger.error(e.backtrace.first(3).join("\n"))
         { success: false, error: e.message }
       end
     end
@@ -85,7 +90,10 @@ module CrmSync
       rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
         { success: false, error: "Service unavailable: #{e.message}" }
       rescue StandardError => e
-        Rails.logger.error "Salesforce pull error: #{e.message}"
+        Rails.logger.error(
+          "Salesforce pull error (salesforce_id: #{salesforce_id}): #{e.class} - #{e.message}"
+        )
+        Rails.logger.error(e.backtrace.first(3).join("\n"))
         { success: false, error: e.message }
       end
     end

@@ -742,6 +742,7 @@ ActiveAdmin.register_page "Dashboard" do
                   status_tag "Disconnected", class: "failed"
                 end
               rescue StandardError => e
+                Rails.logger.warn("Dashboard Redis connection check failed: #{e.class} - #{e.message}")
                 status_tag "Error: #{e.message}", class: "failed"
               end
             end
@@ -772,6 +773,7 @@ ActiveAdmin.register_page "Dashboard" do
                 config = YAML.load_file(Rails.root.join('config', 'sidekiq.yml'))
                 config.dig(Rails.env, 'concurrency') || config['concurrency'] || "Default (5)"
               rescue StandardError => e
+                Rails.logger.warn("Dashboard Sidekiq config check failed: #{e.class} - #{e.message}")
                 "Not configured"
               end
             end
@@ -830,10 +832,12 @@ ActiveAdmin.register_page "Dashboard" do
 
     redirect_to admin_dashboard_path
   rescue Twilio::REST::RestError => e
+    Rails.logger.error("Dashboard phone lookup failed (phone: #{phone_number}): Twilio::REST::RestError - #{e.message}")
     flash[:phone_lookup_input] = phone_number
     flash[:phone_lookup_error] = e.message
     redirect_to admin_dashboard_path, alert: "Twilio lookup failed"
   rescue StandardError => e
+    Rails.logger.error("Dashboard phone lookup failed (phone: #{phone_number}): #{e.class} - #{e.message}")
     flash[:phone_lookup_input] = phone_number
     flash[:phone_lookup_error] = "#{e.class}: #{e.message}"
     redirect_to admin_dashboard_path, alert: "Lookup failed"

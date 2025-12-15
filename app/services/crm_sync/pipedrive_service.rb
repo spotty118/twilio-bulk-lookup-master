@@ -43,7 +43,12 @@ module CrmSync
 
         result
       rescue StandardError => e
-        Rails.logger.error "Pipedrive sync error for contact #{@contact.id}: #{e.message}"
+        operation = @contact.pipedrive_id.present? ? 'update' : 'create'
+        Rails.logger.error(
+          "Pipedrive sync error for contact #{@contact.id} (operation: #{operation}, " \
+          "pipedrive_id: #{@contact.pipedrive_id || 'none'}): #{e.class} - #{e.message}"
+        )
+        Rails.logger.error(e.backtrace.first(3).join("\n"))
         { success: false, error: e.message }
       end
     end

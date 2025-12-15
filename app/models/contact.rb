@@ -33,7 +33,50 @@ class Contact < ApplicationRecord
             },
             if: ->(contact) { contact.raw_phone_number_changed? && contact.raw_phone_number.present? }
   validates :status, inclusion: { in: STATUSES }, allow_nil: true
-  
+
+  # URL Security Validations - Prevent SSRF attacks
+  # Only allow http/https schemes to block file://, javascript:, data:, etc.
+  # Conditional validation (if: changed?) prevents re-validating existing invalid data
+  validates :business_website,
+            format: {
+              with: URI::DEFAULT_PARSER.make_regexp(['http', 'https']),
+              message: 'must be a valid HTTP or HTTPS URL'
+            },
+            allow_blank: true,
+            if: :business_website_changed?
+
+  validates :business_linkedin_url,
+            format: {
+              with: URI::DEFAULT_PARSER.make_regexp(['http', 'https']),
+              message: 'must be a valid HTTP or HTTPS URL'
+            },
+            allow_blank: true,
+            if: :business_linkedin_url_changed?
+
+  validates :linkedin_url,
+            format: {
+              with: URI::DEFAULT_PARSER.make_regexp(['http', 'https']),
+              message: 'must be a valid HTTP or HTTPS URL'
+            },
+            allow_blank: true,
+            if: :linkedin_url_changed?
+
+  validates :twitter_url,
+            format: {
+              with: URI::DEFAULT_PARSER.make_regexp(['http', 'https']),
+              message: 'must be a valid HTTP or HTTPS URL'
+            },
+            allow_blank: true,
+            if: :twitter_url_changed?
+
+  validates :facebook_url,
+            format: {
+              with: URI::DEFAULT_PARSER.make_regexp(['http', 'https']),
+              message: 'must be a valid HTTP or HTTPS URL'
+            },
+            allow_blank: true,
+            if: :facebook_url_changed?
+
   # Scopes for filtering
   scope :pending, -> { where(status: 'pending') }
   scope :processing, -> { where(status: 'processing') }
@@ -373,46 +416,76 @@ class Contact < ApplicationRecord
 
   # Calculate fingerprints for duplicate detection
   def update_fingerprints!
-    # Use update_columns to skip callbacks and avoid recursion
-    update_columns(
-      phone_fingerprint: calculate_phone_fingerprint,
-      name_fingerprint: calculate_name_fingerprint,
-      email_fingerprint: calculate_email_fingerprint,
-      updated_at: Time.current
-    )
+    # Track lock acquisition time for contention monitoring
+    lock_wait_start = Time.current
+
+    # Pessimistic locking prevents concurrent workers from causing lost updates
+    # which would break duplicate detection via fingerprint matching.
+    # Race condition: Worker A reads contact, Worker B reads contact, both calculate
+    # fingerprints, Worker A writes, Worker B writes (overwriting A's update).
+    # Solution: with_lock ensures only one worker can update at a time.
+    with_lock do
+      # Measure lock wait time to detect contention
+      lock_wait_ms = ((Time.current - lock_wait_start) * 1000).to_i
+
+      # Log if lock was contended (high wait time indicates concurrent access)
+      if lock_wait_ms > 100
+        Rails.logger.warn(
+          event: 'fingerprint_lock_contention',
+          contact_id: id,
+          wait_time_ms: lock_wait_ms,
+          phone_number: raw_phone_number,
+          timestamp: Time.current.iso8601
+        )
+      end
+
+      # Use update_columns to skip callbacks and avoid recursion
+      update_columns(
+        phone_fingerprint: calculate_phone_fingerprint,
+        name_fingerprint: calculate_name_fingerprint,
+        email_fingerprint: calculate_email_fingerprint,
+        updated_at: Time.current
+      )
+    end
   end
 
   def calculate_quality_score!
-    score = 0
+    # Pessimistic locking prevents concurrent workers from causing lost updates
+    # to quality scores and completeness percentages. Same race condition as
+    # update_fingerprints! - concurrent reads followed by sequential writes
+    # causes the last writer to overwrite all previous updates.
+    with_lock do
+      score = 0
 
-    # Phone validation (20 points)
-    score += 20 if phone_valid == true
+      # Phone validation (20 points)
+      score += 20 if phone_valid == true
 
-    # Email quality (20 points)
-    score += 20 if email_verified
-    score += 10 if email.present? && !email_verified
+      # Email quality (20 points)
+      score += 20 if email_verified
+      score += 10 if email.present? && !email_verified
 
-    # Business enrichment (20 points)
-    score += 20 if business_enriched?
+      # Business enrichment (20 points)
+      score += 20 if business_enriched?
 
-    # Name data (15 points)
-    score += 15 if full_name.present?
-    score += 5 if first_name.present? && last_name.present?
+      # Name data (15 points)
+      score += 15 if full_name.present?
+      score += 5 if first_name.present? && last_name.present?
 
-    # Contact info (15 points)
-    score += 10 if business_website.present? || linkedin_url.present?
-    score += 5 if position.present?
+      # Contact info (15 points)
+      score += 10 if business_website.present? || linkedin_url.present?
+      score += 5 if position.present?
 
-    # Fraud check (10 points)
-    score += 10 if sms_pumping_risk_level == 'low'
-    score -= 20 if sms_pumping_risk_level == 'high'
+      # Fraud check (10 points)
+      score += 10 if sms_pumping_risk_level == 'low'
+      score -= 20 if sms_pumping_risk_level == 'high'
 
-    # Use update_columns to skip callbacks and avoid recursion
-    update_columns(
-      data_quality_score: [score, 0].max,
-      completeness_percentage: calculate_completeness,
-      updated_at: Time.current
-    )
+      # Use update_columns to skip callbacks and avoid recursion
+      update_columns(
+        data_quality_score: [score, 0].max,
+        completeness_percentage: calculate_completeness,
+        updated_at: Time.current
+      )
+    end
   end
   
   # Mark as processing

@@ -55,7 +55,10 @@ class Webhook < ApplicationRecord
             processing_error: e.message,
             retry_count: (retry_count || 0) + 1
           )
-          Rails.logger.error "Webhook processing failed: #{e.message}"
+          Rails.logger.error(
+            "Webhook processing failed (webhook_id: #{id}, source: #{source}, " \
+            "retry_count: #{retry_count || 0}): #{e.class} - #{e.message}"
+          )
           raise
         end
       end

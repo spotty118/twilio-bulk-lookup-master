@@ -45,7 +45,11 @@ class DuplicateDetectionJob < ApplicationJob
     end
 
   rescue StandardError => e
-    Rails.logger.error("Duplicate detection error for contact #{contact.id}: #{e.message}")
+    Rails.logger.error(
+      "Duplicate detection error for contact #{contact_id} (attempt: #{executions}): " \
+      "#{e.class} - #{e.message}"
+    )
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
     raise # Re-raise to trigger retry logic
   end
 end

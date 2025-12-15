@@ -102,7 +102,11 @@ class DuplicateDetectionService
       true
     end
   rescue StandardError => e
-    Rails.logger.error("Merge failed: #{e.message}")
+    Rails.logger.error(
+      "Merge failed for contacts (primary: #{primary.id}, duplicate: #{duplicate.id}): " \
+      "#{e.class} - #{e.message}"
+    )
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
     false
   end
 

@@ -45,7 +45,11 @@ class EmailEnrichmentJob < ApplicationJob
     end
 
   rescue StandardError => e
-    Rails.logger.error("Unexpected error enriching email for contact #{contact.id}: #{e.class} - #{e.message}")
+    Rails.logger.error(
+      "Unexpected error enriching email for contact #{contact.id} (attempt: #{executions}): " \
+      "#{e.class} - #{e.message}"
+    )
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
     raise
   end
 end

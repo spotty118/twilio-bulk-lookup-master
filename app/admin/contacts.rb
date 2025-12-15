@@ -14,9 +14,34 @@ ActiveAdmin.register Contact do
                         max_rows = 50_000
                         row_count = begin
                           count = 0
+                          # Track memory usage during CSV processing
+                          memory_before = `ps -o rss= -p #{Process.pid}`.to_i rescue 0
+                          start_time = Time.current
+
                           CSV.foreach(file.path) { count += 1 }
+
+                          # Log CSV processing metrics
+                          memory_after = `ps -o rss= -p #{Process.pid}`.to_i rescue 0
+                          elapsed_ms = ((Time.current - start_time) * 1000).to_i
+                          memory_delta_kb = memory_after - memory_before
+
+                          Rails.logger.info(
+                            event: 'csv_import_processed',
+                            row_count: count,
+                            file_size_mb: (file.size / 1.megabyte.to_f).round(2),
+                            memory_delta_kb: memory_delta_kb,
+                            elapsed_ms: elapsed_ms,
+                            timestamp: Time.current.iso8601
+                          )
+
                           count
                         rescue StandardError => e
+                          Rails.logger.error(
+                            event: 'csv_import_error',
+                            error: e.message,
+                            error_class: e.class.name,
+                            timestamp: Time.current.iso8601
+                          )
                           0
                         end
 
@@ -1066,8 +1091,20 @@ ActiveAdmin.register Contact do
   # Escapes values that start with =, +, -, or @ which could be interpreted as formulas in Excel
   def escape_csv_formula(value)
     return nil if value.nil?
-    return value unless value.to_s.match?(/\A[=+\-@]/)
-    "'#{value}"
+
+    if value.to_s.match?(/\A[=+\-@]/)
+      # Log formula escapes to track potential injection attempts
+      # Uses DEBUG level to avoid log flooding during exports
+      Rails.logger.debug(
+        event: 'csv_formula_escaped',
+        original_prefix: value[0],
+        value_preview: value.to_s[0..50], # First 50 chars for debugging
+        timestamp: Time.current.iso8601
+      )
+      "'#{value}"
+    else
+      value
+    end
   end
 
   csv do

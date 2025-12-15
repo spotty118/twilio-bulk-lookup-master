@@ -38,7 +38,11 @@ class CrmSyncJob < ApplicationJob
     Rails.logger.info "CRM sync completed for contact #{contact_id}: #{results}"
     results
   rescue StandardError => e
-    Rails.logger.error "CRM sync job failed for contact #{contact_id}: #{e.message}"
+    Rails.logger.error(
+      "CRM sync job failed for contact #{contact_id} (crm_type: #{crm_type || 'all'}, " \
+      "attempt: #{executions}): #{e.class} - #{e.message}"
+    )
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
     raise
   end
 end

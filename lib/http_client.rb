@@ -155,13 +155,18 @@ class HttpClient
   def self.check_circuit!(name)
     open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
     state = Rails.cache.read(open_key)
-    
+
     return unless state&.[](:open)
 
     # Auto-close circuit after cool-off period
     if Time.current > state[:open_until]
       Rails.cache.delete(open_key)
-      Rails.logger.info("Circuit #{name} closed after cool-off period")
+      Rails.logger.info(
+        event: 'circuit_breaker_auto_closed',
+        circuit_name: name,
+        reason: 'cooldown_period_expired',
+        timestamp: Time.current.iso8601
+      )
     else
       seconds_until_retry = (state[:open_until] - Time.current).to_i
       raise CircuitOpenError, "Circuit #{name} is open (retry in #{seconds_until_retry}s)"
@@ -171,8 +176,33 @@ class HttpClient
   # Record successful request (resets failure count)
   # Deletes circuit state from Redis to free memory and allow immediate retries
   def self.record_success(name)
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
+    failures_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:failures"
+    open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
+
+    # Check if circuit was open before we reset it
+    was_open = Rails.cache.read(open_key).present?
+    previous_failures = Rails.cache.read(failures_key) || 0
+
+    Rails.cache.delete(failures_key)
+    Rails.cache.delete(open_key)
+
+    # Log when circuit transitions from open to closed (recovery event)
+    if was_open
+      Rails.logger.info(
+        event: 'circuit_breaker_closed',
+        circuit_name: name,
+        reason: 'successful_request_after_open',
+        previous_failures: previous_failures,
+        timestamp: Time.current.iso8601
+      )
+
+      # Optional: Instrument for metrics aggregation
+      ActiveSupport::Notifications.instrument(
+        'circuit_breaker.closed',
+        circuit_name: name,
+        recovery_time: Time.current
+      )
+    end
   end
 
   # Record failed request (opens circuit after threshold)
@@ -183,7 +213,7 @@ class HttpClient
 
     # Atomic increment supported by Redis/Memcached
     failures = Rails.cache.increment(cache_key, 1, expires_in: CIRCUIT_STATE_TTL)
-    
+
     # Handle case where key didn't exist (returns nil or 1 depending on store, but usually 1 if initialized)
     # If using Redis store, increment initializes to 0 if missing then adds 1.
     # We ensure it's at least 1.
@@ -194,8 +224,33 @@ class HttpClient
       # Set open state
       open_until = Time.current + 60.seconds
       Rails.cache.write(open_key, { open: true, open_until: open_until }, expires_in: 60.seconds)
-      
-      Rails.logger.warn("Circuit #{name} opened after #{failures} failures (cool-off: 60s)")
+
+      # Structured logging for circuit breaker activation
+      Rails.logger.warn(
+        event: 'circuit_breaker_opened',
+        circuit_name: name,
+        consecutive_failures: failures,
+        cooldown_seconds: 60,
+        open_until: open_until.iso8601,
+        timestamp: Time.current.iso8601
+      )
+
+      # Optional: Instrument for metrics/alerting
+      ActiveSupport::Notifications.instrument(
+        'circuit_breaker.opened',
+        circuit_name: name,
+        failures: failures,
+        cooldown_seconds: 60
+      )
+    elsif failures > 1
+      # Log accumulating failures (helps detect patterns before circuit opens)
+      Rails.logger.debug(
+        event: 'circuit_breaker_failure_accumulating',
+        circuit_name: name,
+        consecutive_failures: failures,
+        threshold: 5,
+        timestamp: Time.current.iso8601
+      )
     end
   end
 

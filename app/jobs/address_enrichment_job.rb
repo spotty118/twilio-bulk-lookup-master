@@ -32,8 +32,11 @@ class AddressEnrichmentJob < ApplicationJob
     end
 
   rescue StandardError => e
-    Rails.logger.error "[AddressEnrichmentJob] Error enriching contact #{contact.id}: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
+    Rails.logger.error(
+      "[AddressEnrichmentJob] Error enriching contact #{contact.id} (attempt: #{executions}): " \
+      "#{e.class} - #{e.message}"
+    )
+    Rails.logger.error(e.backtrace.first(5).join("\n"))
     raise e
   end
 end
