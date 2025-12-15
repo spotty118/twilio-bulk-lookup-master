@@ -1,7 +1,25 @@
-require 'net/http'
-require 'json'
+# frozen_string_literal: true
 
+# EmailEnrichmentService - Enriches contacts with email addresses and verification
+#
+# This service attempts to find and verify email addresses for contacts using:
+# 1. Hunter.io (email finder + verification)
+# 2. Domain pattern matching (educated guess)
+# 3. Clearbit Email Finder (premium)
+# 4. ZeroBounce (verification)
+#
+# All external API calls are protected by circuit breakers to prevent cascade failures.
+#
+# Usage:
+#   EmailEnrichmentService.enrich(contact)
+#
 class EmailEnrichmentService
+  include HTTParty
+
+  # Configure HTTParty defaults
+  default_timeout 10
+  headers 'User-Agent' => 'TwilioBulkLookup/1.0'
+
   # Main entry point for email enrichment
   def self.enrich(contact)
     new(contact).enrich
@@ -62,8 +80,8 @@ class EmailEnrichmentService
     end
 
     nil
-  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Hunter.io network error: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Hunter.io HTTP error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter.io invalid JSON response: #{e.message}")
@@ -71,24 +89,28 @@ class EmailEnrichmentService
   end
 
   def hunter_phone_search(api_key)
-    uri = URI("https://api.hunter.io/v2/phone-search")
-    uri.query = URI.encode_www_form(
-      phone: @phone_number,
-      api_key: api_key
-    )
+    # Use circuit breaker for Hunter API
+    result = CircuitBreakerService.call(:hunter) do
+      self.class.get(
+        'https://api.hunter.io/v2/phone-search',
+        query: {
+          phone: @phone_number,
+          api_key: api_key
+        }
+      )
+    end
 
-    response = HttpClient.get(uri, circuit_name: 'hunter-api')
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     return nil unless data['data'] && data['data']['email']
 
     parse_hunter_response(data['data'])
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Hunter phone search timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Hunter circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Hunter phone search error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter phone search invalid JSON: #{e.message}")
@@ -96,32 +118,35 @@ class EmailEnrichmentService
   end
 
   def hunter_email_finder(api_key)
-    uri = URI("https://api.hunter.io/v2/email-finder")
-
     # Parse first and last name
     name_parts = @contact.full_name.to_s.split(' ')
     first_name = name_parts.first || ''
     last_name = name_parts.length > 1 ? name_parts.last : ''
 
-    uri.query = URI.encode_www_form(
-      domain: @contact.business_email_domain,
-      first_name: first_name,
-      last_name: last_name,
-      api_key: api_key
-    )
+    # Use circuit breaker for Hunter API
+    result = CircuitBreakerService.call(:hunter) do
+      self.class.get(
+        'https://api.hunter.io/v2/email-finder',
+        query: {
+          domain: @contact.business_email_domain,
+          first_name: first_name,
+          last_name: last_name,
+          api_key: api_key
+        }
+      )
+    end
 
-    response = HttpClient.get(uri, circuit_name: 'hunter-api')
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     return nil unless data['data'] && data['data']['email']
 
     parse_hunter_response(data['data'])
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Hunter email finder timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Hunter circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Hunter email finder error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter email finder invalid JSON: #{e.message}")
@@ -187,25 +212,28 @@ class EmailEnrichmentService
     return nil unless @contact.business_email_domain.present? && @contact.full_name.present?
 
     name_parts = @contact.full_name.to_s.split(' ').reject(&:empty?)
-    uri = URI("https://person.clearbit.com/v1/people/email/#{@contact.business_email_domain}")
-    uri.query = URI.encode_www_form(
-      given_name: name_parts.first || '',
-      family_name: name_parts.length > 1 ? name_parts.last : ''
-    )
 
-    response = HttpClient.get(uri, circuit_name: 'clearbit-email') do |request|
-      request['Authorization'] = "Bearer #{api_key}"
+    # Use circuit breaker for Clearbit API
+    result = CircuitBreakerService.call(:clearbit) do
+      self.class.get(
+        "https://person.clearbit.com/v1/people/email/#{@contact.business_email_domain}",
+        query: {
+          given_name: name_parts.first || '',
+          family_name: name_parts.length > 1 ? name_parts.last : ''
+        },
+        headers: { 'Authorization' => "Bearer #{api_key}" }
+      )
     end
 
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     parse_clearbit_email_response(data) if data['email']
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Clearbit email finder timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Clearbit email circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Clearbit email finder error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit email finder invalid JSON: #{e.message}")
@@ -246,17 +274,24 @@ class EmailEnrichmentService
     api_key = ENV['ZEROBOUNCE_API_KEY'] || TwilioCredential.current&.zerobounce_api_key
     return nil unless api_key.present?
 
-    uri = URI("https://api.zerobounce.net/v2/validate")
-    uri.query = URI.encode_www_form(
-      api_key: api_key,
-      email: email,
-      ip_address: ''
-    )
+    # Use circuit breaker for ZeroBounce API
+    result = CircuitBreakerService.call(:zerobounce) do
+      self.class.get(
+        'https://api.zerobounce.net/v2/validate',
+        query: {
+          api_key: api_key,
+          email: email,
+          ip_address: ''
+        }
+      )
+    end
 
-    response = HttpClient.get(uri, circuit_name: 'zerobounce-api')
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
 
     {
       email_verified: data['status'] == 'valid',
@@ -264,11 +299,8 @@ class EmailEnrichmentService
       email_score: score_from_status(data['status']),
       email_type: data['sub_status']
     }
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("ZeroBounce verification timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("ZeroBounce circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("ZeroBounce verification error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("ZeroBounce verification invalid JSON: #{e.message}")
@@ -279,16 +311,23 @@ class EmailEnrichmentService
     api_key = ENV['HUNTER_API_KEY'] || TwilioCredential.current&.hunter_api_key
     return nil unless api_key.present?
 
-    uri = URI("https://api.hunter.io/v2/email-verifier")
-    uri.query = URI.encode_www_form(
-      email: email,
-      api_key: api_key
-    )
+    # Use circuit breaker for Hunter API
+    result = CircuitBreakerService.call(:hunter) do
+      self.class.get(
+        'https://api.hunter.io/v2/email-verifier',
+        query: {
+          email: email,
+          api_key: api_key
+        }
+      )
+    end
 
-    response = HttpClient.get(uri, circuit_name: 'hunter-api')
-    return nil unless response.code == '200'
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     verification = data['data']
 
     {
@@ -297,11 +336,8 @@ class EmailEnrichmentService
       email_score: verification['score'],
       email_type: verification['result']
     }
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.warn("Hunter verification timeout: #{e.message}")
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.warn("Hunter circuit open: #{e.message}")
+  rescue HTTParty::Error => e
+    Rails.logger.warn("Hunter verification error: #{e.message}")
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter verification invalid JSON: #{e.message}")
