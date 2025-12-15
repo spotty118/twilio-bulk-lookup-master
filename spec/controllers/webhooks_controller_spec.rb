@@ -264,17 +264,146 @@ RSpec.describe WebhooksController, type: :controller do
     end
   end
 
-  describe 'webhook signature verification (if implemented)' do
-    # NOTE: Twilio webhook signature verification would be implemented here
-    # This ensures webhooks actually came from Twilio, not an attacker
-
-    xit 'validates Twilio signature header' do
-      # TODO: Implement Twilio signature verification
-      # https://www.twilio.com/docs/usage/webhooks/webhooks-security
+  describe 'webhook signature verification' do
+    let(:credentials) { create(:twilio_credential, auth_token: 'test_token_12345') }
+    let(:valid_params) do
+      {
+        MessageSid: 'SM1234567890abcdef1234567890abcdef',
+        MessageStatus: 'delivered',
+        To: '+14155551234',
+        From: '+14155555678'
+      }
     end
 
-    xit 'rejects webhooks with invalid signature' do
-      # TODO: Implement signature validation
+    before do
+      allow(TwilioCredential).to receive(:current).and_return(credentials)
+    end
+
+    context 'with valid Twilio signature' do
+      before do
+        # Mock the validator to return true for valid signatures
+        validator = instance_double(Twilio::Security::RequestValidator)
+        allow(validator).to receive(:validate).and_return(true)
+        allow(Twilio::Security::RequestValidator).to receive(:new).with('test_token_12345').and_return(validator)
+      end
+
+      it 'processes webhook with valid signature' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'valid_signature_hash'
+
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'calls RequestValidator with correct parameters' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'valid_signature_hash'
+
+        validator = instance_double(Twilio::Security::RequestValidator)
+        allow(Twilio::Security::RequestValidator).to receive(:new).with('test_token_12345').and_return(validator)
+        expect(validator).to receive(:validate).with(
+          an_instance_of(String), # URL
+          an_instance_of(Hash),     # params
+          'valid_signature_hash'    # signature
+        ).and_return(true)
+
+        post :twilio_sms_status, params: valid_params
+      end
+    end
+
+    context 'with invalid Twilio signature' do
+      before do
+        # Mock the validator to return false for invalid signatures
+        validator = instance_double(Twilio::Security::RequestValidator)
+        allow(validator).to receive(:validate).and_return(false)
+        allow(Twilio::Security::RequestValidator).to receive(:new).with('test_token_12345').and_return(validator)
+      end
+
+      it 'rejects webhook with invalid signature' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'invalid_signature_hash'
+
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.not_to change(Webhook, :count)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'logs warning for invalid signature' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'invalid_signature_hash'
+        allow(Rails.logger).to receive(:warn)
+
+        post :twilio_sms_status, params: valid_params
+
+        expect(Rails.logger).to have_received(:warn).with(
+          /Invalid Twilio signature for webhook/
+        )
+      end
+
+      it 'does not enqueue WebhookProcessorJob' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'invalid_signature_hash'
+
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.not_to have_enqueued_job(WebhookProcessorJob)
+      end
+    end
+
+    context 'with missing signature header' do
+      before do
+        validator = instance_double(Twilio::Security::RequestValidator)
+        allow(validator).to receive(:validate).and_return(false)
+        allow(Twilio::Security::RequestValidator).to receive(:new).with('test_token_12345').and_return(validator)
+      end
+
+      it 'rejects webhook without signature' do
+        # Don't set signature header
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.not_to change(Webhook, :count)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'with missing credentials' do
+      before do
+        allow(TwilioCredential).to receive(:current).and_return(nil)
+      end
+
+      it 'rejects webhook when no credentials configured' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'any_signature'
+
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.not_to change(Webhook, :count)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'with validation errors' do
+      before do
+        # Simulate validation error (ArgumentError)
+        validator = instance_double(Twilio::Security::RequestValidator)
+        allow(validator).to receive(:validate).and_raise(ArgumentError, 'Invalid auth token format')
+        allow(Twilio::Security::RequestValidator).to receive(:new).with('test_token_12345').and_return(validator)
+      end
+
+      it 'handles validation errors gracefully' do
+        request.headers['HTTP_X_TWILIO_SIGNATURE'] = 'any_signature'
+        allow(Rails.logger).to receive(:error)
+
+        expect do
+          post :twilio_sms_status, params: valid_params
+        end.not_to change(Webhook, :count)
+
+        expect(response).to have_http_status(:forbidden)
+        expect(Rails.logger).to have_received(:error).with(
+          /Signature verification error: ArgumentError/
+        )
+      end
     end
   end
 
