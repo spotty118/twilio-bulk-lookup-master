@@ -36,8 +36,11 @@ class EmailEnrichmentService
       Rails.logger.info("No email found for contact #{@contact.id}")
       false
     end
-  rescue StandardError => e
-    Rails.logger.error("Email enrichment error for #{@contact.id}: #{e.message}")
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    Rails.logger.error("Database error enriching email for #{@contact.id}: #{e.message}")
+    false
+  rescue ActiveRecord::RecordNotFound => e
+    Rails.logger.error("Contact not found for #{@contact.id}: #{e.message}")
     false
   end
 
@@ -59,8 +62,11 @@ class EmailEnrichmentService
     end
 
     nil
-  rescue StandardError => e
-    Rails.logger.warn("Hunter.io API error: #{e.message}")
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Hunter.io network error: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Hunter.io invalid JSON response: #{e.message}")
     nil
   end
 
@@ -86,9 +92,6 @@ class EmailEnrichmentService
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter phone search invalid JSON: #{e.message}")
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("Hunter phone search error: #{e.message}")
     nil
   end
 
@@ -122,9 +125,6 @@ class EmailEnrichmentService
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter email finder invalid JSON: #{e.message}")
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("Hunter email finder error: #{e.message}")
     nil
   end
 
@@ -210,9 +210,6 @@ class EmailEnrichmentService
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit email finder invalid JSON: #{e.message}")
     nil
-  rescue StandardError => e
-    Rails.logger.warn("Clearbit email finder error: #{e.message}")
-    nil
   end
 
   def parse_clearbit_email_response(data)
@@ -276,9 +273,6 @@ class EmailEnrichmentService
   rescue JSON::ParserError => e
     Rails.logger.warn("ZeroBounce verification invalid JSON: #{e.message}")
     nil
-  rescue StandardError => e
-    Rails.logger.warn("ZeroBounce verification error: #{e.message}")
-    nil
   end
 
   def verify_with_hunter(email)
@@ -311,9 +305,6 @@ class EmailEnrichmentService
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Hunter verification invalid JSON: #{e.message}")
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("Hunter verification error: #{e.message}")
     nil
   end
 

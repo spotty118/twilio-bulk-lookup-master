@@ -44,9 +44,11 @@ class AddressEnrichmentService
       Rails.logger.warn "[AddressEnrichmentService] No address found for contact #{@contact.id}"
       false
     end
-  rescue StandardError => e
-    Rails.logger.error "[AddressEnrichmentService] Error enriching contact #{@contact.id}: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    Rails.logger.error "[AddressEnrichmentService] Database error enriching #{@contact.id}: #{e.message}"
+    false
+  rescue ActiveRecord::RecordNotFound => e
+    Rails.logger.error "[AddressEnrichmentService] Contact not found #{@contact.id}: #{e.message}"
     false
   end
 
@@ -117,9 +119,6 @@ class AddressEnrichmentService
   rescue JSON::ParserError => e
     Rails.logger.error "[AddressEnrichmentService] Whitepages invalid JSON: #{e.message}"
     nil
-  rescue StandardError => e
-    Rails.logger.error "[AddressEnrichmentService] Whitepages error: #{e.message}"
-    nil
   end
 
   def parse_whitepages_address(address_data, person_data)
@@ -187,9 +186,6 @@ class AddressEnrichmentService
     nil
   rescue JSON::ParserError => e
     Rails.logger.error "[AddressEnrichmentService] TrueCaller invalid JSON: #{e.message}"
-    nil
-  rescue StandardError => e
-    Rails.logger.error "[AddressEnrichmentService] TrueCaller error: #{e.message}"
     nil
   end
 

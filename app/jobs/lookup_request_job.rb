@@ -159,21 +159,17 @@ class LookupRequestJob < ApplicationJob
 
       Rails.logger.info("Successfully processed contact #{contact.id}: #{contact.formatted_phone_number}")
 
-      # Queue business enrichment if enabled (reuse credentials from line 54)
-      if credentials&.enable_business_enrichment
-        BusinessEnrichmentJob.perform_later(contact.id)
-      end
-
-      # Queue address enrichment for consumers if enabled
-      if credentials&.enable_address_enrichment && contact.consumer?
-        AddressEnrichmentJob.perform_later(contact.id)
-      end
+      # Enqueue enrichment coordinator to fan-out enrichment jobs in parallel
+      EnrichmentCoordinatorJob.perform_later(contact.id)
       
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
       # handle_twilio_error will re-raise for transient errors only
 
     rescue StandardError => e
+      # Keep broad StandardError rescue at outermost level to catch any unexpected errors
+      # and prevent silent failures. This ensures all errors are logged and job state is updated.
+
       # Network errors from twilio-ruby/Faraday should be retried (if configured)
       if defined?(Faraday::Error) && e.is_a?(Faraday::Error)
         Rails.logger.warn("Network error for contact #{contact.id}: #{e.class} - #{e.message}")
@@ -181,7 +177,7 @@ class LookupRequestJob < ApplicationJob
         raise
       end
 
-      # Unexpected errors
+      # Unexpected errors - log and mark as failed but don't retry
       Rails.logger.error("Unexpected error for contact #{contact.id}: #{e.class} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       contact.mark_failed!("Unexpected error: #{e.message}")

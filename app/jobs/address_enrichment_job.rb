@@ -31,6 +31,8 @@ class AddressEnrichmentJob < ApplicationJob
       Rails.logger.warn "[AddressEnrichmentJob] Address enrichment returned false for contact #{contact.id}"
     end
 
+  # Keep broad StandardError rescue at outermost level to ensure job failures are properly logged
+  # and retried via Sidekiq's retry mechanism. This prevents silent failures in the background job queue.
   rescue StandardError => e
     Rails.logger.error "[AddressEnrichmentJob] Error enriching contact #{contact.id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")

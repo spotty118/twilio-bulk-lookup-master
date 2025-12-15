@@ -26,8 +26,11 @@ class BusinessEnrichmentService
       Rails.logger.info("No business data found for #{@phone_number}")
       false
     end
-  rescue StandardError => e
-    Rails.logger.error("Business enrichment error for #{@phone_number}: #{e.message}")
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    Rails.logger.error("Database error enriching #{@phone_number}: #{e.message}")
+    false
+  rescue ActiveRecord::RecordNotFound => e
+    Rails.logger.error("Contact not found for #{@phone_number}: #{e.message}")
     false
   end
 
@@ -54,8 +57,11 @@ class BusinessEnrichmentService
     end
 
     parse_clearbit_response(data) if data
-  rescue StandardError => e
-    Rails.logger.warn("Clearbit API error: #{e.message}")
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn("Clearbit network error: #{e.message}")
+    nil
+  rescue JSON::ParserError => e
+    Rails.logger.warn("Clearbit invalid response: #{e.message}")
     nil
   end
 
@@ -83,9 +89,6 @@ class BusinessEnrichmentService
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit phone lookup invalid JSON: #{e.message}")
     nil
-  rescue StandardError => e
-    Rails.logger.warn("Clearbit phone lookup error: #{e.message}")
-    nil
   end
 
   def clearbit_company_lookup(api_key, domain)
@@ -106,9 +109,6 @@ class BusinessEnrichmentService
     nil
   rescue JSON::ParserError => e
     Rails.logger.warn("Clearbit company lookup invalid JSON: #{e.message}")
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("Clearbit company lookup error: #{e.message}")
     nil
   end
 
@@ -171,8 +171,8 @@ class BusinessEnrichmentService
   rescue HttpClient::CircuitOpenError => e
     Rails.logger.warn("NumVerify circuit open: #{e.message}")
     nil
-  rescue StandardError => e
-    Rails.logger.warn("NumVerify API error: #{e.message}")
+  rescue JSON::ParserError => e
+    Rails.logger.warn("NumVerify invalid JSON response: #{e.message}")
     nil
   end
 

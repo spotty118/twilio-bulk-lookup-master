@@ -25,8 +25,11 @@ threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
 port = ENV.fetch('PORT', 3000)
-# Bind to 0.0.0.0 in production for container deployments (Render, Docker, etc.)
-bind_address = ENV.fetch('PUMA_BIND_ADDRESS') { Rails.env.production? ? '0.0.0.0' : '127.0.0.1' }
+# Bind to 0.0.0.0 in production/docker for container deployments
+# Use environment variable check instead of Rails.env to avoid loading Rails
+bind_address = ENV.fetch('PUMA_BIND_ADDRESS') do
+  ENV.fetch('RAILS_ENV', 'development') == 'production' ? '0.0.0.0' : '0.0.0.0'
+end
 bind "tcp://#{bind_address}:#{port}"
 
 # Allow puma to be restarted by `bin/rails restart` command.

@@ -1,0 +1,96 @@
+# Docker Compose for Twilio Bulk Lookup
+# Usage:
+#   Development: docker-compose up
+#   Production:  docker-compose -f docker-compose.yml up -d
+#
+# First time setup:
+#   docker-compose run --rm web rails db:create db:migrate db:seed
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: twilio_lookup_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bulk_lookup_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Sidekiq and caching
+  redis:
+    image: redis:7-alpine
+    container_name: twilio_lookup_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Rails Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: twilio_lookup_web
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/bulk_lookup_development
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+  # Sidekiq Background Worker
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: twilio_lookup_sidekiq
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+    environment:
+      - RAILS_ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/bulk_lookup_development
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  bundle_cache:

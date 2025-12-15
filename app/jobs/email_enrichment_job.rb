@@ -44,6 +44,8 @@ class EmailEnrichmentJob < ApplicationJob
       Rails.logger.info("No email data found for contact #{contact.id}")
     end
 
+  # Keep broad StandardError rescue at outermost level to ensure job failures are properly logged
+  # and retried via Sidekiq's retry mechanism. This prevents silent failures in the background job queue.
   rescue StandardError => e
     Rails.logger.error("Unexpected error enriching email for contact #{contact.id}: #{e.class} - #{e.message}")
     raise

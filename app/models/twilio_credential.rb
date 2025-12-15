@@ -1,4 +1,18 @@
 class TwilioCredential < ApplicationRecord
+  # Encrypted attributes for secure API key storage
+  encrypts :auth_token
+  encrypts :clearbit_api_key
+  encrypts :numverify_api_key
+  encrypts :hunter_api_key
+  encrypts :zerobounce_api_key
+  encrypts :whitepages_api_key
+  encrypts :truecaller_api_key
+  encrypts :google_places_api_key
+  encrypts :yelp_api_key
+  encrypts :openai_api_key
+  encrypts :anthropic_api_key
+  encrypts :google_ai_api_key
+
   # Validations
   validates :account_sid, :auth_token, presence: true
   validates :account_sid,
@@ -12,7 +26,7 @@ class TwilioCredential < ApplicationRecord
               with: /\A[a-z0-9]{32}\z/i,
               message: "must be a valid Twilio Auth Token (32 alphanumeric characters)"
             }
-  
+
   # Singleton enforcement via defense-in-depth:
   # Layer 1 (this validation): User-friendly error message
   # Layer 2 (DB unique index): Absolute guarantee even if validation bypassed
@@ -26,7 +40,7 @@ class TwilioCredential < ApplicationRecord
       errors.add(:base, "Only one Twilio credential record is allowed. Please update the existing record.")
     end
   end
-  
+
   # Class method to get current credentials (cached)
   # race_condition_ttl prevents cache stampede during concurrent updates
   def self.current
@@ -54,7 +68,7 @@ class TwilioCredential < ApplicationRecord
     enable_line_type_intelligence || enable_caller_name || enable_sms_pumping_risk ||
       enable_sim_swap || enable_reassigned_number
   end
-  
+
   # Clear singleton cache after save/destroy to prevent stale credentials
   after_save :clear_singleton_cache
   after_destroy :clear_singleton_cache

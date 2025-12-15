@@ -40,7 +40,6 @@ class VerizonCoverageService
       Rails.logger.warn "[VerizonCoverageService] Unable to determine coverage for contact #{@contact.id}"
       false
     end
-
   rescue StandardError => e
     Rails.logger.error "[VerizonCoverageService] Error checking coverage for contact #{@contact.id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -74,12 +73,86 @@ class VerizonCoverageService
   end
 
   # ========================================
-  # Method 1: Verizon Public API
+  # Method 1: Official Verizon FWA API
   # ========================================
 
   def try_verizon_public_api
-    # Verizon has public endpoints for checking service availability
-    # This endpoint checks for home internet products
+    # If we have official API credentials, use ThingSpace FWA API
+    return try_verizon_fwa_api if has_verizon_api_credentials?
+
+    # Fallback to public serviceability endpoint
+    try_verizon_serviceability_api
+  end
+
+  def has_verizon_api_credentials?
+    @credentials&.verizon_account_name.present? &&
+      @credentials&.verizon_api_key.present?
+  end
+
+  def try_verizon_fwa_api
+    # Official Verizon ThingSpace FWA API endpoint
+    uri = URI('https://thingspace.verizon.com/api/m2m/v1/intelligence/wireless-coverage')
+
+    payload = {
+      accountName: @credentials.verizon_account_name,
+      requestType: 'FWA',
+      locationType: 'ADDRESS',
+      locations: [{
+        addressLine1: @contact.consumer_address,
+        city: @contact.consumer_city,
+        state: @contact.consumer_state,
+        zipCode: @contact.consumer_postal_code
+      }]
+    }
+
+    response = HttpClient.post(uri, body: payload, circuit_name: 'verizon-fwa-api') do |request|
+      request['Accept'] = 'application/json'
+      request['Content-Type'] = 'application/json'
+      request['VZ-M2M-Token'] = get_verizon_auth_token
+    end
+
+    return nil unless response.code == '200'
+
+    data = JSON.parse(response.body)
+    parse_fwa_response(data)
+  rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
+    Rails.logger.warn "[VerizonCoverageService] Verizon FWA API error: #{e.message}"
+    nil
+  rescue StandardError => e
+    Rails.logger.error "[VerizonCoverageService] Verizon FWA API error: #{e.message}"
+    nil
+  end
+
+  def get_verizon_auth_token
+    # Verizon ThingSpace uses OAuth2 or API key auth
+    # This is a simplified implementation - adjust based on actual auth flow
+    if @credentials.verizon_api_secret.present?
+      # OAuth2 flow would go here
+      # For now, return API key as bearer token
+      @credentials.verizon_api_key
+    else
+      @credentials.verizon_api_key
+    end
+  end
+
+  def parse_fwa_response(data)
+    # Parse official FWA API response
+    result = data.dig('deviceInfo', 0) || data
+    coverage = result['coverage'] || result
+
+    {
+      fios_available: coverage['fiosAvailable'] == true,
+      five_g_available: coverage['fiveGAvailable'] == true || coverage['5gAvailable'] == true,
+      lte_available: coverage['lteAvailable'] == true,
+      download_speed: coverage['maxDownloadSpeed'],
+      upload_speed: coverage['maxUploadSpeed'],
+      raw_data: data,
+      method: 'verizon_fwa_api'
+    }
+  end
+
+  def try_verizon_serviceability_api
+    # Verizon public serviceability endpoint (no auth needed)
     uri = URI('https://www.verizon.com/sales/nextgen/apigateway/v1/serviceability/home')
 
     payload = {
@@ -100,7 +173,6 @@ class VerizonCoverageService
 
     data = JSON.parse(response.body)
     parse_verizon_response(data)
-
   rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
     Rails.logger.warn "[VerizonCoverageService] Verizon API error: #{e.message}"
     nil
@@ -171,7 +243,6 @@ class VerizonCoverageService
 
     data = JSON.parse(response.body)
     parse_fcc_data(data)
-
   rescue HttpClient::TimeoutError, HttpClient::CircuitOpenError => e
     Rails.logger.warn "[VerizonCoverageService] FCC API error: #{e.message}"
     nil

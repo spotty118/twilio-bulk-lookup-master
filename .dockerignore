@@ -1,0 +1,46 @@
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rails
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/storage/*
+!/storage/.keep
+
+# Node
+/node_modules/
+
+# Bundle
+/vendor/bundle/
+
+# Compiled assets
+/public/assets/
+/public/packs/
+
+# Master key (never commit!)
+/config/master.key
+/config/credentials/*.key
+
+# Coverage
+/coverage/
+
+# Test artifacts
+/spec/examples.txt

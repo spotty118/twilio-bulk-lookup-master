@@ -228,9 +228,6 @@ class AiAssistantService
   rescue JSON::ParserError => e
     Rails.logger.error("OpenAI API invalid JSON: #{e.message}")
     nil
-  rescue StandardError => e
-    Rails.logger.error("OpenAI API error: #{e.message}")
-    nil
   end
 
   def build_contact_profile(contact)
