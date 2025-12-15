@@ -1,0 +1,118 @@
+// ========================================
+// Design System - CSS Variables
+// ========================================
+
+:root {
+  // Color Palette - Primary
+  --color-primary: #5E6BFF;
+  --color-primary-light: #7d87ff;
+  --color-primary-dark: #4a54d1;
+  
+  // Color Palette - Success
+  --color-success: #11998e;
+  --color-success-light: #38b2ac;
+  --color-success-dark: #0d7a70;
+  
+  // Color Palette - Warning
+  --color-warning: #f39c12;
+  --color-warning-light: #f5b041;
+  --color-warning-dark: #d68910;
+  
+  // Color Palette - Danger
+  --color-danger: #eb3349;
+  --color-danger-light: #ef5b6d;
+  --color-danger-dark: #c92a3d;
+  
+  // Color Palette - Info
+  --color-info: #667eea;
+  --color-info-light: #8594f0;
+  --color-info-dark: #5263d1;
+  
+  // Neutral Colors - Light Theme
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #e9ecef;
+  
+  --color-text-primary: #212529;
+  --color-text-secondary: #6c757d;
+  --color-text-tertiary: #adb5bd;
+  
+  --color-border-primary: rgba(0, 0, 0, 0.1);
+  --color-border-secondary: rgba(0, 0, 0, 0.05);
+  
+  // Glassmorphism
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-blur: 10px;
+  
+  // Shadows
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.15);
+  --shadow-card: 0 8px 32px rgba(31, 38, 135, 0.15);
+  
+  // Spacing Scale
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  --spacing-4xl: 96px;
+  
+  // Typography Scale
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  // Border Radius
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+  
+  // Transitions
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+// Dark Theme
+[data-theme="dark"] {
+  // Neutral Colors - Dark Theme
+  --color-bg-primary: #1a1a1a;
+  --color-bg-secondary: #2d2d2d;
+  --color-bg-tertiary: #3a3a3a;
+  
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0a0;
+  --color-text-tertiary: #707070;
+  
+  --color-border-primary: rgba(255, 255, 255, 0.1);
+  --color-border-secondary: rgba(255, 255, 255, 0.05);
+  
+  // Glassmorphism - Dark
+  --glass-bg: rgba(30, 30, 30, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  
+  // Shadows - Dark (stronger)
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+}

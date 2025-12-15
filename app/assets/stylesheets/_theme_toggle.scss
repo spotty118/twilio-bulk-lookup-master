@@ -1,0 +1,47 @@
+// Dark Mode Toggle Component
+.theme-toggle {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 1000;
+
+    button {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-full);
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-xl);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        transition: all var(--transition-base);
+
+        &:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+}
+
+// Hide toggle on small screens to avoid blocking content
+@media (max-width: 768px) {
+    .theme-toggle {
+        bottom: var(--spacing-md);
+        right: var(--spacing-md);
+
+        button {
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+        }
+    }
+}
