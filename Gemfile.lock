@@ -154,6 +154,8 @@ GEM
       logger
     faraday-net_http (3.4.1)
       net-http (>= 0.5.0)
+    faraday-retry (2.3.2)
+      faraday (~> 2.0)
     ffi (1.17.2-aarch64-linux-gnu)
     ffi (1.17.2-aarch64-linux-musl)
     ffi (1.17.2-arm-linux-gnu)
@@ -170,6 +172,10 @@ GEM
     has_scope (0.8.2)
       actionpack (>= 5.2)
       activesupport (>= 5.2)
+    httparty (0.23.2)
+      csv
+      mini_mime (>= 1.0.0)
+      multi_xml (>= 0.5.2)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     image_processing (1.14.0)
@@ -229,6 +235,8 @@ GEM
     mini_mime (1.1.5)
     minitest (5.25.5)
     msgpack (1.8.0)
+    multi_xml (0.7.2)
+      bigdecimal (~> 3.1)
     net-http (0.6.0)
       uri
     net-imap (0.5.11)
@@ -341,6 +349,8 @@ GEM
       redis-client (>= 0.22.0)
     redis-client (0.26.1)
       connection_pool
+    redlock (1.3.2)
+      redis (>= 3.0.0, < 6.0)
     regexp_parser (2.11.3)
     reline (0.6.2)
       io-console (~> 0.5)
@@ -425,6 +435,8 @@ GEM
       sprockets (>= 3.0.0)
     stimulus-rails (1.3.4)
       railties (>= 6.0.0)
+    stoplight (3.0.2)
+      redlock (~> 1.0)
     stringio (3.1.7)
     thor (1.4.0)
     tilt (2.6.1)
@@ -482,10 +494,14 @@ DEPENDENCIES
   brakeman (~> 6.2)
   capybara (~> 3.40)
   coffee-rails (~> 5.0)
+  concurrent-ruby (~> 1.2)
   debug
   devise (~> 4.9)
   factory_bot_rails (~> 6.4)
   faker (~> 3.2)
+  faraday (~> 2.7)
+  faraday-retry (~> 2.2)
+  httparty (~> 0.21)
   image_processing (~> 1.13)
   inherited_resources (~> 1.14)
   jbuilder (~> 2.13)
@@ -508,6 +524,7 @@ DEPENDENCIES
   sidekiq (~> 7.3)
   sprockets-rails
   stimulus-rails (~> 1.3)
+  stoplight (~> 3.0)
   turbo-rails (~> 2.0)
   twilio-ruby (~> 7.2)
   tzinfo-data

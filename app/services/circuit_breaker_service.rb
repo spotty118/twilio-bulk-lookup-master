@@ -55,6 +55,18 @@ class CircuitBreakerService
       description: 'ZeroBounce Email Verification'
     },
 
+    # Address/Location APIs
+    whitepages: {
+      threshold: 3,
+      timeout: 30,
+      description: 'Whitepages Pro Address Lookup'
+    },
+    truecaller: {
+      threshold: 3,
+      timeout: 30,
+      description: 'TrueCaller Address Lookup'
+    },
+
     # AI/LLM APIs
     openai: {
       threshold: 5,      # Higher threshold for AI (transient errors common)

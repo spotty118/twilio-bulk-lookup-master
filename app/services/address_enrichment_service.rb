@@ -1,7 +1,24 @@
-require 'net/http'
-require 'json'
+# frozen_string_literal: true
 
+# AddressEnrichmentService - Enriches consumer contacts with address data
+#
+# This service attempts to find physical addresses for consumer contacts using:
+# 1. Whitepages Pro (best for US addresses)
+# 2. TrueCaller (good for mobile numbers)
+# 3. Existing data fallback (country/state level)
+#
+# All external API calls are protected by circuit breakers to prevent cascade failures.
+#
+# Usage:
+#   AddressEnrichmentService.new(contact).enrich
+#
 class AddressEnrichmentService
+  include HTTParty
+
+  # Configure HTTParty defaults
+  default_timeout 10
+  headers 'User-Agent' => 'TwilioBulkLookup/1.0'
+
   attr_reader :contact
 
   def initialize(contact)
@@ -89,17 +106,23 @@ class AddressEnrichmentService
     api_key = @credentials.whitepages_api_key
     phone = normalize_phone(@contact.raw_phone_number)
 
-    uri = URI('https://proapi.whitepages.com/3.0/phone')
-    params = {
-      phone: phone,
-      api_key: api_key
-    }
-    uri.query = URI.encode_www_form(params)
+    # Use circuit breaker for Whitepages API
+    result = CircuitBreakerService.call(:whitepages) do
+      self.class.get(
+        'https://proapi.whitepages.com/3.0/phone',
+        query: {
+          phone: phone,
+          api_key: api_key
+        }
+      )
+    end
 
-    response = HttpClient.get(uri, circuit_name: 'whitepages-api')
-    return nil unless response.is_a?(Net::HTTPSuccess)
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
 
     # Extract address from belongs_to -> current_addresses
     belongs_to = data.dig('belongs_to', 0)
@@ -109,12 +132,8 @@ class AddressEnrichmentService
     return nil unless current_address
 
     parse_whitepages_address(current_address, belongs_to)
-
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.error "[AddressEnrichmentService] Whitepages timeout: #{e.message}"
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.error "[AddressEnrichmentService] Whitepages circuit open: #{e.message}"
+  rescue HTTParty::Error => e
+    Rails.logger.error "[AddressEnrichmentService] Whitepages error: #{e.message}"
     nil
   rescue JSON::ParserError => e
     Rails.logger.error "[AddressEnrichmentService] Whitepages invalid JSON: #{e.message}"
@@ -146,21 +165,25 @@ class AddressEnrichmentService
     api_key = @credentials.truecaller_api_key
     phone = normalize_phone(@contact.raw_phone_number)
 
-    uri = URI('https://api4.truecaller.com/v1/search')
-    params = {
-      q: phone,
-      countryCode: 'US',
-      type: 'phone'
-    }
-    uri.query = URI.encode_www_form(params)
-
-    response = HttpClient.get(uri, circuit_name: 'truecaller-api') do |request|
-      request['Authorization'] = "Bearer #{api_key}"
+    # Use circuit breaker for TrueCaller API
+    result = CircuitBreakerService.call(:truecaller) do
+      self.class.get(
+        'https://api4.truecaller.com/v1/search',
+        query: {
+          q: phone,
+          countryCode: 'US',
+          type: 'phone'
+        },
+        headers: { 'Authorization' => "Bearer #{api_key}" }
+      )
     end
 
-    return nil unless response.is_a?(Net::HTTPSuccess)
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
-    data = JSON.parse(response.body)
+    return nil unless result.success?
+
+    data = result.parsed_response
     address_data = data.dig('data', 0, 'addresses', 0)
     return nil unless address_data
 
@@ -177,12 +200,8 @@ class AddressEnrichmentService
       first_name: data.dig('data', 0, 'name', 'first'),
       last_name: data.dig('data', 0, 'name', 'last')
     }
-
-  rescue HttpClient::TimeoutError => e
-    Rails.logger.error "[AddressEnrichmentService] TrueCaller timeout: #{e.message}"
-    nil
-  rescue HttpClient::CircuitOpenError => e
-    Rails.logger.error "[AddressEnrichmentService] TrueCaller circuit open: #{e.message}"
+  rescue HTTParty::Error => e
+    Rails.logger.error "[AddressEnrichmentService] TrueCaller error: #{e.message}"
     nil
   rescue JSON::ParserError => e
     Rails.logger.error "[AddressEnrichmentService] TrueCaller invalid JSON: #{e.message}"
@@ -231,21 +250,17 @@ class AddressEnrichmentService
     }
 
     # Also update name fields if we got them and they're empty
-    if address_data[:first_name].present? && @contact.first_name.blank?
-      updates[:first_name] = address_data[:first_name]
-    end
+    updates[:first_name] = address_data[:first_name] if address_data[:first_name].present? && @contact.first_name.blank?
 
-    if address_data[:last_name].present? && @contact.last_name.blank?
-      updates[:last_name] = address_data[:last_name]
-    end
+    updates[:last_name] = address_data[:last_name] if address_data[:last_name].present? && @contact.last_name.blank?
 
     @contact.update!(updates)
     @contact.calculate_quality_score!
 
     # Trigger Verizon coverage check if address is good enough
-    if should_check_verizon_coverage?
-      VerizonCoverageCheckJob.perform_later(@contact.id)
-    end
+    return unless should_check_verizon_coverage?
+
+    VerizonCoverageCheckJob.perform_later(@contact.id)
   end
 
   def should_check_verizon_coverage?
@@ -264,6 +279,7 @@ class AddressEnrichmentService
 
   def normalize_phone(phone)
     return nil if phone.blank?
+
     digits = phone.gsub(/\D/, '') # Remove non-digits
     # Only remove leading 1 if it's an 11-digit number (US country code)
     # Don't remove leading 1 from toll-free numbers like 800, 888, etc.
