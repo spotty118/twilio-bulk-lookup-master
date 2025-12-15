@@ -2,7 +2,7 @@ class BusinessEnrichmentJob < ApplicationJob
   queue_as :default
 
   # Retry configuration for transient failures
-  retry_on StandardError, wait: :exponentially_longer, attempts: 2 do |job, exception|
+  retry_on StandardError, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 2 do |job, exception|
     contact_id = job.arguments.first
     contact = Contact.find_by(id: contact_id)
     Rails.logger.warn("Business enrichment failed for contact #{contact_id}: #{exception.message}")

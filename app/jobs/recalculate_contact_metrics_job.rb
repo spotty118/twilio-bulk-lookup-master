@@ -19,8 +19,8 @@ class RecalculateContactMetricsJob < ApplicationJob
   queue_as :low_priority
 
   # Retry on database errors (transient failures)
-  retry_on ActiveRecord::Deadlocked, wait: :exponentially_longer, attempts: 3
-  retry_on ActiveRecord::StatementInvalid, wait: :exponentially_longer, attempts: 3
+  retry_on ActiveRecord::Deadlocked, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 3
+  retry_on ActiveRecord::StatementInvalid, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 3
 
   # Don't retry if contact was deleted
   discard_on ActiveRecord::RecordNotFound

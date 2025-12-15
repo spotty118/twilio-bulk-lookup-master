@@ -1,7 +1,7 @@
 class EmailEnrichmentJob < ApplicationJob
   queue_as :default
 
-  retry_on StandardError, wait: :exponentially_longer, attempts: 2 do |job, exception|
+  retry_on StandardError, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 2 do |job, exception|
     contact_id = job.arguments.first
     contact = Contact.find_by(id: contact_id)
     Rails.logger.warn("Email enrichment failed for contact #{contact_id}: #{exception.message}")

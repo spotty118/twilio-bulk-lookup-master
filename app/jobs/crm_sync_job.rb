@@ -1,6 +1,6 @@
 class CrmSyncJob < ApplicationJob
   queue_as :default
-  retry_on StandardError, wait: :exponentially_longer, attempts: 3
+  retry_on StandardError, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 3
 
   # Don't retry if contact was deleted
   discard_on ActiveRecord::RecordNotFound do |job, exception|

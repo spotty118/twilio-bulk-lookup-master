@@ -13,7 +13,9 @@ ActiveAdmin.register Contact do
                         # Limit row count to 50,000 rows
                         max_rows = 50_000
                         row_count = begin
-                          CSV.read(file.path).count
+                          count = 0
+                          CSV.foreach(file.path) { count += 1 }
+                          count
                         rescue StandardError => e
                           0
                         end
@@ -1059,69 +1061,168 @@ ActiveAdmin.register Contact do
   # ========================================
   # CSV/Excel Export Configuration
   # ========================================
+
+  # Helper to prevent CSV formula injection
+  # Escapes values that start with =, +, -, or @ which could be interpreted as formulas in Excel
+  def escape_csv_formula(value)
+    return nil if value.nil?
+    return value unless value.to_s.match?(/\A[=+\-@]/)
+    "'#{value}"
+  end
+
   csv do
     column :id
-    column :raw_phone_number
-    column :formatted_phone_number
-    column :status
+    column :raw_phone_number do |contact|
+      escape_csv_formula(contact.raw_phone_number)
+    end
+    column :formatted_phone_number do |contact|
+      escape_csv_formula(contact.formatted_phone_number)
+    end
+    column :status do |contact|
+      escape_csv_formula(contact.status)
+    end
     column :phone_valid
-    column :country_code
-    column :calling_country_code
-    column :line_type
-    column :carrier_name
-    column :device_type
-    column :mobile_country_code
-    column :mobile_network_code
-    column :caller_name
-    column :caller_type
+    column :country_code do |contact|
+      escape_csv_formula(contact.country_code)
+    end
+    column :calling_country_code do |contact|
+      escape_csv_formula(contact.calling_country_code)
+    end
+    column :line_type do |contact|
+      escape_csv_formula(contact.line_type)
+    end
+    column :carrier_name do |contact|
+      escape_csv_formula(contact.carrier_name)
+    end
+    column :device_type do |contact|
+      escape_csv_formula(contact.device_type)
+    end
+    column :mobile_country_code do |contact|
+      escape_csv_formula(contact.mobile_country_code)
+    end
+    column :mobile_network_code do |contact|
+      escape_csv_formula(contact.mobile_network_code)
+    end
+    column :caller_name do |contact|
+      escape_csv_formula(contact.caller_name)
+    end
+    column :caller_type do |contact|
+      escape_csv_formula(contact.caller_type)
+    end
     column :sms_pumping_risk_score
-    column :sms_pumping_risk_level
-    column :sms_pumping_carrier_risk_category
+    column :sms_pumping_risk_level do |contact|
+      escape_csv_formula(contact.sms_pumping_risk_level)
+    end
+    column :sms_pumping_carrier_risk_category do |contact|
+      escape_csv_formula(contact.sms_pumping_carrier_risk_category)
+    end
     column :sms_pumping_number_blocked
     column :is_business
-    column :business_name
-    column :business_legal_name
-    column :business_type
-    column :business_category
-    column :business_industry
+    column :business_name do |contact|
+      escape_csv_formula(contact.business_name)
+    end
+    column :business_legal_name do |contact|
+      escape_csv_formula(contact.business_legal_name)
+    end
+    column :business_type do |contact|
+      escape_csv_formula(contact.business_type)
+    end
+    column :business_category do |contact|
+      escape_csv_formula(contact.business_category)
+    end
+    column :business_industry do |contact|
+      escape_csv_formula(contact.business_industry)
+    end
     column :business_employee_count
-    column :business_employee_range
+    column :business_employee_range do |contact|
+      escape_csv_formula(contact.business_employee_range)
+    end
     column :business_annual_revenue
-    column :business_revenue_range
+    column :business_revenue_range do |contact|
+      escape_csv_formula(contact.business_revenue_range)
+    end
     column :business_founded_year
-    column :business_address
-    column :business_city
-    column :business_state
-    column :business_country
-    column :business_postal_code
-    column :business_website
-    column :business_email_domain
-    column :business_linkedin_url
-    column :business_twitter_handle
-    column :business_description
+    column :business_address do |contact|
+      escape_csv_formula(contact.business_address)
+    end
+    column :business_city do |contact|
+      escape_csv_formula(contact.business_city)
+    end
+    column :business_state do |contact|
+      escape_csv_formula(contact.business_state)
+    end
+    column :business_country do |contact|
+      escape_csv_formula(contact.business_country)
+    end
+    column :business_postal_code do |contact|
+      escape_csv_formula(contact.business_postal_code)
+    end
+    column :business_website do |contact|
+      escape_csv_formula(contact.business_website)
+    end
+    column :business_email_domain do |contact|
+      escape_csv_formula(contact.business_email_domain)
+    end
+    column :business_linkedin_url do |contact|
+      escape_csv_formula(contact.business_linkedin_url)
+    end
+    column :business_twitter_handle do |contact|
+      escape_csv_formula(contact.business_twitter_handle)
+    end
+    column :business_description do |contact|
+      escape_csv_formula(contact.business_description)
+    end
     column :business_enriched
-    column :business_enrichment_provider
+    column :business_enrichment_provider do |contact|
+      escape_csv_formula(contact.business_enrichment_provider)
+    end
     column :business_confidence_score
-    column :error_code
+    column :error_code do |contact|
+      escape_csv_formula(contact.error_code)
+    end
     column :lookup_performed_at
     column :created_at
     column :updated_at
-    
+
     # Email enrichment fields
-    column :email
+    column :email do |contact|
+      escape_csv_formula(contact.email)
+    end
     column :email_verified
-    column :email_status
+    column :email_status do |contact|
+      escape_csv_formula(contact.email_status)
+    end
     column :email_score
-    column :first_name
-    column :last_name
-    column :full_name
-    column :position
-    column :department
-    column :seniority
-    column :linkedin_url
-    column :twitter_url
-    column :facebook_url
-    column :email_enrichment_provider
+    column :first_name do |contact|
+      escape_csv_formula(contact.first_name)
+    end
+    column :last_name do |contact|
+      escape_csv_formula(contact.last_name)
+    end
+    column :full_name do |contact|
+      escape_csv_formula(contact.full_name)
+    end
+    column :position do |contact|
+      escape_csv_formula(contact.position)
+    end
+    column :department do |contact|
+      escape_csv_formula(contact.department)
+    end
+    column :seniority do |contact|
+      escape_csv_formula(contact.seniority)
+    end
+    column :linkedin_url do |contact|
+      escape_csv_formula(contact.linkedin_url)
+    end
+    column :twitter_url do |contact|
+      escape_csv_formula(contact.twitter_url)
+    end
+    column :facebook_url do |contact|
+      escape_csv_formula(contact.facebook_url)
+    end
+    column :email_enrichment_provider do |contact|
+      escape_csv_formula(contact.email_enrichment_provider)
+    end
     column :email_enriched_at
     
     # Duplicate detection fields
@@ -1133,15 +1234,29 @@ ActiveAdmin.register Contact do
     column :completeness_percentage
 
     # Consumer address fields
-    column :consumer_address
-    column :consumer_city
-    column :consumer_state
-    column :consumer_postal_code
-    column :consumer_country
-    column :address_type
+    column :consumer_address do |contact|
+      escape_csv_formula(contact.consumer_address)
+    end
+    column :consumer_city do |contact|
+      escape_csv_formula(contact.consumer_city)
+    end
+    column :consumer_state do |contact|
+      escape_csv_formula(contact.consumer_state)
+    end
+    column :consumer_postal_code do |contact|
+      escape_csv_formula(contact.consumer_postal_code)
+    end
+    column :consumer_country do |contact|
+      escape_csv_formula(contact.consumer_country)
+    end
+    column :address_type do |contact|
+      escape_csv_formula(contact.address_type)
+    end
     column :address_verified
     column :address_enriched
-    column :address_enrichment_provider
+    column :address_enrichment_provider do |contact|
+      escape_csv_formula(contact.address_enrichment_provider)
+    end
     column :address_confidence_score
 
     # Verizon coverage fields

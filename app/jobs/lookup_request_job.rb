@@ -2,7 +2,7 @@ class LookupRequestJob < ApplicationJob
   queue_as :default
   
   # Retry configuration for transient failures
-  retry_on Twilio::REST::RestError, wait: :exponentially_longer, attempts: 3 do |job, exception|
+  retry_on Twilio::REST::RestError, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 3 do |job, exception|
     contact_id = job.arguments.first
     contact = Contact.find_by(id: contact_id)
     contact&.mark_failed!("Twilio API error after retries: #{exception.message}")
@@ -11,7 +11,7 @@ class LookupRequestJob < ApplicationJob
   # Retry on network errors (Faraday is loaded by twilio-ruby gem)
   # Explicit rescue is safer than conditional StandardError filtering
   begin
-    retry_on Faraday::Error, wait: :exponentially_longer, attempts: 3 do |job, exception|
+    retry_on Faraday::Error, wait: ->(executions) { (executions ** 4) + rand(30) }, attempts: 3 do |job, exception|
       contact_id = job.arguments.first
       contact = Contact.find_by(id: contact_id)
       contact&.mark_failed!("Network error after retries: #{exception.message}")
