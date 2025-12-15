@@ -62,11 +62,17 @@ class TrustHubService
   def lookup_trust_hub_verification
     return nil unless @contact.business_name.present?
 
-    # Search for existing customer profiles that might match
-    customer_profiles = twilio_client.trusthub.v1.customer_profiles.list(limit: 20)
+    # Use circuit breaker for Trust Hub API
+    result = CircuitBreakerService.call(:twilio_trust_hub) do
+      # Search for existing customer profiles that might match
+      twilio_client.trusthub.v1.customer_profiles.list(limit: 20)
+    end
+
+    # Handle circuit breaker fallback
+    return nil if result.is_a?(Hash) && result[:circuit_open]
 
     # Try to find a matching profile by business name or phone
-    matching_profile = customer_profiles.find do |profile|
+    matching_profile = result.find do |profile|
       matches_profile?(profile)
     end
 
@@ -92,6 +98,7 @@ class TrustHubService
 
   def normalize_name(name)
     return '' unless name
+
     name.downcase.gsub(/[^a-z0-9]/, '')
   end
 
@@ -102,14 +109,20 @@ class TrustHubService
     # Build customer profile data
     profile_data = build_profile_data
 
-    # Create customer profile (requires manual submission)
-    # Note: This creates a draft profile that needs to be submitted with documents
-    profile = twilio_client.trusthub.v1.customer_profiles.create(
-      friendly_name: @contact.business_name,
-      email: infer_business_email,
-      policy_sid: get_policy_sid,
-      status_callback: status_callback_url
-    )
+    # Use circuit breaker for Trust Hub API
+    profile = CircuitBreakerService.call(:twilio_trust_hub) do
+      # Create customer profile (requires manual submission)
+      # Note: This creates a draft profile that needs to be submitted with documents
+      twilio_client.trusthub.v1.customer_profiles.create(
+        friendly_name: @contact.business_name,
+        email: infer_business_email,
+        policy_sid: get_policy_sid,
+        status_callback: status_callback_url
+      )
+    end
+
+    # Handle circuit breaker fallback
+    return nil if profile.is_a?(Hash) && profile[:circuit_open]
 
     # Add business information to the profile
     add_business_information(profile)
@@ -165,6 +178,7 @@ class TrustHubService
 
   def infer_business_email
     return nil unless @contact.business_email_domain.present?
+
     "info@#{@contact.business_email_domain}"
   end
 
@@ -178,6 +192,7 @@ class TrustHubService
   def status_callback_url
     # Webhook URL for Trust Hub status updates
     return nil unless @credential.trust_hub_webhook_url.present?
+
     @credential.trust_hub_webhook_url
   end
 
@@ -305,7 +320,7 @@ class TrustHubService
 
   def update_contact_with_trust_hub_data(data)
     @contact.update!(
-      trust_hub_verified: data[:status] == 'twilio-approved' || data[:status] == 'compliant',
+      trust_hub_verified: %w[twilio-approved compliant].include?(data[:status]),
       trust_hub_status: data[:status],
       trust_hub_customer_profile_sid: data[:customer_profile_sid],
       trust_hub_business_name: data[:business_name],

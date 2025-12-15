@@ -26,9 +26,14 @@ class CircuitBreakerService
   SERVICES = {
     # Core APIs
     twilio: {
-      threshold: 5,      # Allow 5 failures before opening
-      timeout: 60,       # Wait 60s before retry
-      description: 'Twilio Lookup API'
+      threshold: 5,      # Higher threshold for core service
+      timeout: 60,       # Longer timeout for lookup API
+      description: 'Twilio Core Lookup API'
+    },
+    twilio_trust_hub: {
+      threshold: 5,      # Higher threshold (regulatory API, fewer calls)
+      timeout: 60,       # Longer timeout (complex workflows)
+      description: 'Twilio Trust Hub Regulatory Compliance API'
     },
 
     # Business Intelligence
