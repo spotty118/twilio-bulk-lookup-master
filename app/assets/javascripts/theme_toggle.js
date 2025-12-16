@@ -1,4 +1,6 @@
 // Theme Toggle Controller
+// Premium dark/light mode switching with animated transitions
+
 document.addEventListener('turbo:load', function () {
     initThemeToggle();
 });
@@ -8,8 +10,11 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initThemeToggle() {
-    // Check for saved theme preference or default to 'light'
-    const currentTheme = localStorage.getItem('theme') || 'light';
+    // Check for saved theme preference, system preference, or default to 'light'
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const currentTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+
     document.documentElement.setAttribute('data-theme', currentTheme);
 
     // Create toggle button if it doesn't exist
@@ -19,6 +24,15 @@ function initThemeToggle() {
 
     // Update button icon
     updateToggleIcon(currentTheme);
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+            const newTheme = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            updateToggleIcon(newTheme);
+        }
+    });
 }
 
 function createThemeToggle() {
@@ -39,6 +53,10 @@ function createThemeToggle() {
 function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    const btn = document.getElementById('theme-toggle-btn');
+
+    // Add animation class
+    btn.classList.add('switching');
 
     // Update DOM
     document.documentElement.setAttribute('data-theme', newTheme);
@@ -46,15 +64,15 @@ function toggleTheme() {
     // Save preference
     localStorage.setItem('theme', newTheme);
 
-    // Update icon
-    updateToggleIcon(newTheme);
-
-    // Add animation class
-    const btn = document.getElementById('theme-toggle-btn');
-    btn.style.transform = 'rotate(360deg)';
+    // Update icon with slight delay for smooth transition
     setTimeout(() => {
-        btn.style.transform = '';
-    }, 300);
+        updateToggleIcon(newTheme);
+    }, 150);
+
+    // Remove animation class after animation completes
+    setTimeout(() => {
+        btn.classList.remove('switching');
+    }, 500);
 }
 
 function updateToggleIcon(theme) {

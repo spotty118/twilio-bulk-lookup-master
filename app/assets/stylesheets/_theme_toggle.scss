@@ -1,47 +1,121 @@
-// Dark Mode Toggle Component
+// ========================================
+// Premium Dark Mode Toggle Component
+// ========================================
+
 .theme-toggle {
     position: fixed;
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
+    bottom: var(--spacing-xl);
+    right: var(--spacing-xl);
     z-index: 1000;
 
     button {
-        width: 56px;
-        height: 56px;
+        width: 60px;
+        height: 60px;
         border-radius: var(--radius-full);
         background: var(--glass-bg);
         backdrop-filter: blur(var(--glass-blur));
         -webkit-backdrop-filter: blur(var(--glass-blur));
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-xl);
+        border: 2px solid var(--glass-border);
+        box-shadow: var(--shadow-xl), var(--shadow-glow);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 26px;
         transition: all var(--transition-base);
+        position: relative;
+        overflow: hidden;
+
+        // Glow ring on hover
+        &::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: var(--radius-full);
+            background: var(--gradient-primary);
+            opacity: 0;
+            z-index: -1;
+            transition: opacity var(--transition-base);
+        }
 
         &:hover {
-            transform: scale(1.1) rotate(15deg);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+            transform: scale(1.1);
+            border-color: var(--color-primary);
+
+            &::before {
+                opacity: 0.3;
+            }
         }
 
         &:active {
             transform: scale(0.95);
         }
+
+        // Icon container
+        #theme-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-base);
+        }
     }
 }
 
-// Hide toggle on small screens to avoid blocking content
+// Tooltip on hover
+.theme-toggle button::after {
+    content: 'Toggle theme';
+    position: absolute;
+    right: 70px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-md);
+}
+
+.theme-toggle button:hover::after {
+    opacity: 1;
+    right: 75px;
+}
+
+// Responsive adjustments
 @media (max-width: 768px) {
     .theme-toggle {
-        bottom: var(--spacing-md);
-        right: var(--spacing-md);
+        bottom: var(--spacing-lg);
+        right: var(--spacing-lg);
 
         button {
-            width: 48px;
-            height: 48px;
-            font-size: 20px;
+            width: 52px;
+            height: 52px;
+            font-size: 22px;
+
+            &::after {
+                display: none; // Hide tooltip on mobile
+            }
         }
     }
+}
+
+// Animation when switching themes
+@keyframes theme-switch {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.2);
+    }
+
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+.theme-toggle button.switching {
+    animation: theme-switch 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
