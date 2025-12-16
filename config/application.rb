@@ -1,6 +1,6 @@
-require_relative "boot"
+require_relative 'boot'
 
-require "rails/all"
+require 'rails/all'
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -18,6 +18,10 @@ module BulkLookup
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
+
+    # Custom Middleware
+    require_relative '../app/middleware/request_logger'
+    config.middleware.use Middleware::RequestLogger
 
     # Configuration for the application, engines, and railties goes here.
     #
