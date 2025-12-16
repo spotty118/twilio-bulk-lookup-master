@@ -2,11 +2,14 @@
 // Modern Components - Glassmorphism
 // ========================================
 
-// Base body styling
+// Base body styling with gradient mesh
 body {
-    background: var(--color-bg-primary);
+    background-color: var(--color-bg-primary);
+    background-image: var(--gradient-mesh);
+    background-attachment: fixed;
     color: var(--color-text-primary);
     transition: background-color var(--transition-base), color var(--transition-base);
+    min-height: 100vh;
 }
 
 // Enhanced Panels with Glassmorphism
