@@ -46,6 +46,10 @@ gem 'concurrent-ruby', '~> 1.2'
 # Circuit breaker for API resilience
 gem 'stoplight', '~> 3.0'
 
+# Error tracking and monitoring
+gem 'sentry-rails', '~> 5.17'
+gem 'sentry-ruby', '~> 5.17'
+
 # Rate limiting and abuse prevention
 gem 'rack-attack', '~> 6.7'
 

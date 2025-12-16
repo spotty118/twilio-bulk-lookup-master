@@ -1,6 +1,6 @@
 class LookupRequestJob < ApplicationJob
   queue_as :default
-  
+
   # Retry configuration for transient failures
   retry_on Twilio::REST::RestError, wait: :exponentially_longer, attempts: 3 do |job, exception|
     contact_id = job.arguments.first
@@ -18,15 +18,15 @@ class LookupRequestJob < ApplicationJob
     end
   rescue NameError
     # Faraday not loaded - skip network retry configuration
-    Rails.logger.debug("Faraday::Error not defined, network retry logic disabled")
+    Rails.logger.debug('Faraday::Error not defined, network retry logic disabled')
   end
-  
+
   # Don't retry on permanent failures
   discard_on ActiveRecord::RecordNotFound do |job, exception|
     Rails.logger.error("Contact not found: #{exception.message}")
   end
 
-  # Note: This job expects a contact_id (Integer), not a Contact object
+  # NOTE: This job expects a contact_id (Integer), not a Contact object
   # This follows Sidekiq best practice of passing IDs to avoid serialization issues
   def perform(contact_id)
     contact = Contact.find(contact_id)
@@ -40,7 +40,7 @@ class LookupRequestJob < ApplicationJob
     # Atomic status transition to prevent race conditions
     # Use pessimistic locking to ensure only one job processes this contact
     updated = contact.with_lock do
-      if contact.status == 'pending' || contact.status == 'failed'
+      if %w[pending failed].include?(contact.status)
         contact.mark_processing!
         true
       else
@@ -52,7 +52,7 @@ class LookupRequestJob < ApplicationJob
       Rails.logger.info("Skipping contact #{contact.id}: already being processed (status: #{contact.status})")
       return
     end
-    
+
     begin
       # Use cached credentials to avoid N+1 queries
       credentials = TwilioCredential.current
@@ -69,24 +69,34 @@ class LookupRequestJob < ApplicationJob
 
       # Initialize Twilio client
       client = Twilio::REST::Client.new(account_sid, auth_token)
-      
+
       # Perform Twilio Lookup API v2 with configured data packages
       # Build fields parameter from enabled packages
       fields = credentials&.data_packages
-      
-      lookup_result = if fields.present?
-                        client.lookups
-                              .v2
-                              .phone_numbers(contact.raw_phone_number)
-                              .fetch(fields: fields)
-                      else
-                        # Basic lookup if no packages enabled
-                        client.lookups
-                              .v2
-                              .phone_numbers(contact.raw_phone_number)
-                              .fetch
-                      end
-      
+
+      # Wrap Twilio API call with circuit breaker to prevent cascade failures
+      # when Twilio is degraded or experiencing issues
+      lookup_result = CircuitBreakerService.call(:twilio) do
+        if fields.present?
+          client.lookups
+                .v2
+                .phone_numbers(contact.raw_phone_number)
+                .fetch(fields: fields)
+        else
+          # Basic lookup if no packages enabled
+          client.lookups
+                .v2
+                .phone_numbers(contact.raw_phone_number)
+                .fetch
+        end
+      end
+
+      # Check if circuit breaker returned a fallback error hash
+      if lookup_result.is_a?(Hash) && lookup_result[:circuit_open]
+        contact.mark_failed!('Twilio API temporarily unavailable (circuit open)')
+        return
+      end
+
       # Extract basic validation data
       phone_number = lookup_result.phone_number
       valid = lookup_result.valid
@@ -94,7 +104,7 @@ class LookupRequestJob < ApplicationJob
       country_code = lookup_result.country_code
       calling_country_code = lookup_result.calling_country_code
       national_format = lookup_result.national_format
-      
+
       # Extract Line Type Intelligence data
       line_type_data = lookup_result.line_type_intelligence || {}
       line_type = line_type_data['type']
@@ -102,16 +112,16 @@ class LookupRequestJob < ApplicationJob
       carrier_name = line_type_data['carrier_name']
       mobile_network_code = line_type_data['mobile_network_code']
       mobile_country_code = line_type_data['mobile_country_code']
-      
+
       # Extract Caller Name (CNAM) data - US only
       caller_name_data = lookup_result.caller_name || {}
       caller_name = caller_name_data['caller_name']
       caller_type = caller_name_data['caller_type']
-      
+
       # Extract SMS Pumping Risk data
       sms_risk_data = lookup_result.sms_pumping_risk || {}
       sms_risk_score = sms_risk_data['sms_pumping_risk_score']&.to_i
-      
+
       # Determine risk level based on score
       sms_risk_level = case sms_risk_score
                        when 0..25 then 'low'
@@ -119,10 +129,10 @@ class LookupRequestJob < ApplicationJob
                        when 75..100 then 'high'
                        else nil
                        end
-      
+
       sms_carrier_risk = sms_risk_data['carrier_risk_category']
       sms_number_blocked = sms_risk_data['number_blocked']
-      
+
       # Update contact with all v2 results
       contact.update!(
         # Basic validation
@@ -131,7 +141,7 @@ class LookupRequestJob < ApplicationJob
         validation_errors: validation_errors,
         country_code: country_code,
         calling_country_code: calling_country_code,
-        
+
         # Line Type Intelligence
         line_type: line_type,
         line_type_confidence: line_type_confidence,
@@ -139,21 +149,21 @@ class LookupRequestJob < ApplicationJob
         mobile_network_code: mobile_network_code,
         mobile_country_code: mobile_country_code,
         device_type: line_type, # Keep device_type for backwards compatibility
-        
+
         # Caller Name (CNAM)
         caller_name: caller_name,
         caller_type: caller_type,
-        
+
         # SMS Pumping Risk
         sms_pumping_risk_score: sms_risk_score,
         sms_pumping_risk_level: sms_risk_level,
         sms_pumping_carrier_risk_category: sms_carrier_risk,
         sms_pumping_number_blocked: sms_number_blocked,
-        
+
         # Clear error code on success
         error_code: nil
       )
-      
+
       # Mark as completed
       contact.mark_completed!
 
@@ -161,11 +171,9 @@ class LookupRequestJob < ApplicationJob
 
       # Enqueue enrichment coordinator to fan-out enrichment jobs in parallel
       EnrichmentCoordinatorJob.perform_later(contact.id)
-      
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
       # handle_twilio_error will re-raise for transient errors only
-
     rescue StandardError => e
       # Keep broad StandardError rescue at outermost level to catch any unexpected errors
       # and prevent silent failures. This ensures all errors are logged and job state is updated.
@@ -183,9 +191,9 @@ class LookupRequestJob < ApplicationJob
       contact.mark_failed!("Unexpected error: #{e.message}")
     end
   end
-  
+
   private
-  
+
   def handle_twilio_error(contact, error)
     error_code = error.code
     error_message = error.message
@@ -194,21 +202,21 @@ class LookupRequestJob < ApplicationJob
 
     # Determine if error is permanent or transient
     case error_code
-    when 20404 # Resource not found - invalid number
+    when 20_404 # Resource not found - invalid number
       contact.mark_failed!("Invalid phone number: #{error_message}")
       # Don't re-raise for permanent failures - prevent retries
 
-    when 20003, 20005 # Authentication errors
+    when 20_003, 20_005 # Authentication errors
       contact.mark_failed!("Authentication error: #{error_message}")
       # Don't re-raise for auth failures - will fail for all contacts
 
-    when 20429 # Rate limit exceeded
+    when 20_429 # Rate limit exceeded
       contact.mark_failed!("Rate limit exceeded: #{error_message}")
-      Rails.logger.warn("Rate limit exceeded, will retry")
+      Rails.logger.warn('Rate limit exceeded, will retry')
       # Let retry mechanism handle this by re-raising
       raise error
 
-    when 21211, 21212, 21213, 21214, 21215, 21216, 21217, 21218, 21219 # Invalid number formats
+    when 21_211, 21_212, 21_213, 21_214, 21_215, 21_216, 21_217, 21_218, 21_219 # Invalid number formats
       contact.mark_failed!("Invalid number format: #{error_message}")
       # Don't re-raise for permanent failures - prevent retries
 

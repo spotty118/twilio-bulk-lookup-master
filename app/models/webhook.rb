@@ -80,12 +80,12 @@ class Webhook < ApplicationRecord
 
   # Class method to get ransackable attributes
   def self.ransackable_attributes(auth_object = nil)
-    ["source", "event_type", "status", "received_at", "processed_at",
-     "created_at", "updated_at", "contact_id", "external_id"]
+    %w[source event_type status received_at processed_at
+       created_at updated_at contact_id external_id]
   end
 
   def self.ransackable_associations(auth_object = nil)
-    ["contact"]
+    ['contact']
   end
 
   private
@@ -102,7 +102,7 @@ class Webhook < ApplicationRecord
       # This handles edge cases where Twilio doesn't provide an ID
       payload_hash = Digest::SHA256.hexdigest(payload.to_json.to_s)[0..31]
       self.idempotency_key = "#{source}:hash:#{payload_hash}"
-      Rails.logger.warn("Webhook created without external_id, using payload hash for idempotency")
+      Rails.logger.warn('Webhook created without external_id, using payload hash for idempotency')
     end
   end
 
@@ -121,7 +121,7 @@ class Webhook < ApplicationRecord
       # Update Trust Hub status
       contact.update!(
         trust_hub_status: status,
-        trust_hub_verified: ['twilio-approved', 'compliant'].include?(status),
+        trust_hub_verified: %w[twilio-approved compliant].include?(status),
         trust_hub_verification_score: calculate_trust_hub_score(status),
         trust_hub_enriched_at: Time.current
       )
@@ -146,20 +146,21 @@ class Webhook < ApplicationRecord
     # Find contact by phone number (optimized single query with OR condition)
     contact = Contact.where('formatted_phone_number = ? OR raw_phone_number = ?', to_number, to_number).first
 
-    if contact
-      # Update SMS tracking
-      case message_status
-      when 'delivered'
-        contact.increment!(:sms_delivered_count)
-      when 'failed', 'undelivered'
-        contact.increment!(:sms_failed_count)
-      end
+    return unless contact
 
-      contact.update!(last_engagement_at: Time.current)
-      update!(contact_id: contact.id)
-
-      Rails.logger.info "SMS webhook processed for contact #{contact.id}: #{message_status}"
+    # Update SMS tracking using atomic SQL operations to prevent race conditions
+    # Multiple concurrent webhooks could lose increments with non-atomic increment!
+    case message_status
+    when 'delivered'
+      Contact.where(id: contact.id).update_all('sms_delivered_count = COALESCE(sms_delivered_count, 0) + 1')
+    when 'failed', 'undelivered'
+      Contact.where(id: contact.id).update_all('sms_failed_count = COALESCE(sms_failed_count, 0) + 1')
     end
+
+    contact.update!(last_engagement_at: Time.current)
+    update!(contact_id: contact.id)
+
+    Rails.logger.info "SMS webhook processed for contact #{contact.id}: #{message_status}"
   end
 
   def process_voice_webhook
@@ -173,25 +174,25 @@ class Webhook < ApplicationRecord
     # Find contact by phone number (optimized single query with OR condition)
     contact = Contact.where('formatted_phone_number = ? OR raw_phone_number = ?', to_number, to_number).first
 
-    if contact
-      # Update voice tracking
-      case call_status
-      when 'completed'
-        if payload['AnsweredBy'] == 'human'
-          contact.increment!(:voice_answered_count)
-        else
-          contact.increment!(:voice_voicemail_count)
-        end
+    return unless contact
+
+    # Update voice tracking using atomic SQL operations to prevent race conditions
+    case call_status
+    when 'completed'
+      if payload['AnsweredBy'] == 'human'
+        Contact.where(id: contact.id).update_all('voice_answered_count = COALESCE(voice_answered_count, 0) + 1')
+      else
+        Contact.where(id: contact.id).update_all('voice_voicemail_count = COALESCE(voice_voicemail_count, 0) + 1')
       end
-
-      contact.update!(
-        voice_last_called_at: Time.current,
-        last_engagement_at: Time.current
-      )
-      update!(contact_id: contact.id)
-
-      Rails.logger.info "Voice webhook processed for contact #{contact.id}: #{call_status}"
     end
+
+    contact.update!(
+      voice_last_called_at: Time.current,
+      last_engagement_at: Time.current
+    )
+    update!(contact_id: contact.id)
+
+    Rails.logger.info "Voice webhook processed for contact #{contact.id}: #{call_status}"
   end
 
   def calculate_trust_hub_score(status)
