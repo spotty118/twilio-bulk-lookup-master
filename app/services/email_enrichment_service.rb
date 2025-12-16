@@ -179,12 +179,32 @@ class EmailEnrichmentService
     name = @contact.full_name || @contact.caller_name
     name_parts = name.to_s.downcase.split(' ').reject(&:empty?)
 
-    return nil if name_parts.length < 2
+    return nil if name_parts.empty?
+
+    # Handle single-name contacts (e.g., "Madonna", "Prince")
+    if name_parts.length < 2
+      first = name_parts.first
+      patterns = [
+        "#{first}@#{@contact.business_email_domain}",
+        "info@#{@contact.business_email_domain}",
+        "contact@#{@contact.business_email_domain}"
+      ]
+      return {
+        provider: 'pattern_guess',
+        email: patterns.first,
+        email_score: 20, # Lower confidence for single name
+        email_verified: false,
+        email_status: 'unverified',
+        first_name: name_parts.first.capitalize,
+        last_name: nil,
+        full_name: name
+      }
+    end
 
     first = name_parts.first
     last = name_parts.last
 
-    # Common patterns
+    # Common patterns for multi-part names
     patterns = [
       "#{first}.#{last}@#{@contact.business_email_domain}",
       "#{first}#{last}@#{@contact.business_email_domain}",

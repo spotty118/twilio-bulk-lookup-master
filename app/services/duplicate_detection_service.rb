@@ -147,19 +147,17 @@ class DuplicateDetectionService
 
     # Match on business name + location
     contacts = Contact.where(is_business: true)
-                     .where.not(id: @contact.id)
-                     .where(is_duplicate: false)
+                      .where.not(id: @contact.id)
+                      .where(is_duplicate: false)
 
-    if @contact.name_fingerprint.present?
-      contacts = contacts.where(name_fingerprint: @contact.name_fingerprint)
-    else
-      contacts = contacts.where(business_name: @contact.business_name)
-    end
+    contacts = if @contact.name_fingerprint.present?
+                 contacts.where(name_fingerprint: @contact.name_fingerprint)
+               else
+                 contacts.where(business_name: @contact.business_name)
+               end
 
     # Further filter by location if available
-    if @contact.business_city.present?
-      contacts = contacts.where(business_city: @contact.business_city)
-    end
+    contacts = contacts.where(business_city: @contact.business_city) if @contact.business_city.present?
 
     contacts.to_a
   end
@@ -175,8 +173,12 @@ class DuplicateDetectionService
 
   def calculate_match_confidence(contact1, contact2)
     # Skip empty contacts - no meaningful data to compare
-    return 0 if contact1.formatted_phone_number.blank? && contact1.email.blank? && contact1.full_name.blank? && contact1.business_name.blank?
-    return 0 if contact2.formatted_phone_number.blank? && contact2.email.blank? && contact2.full_name.blank? && contact2.business_name.blank?
+    if contact1.formatted_phone_number.blank? && contact1.email.blank? && contact1.full_name.blank? && contact1.business_name.blank?
+      return 0
+    end
+    if contact2.formatted_phone_number.blank? && contact2.email.blank? && contact2.full_name.blank? && contact2.business_name.blank?
+      return 0
+    end
 
     score = 0
     max_score = 0
@@ -208,19 +210,15 @@ class DuplicateDetectionService
         similarity = string_similarity(contact1.business_name, contact2.business_name)
         score += (similarity * 20).to_i
       end
-    else
-      if contact1.full_name.present? && contact2.full_name.present?
-        similarity = string_similarity(contact1.full_name, contact2.full_name)
-        score += (similarity * 20).to_i
-      end
+    elsif contact1.full_name.present? && contact2.full_name.present?
+      similarity = string_similarity(contact1.full_name, contact2.full_name)
+      score += (similarity * 20).to_i
     end
 
     # Location match (for businesses)
     max_score += 10
-    if contact1.business_city.present? && contact2.business_city.present?
-      if contact1.business_city.downcase == contact2.business_city.downcase
-        score += 10
-      end
+    if contact1.business_city.present? && contact2.business_city.present? && (contact1.business_city.downcase == contact2.business_city.downcase)
+      score += 10
     end
 
     # Return percentage confidence
@@ -249,6 +247,8 @@ class DuplicateDetectionService
   end
 
   def email_domain_match?(email1, email2)
+    # Guard against nil emails to prevent NoMethodError
+    return false unless email1.present? && email2.present?
     return false unless email1.include?('@') && email2.include?('@')
 
     domain1 = email1.split('@').last
@@ -262,18 +262,18 @@ class DuplicateDetectionService
     # Check phone match
     if contact1.formatted_phone_number.present? && contact2.formatted_phone_number.present?
       if contact1.formatted_phone_number == contact2.formatted_phone_number
-        reasons << "Exact phone match"
+        reasons << 'Exact phone match'
       elsif phone_similarity(contact1.raw_phone_number, contact2.raw_phone_number) > 0.8
-        reasons << "Similar phone number"
+        reasons << 'Similar phone number'
       end
     end
 
     # Check email match
     if contact1.email.present? && contact2.email.present?
       if contact1.email.downcase == contact2.email.downcase
-        reasons << "Exact email match"
+        reasons << 'Exact email match'
       elsif email_domain_match?(contact1.email, contact2.email)
-        reasons << "Same email domain"
+        reasons << 'Same email domain'
       end
     end
 
@@ -290,13 +290,11 @@ class DuplicateDetectionService
     end
 
     # Check location match
-    if contact1.business_city.present? && contact2.business_city.present?
-      if contact1.business_city.downcase == contact2.business_city.downcase
-        reasons << "Same city"
-      end
+    if contact1.business_city.present? && contact2.business_city.present? && (contact1.business_city.downcase == contact2.business_city.downcase)
+      reasons << 'Same city'
     end
 
-    reasons.any? ? reasons.join(", ") : "Multiple field similarities"
+    reasons.any? ? reasons.join(', ') : 'Multiple field similarities'
   end
 
   def string_similarity(str1, str2)
@@ -389,6 +387,7 @@ class DuplicateDetectionService
 
   def best_value(primary_value, duplicate_value)
     return primary_value if primary_value.present?
+
     duplicate_value
   end
 end
