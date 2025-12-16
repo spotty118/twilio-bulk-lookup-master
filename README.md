@@ -800,6 +800,29 @@ heroku run rails console
 
 **📖 Complete API Configuration Guide**: See [API_CONFIGURATION_GUIDE.md](API_CONFIGURATION_GUIDE.md) for detailed setup instructions, pricing, and usage examples for all 14+ providers.
 
+## 📋 Changelog
+
+### v2.1.0 (December 2024) — Stability & Premium UI
+
+**🛡️ Stability Improvements (Sprint 1-3)**
+- **Sentry Integration**: Production error tracking with `sentry-ruby` and `sentry-rails`
+- **Circuit Breaker**: Twilio API calls wrapped with `stoplight` gem to prevent cascade failures
+- **Atomic Counters**: Race condition fixes in webhook delivery/failure counters
+- **Database Constraints**: 9 CHECK constraints for status fields and numeric ranges
+- **Error Tracking Service**: Unified structured logging with error categorization
+- **N+1 Query Fix**: Batch loading in duplicate merge history (50 queries → 1)
+- **Nil Safety**: Guards added for email domain matching and single-name contacts
+
+**🎨 Premium Frontend UI**
+- **Gradient Mesh Backgrounds**: Multi-color radial gradients for light/dark modes
+- **Glassmorphism**: Backdrop blur effects on panels, sidebar, and cards
+- **Enterprise Tables**: Gradient headers, sticky positioning, hover animations
+- **Animated Counters**: Numbers count up from zero with cubic easing
+- **Theme Toggle**: System preference detection, keyboard shortcut (⌘+D)
+- **Keyboard Shortcuts**: ⌘+K (focus search), ⌘+D (toggle theme)
+- **Micro-interactions**: Hover lifts, entrance animations, loading spinners
+- **Status Badges**: Risk-level support (high/medium/low), pulse animation
+
 ## 🤝 Contributing
 
 1. Fork the repository
