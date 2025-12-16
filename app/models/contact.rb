@@ -42,6 +42,10 @@ class Contact < ApplicationRecord
             },
             if: ->(contact) { contact.raw_phone_number_changed? && contact.raw_phone_number.present? }
   validates :status, inclusion: { in: STATUSES }, allow_nil: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true, if: -> { email.present? }
+  validates :data_quality_score, numericality: { only_integer: true, in: 0..100 }, allow_nil: true
+  validates :completeness_percentage, numericality: { only_integer: true, in: 0..100 }, allow_nil: true
+  validates :country_code, length: { is: 2 }, allow_blank: true
 
   # Base status scopes (core functionality, not domain-specific)
   scope :pending, -> { where(status: 'pending') }
@@ -51,7 +55,7 @@ class Contact < ApplicationRecord
   scope :not_processed, -> { where(status: %w[pending failed]) }
 
   # Define searchable attributes for ActiveAdmin/Ransack
-  def self.ransackable_attributes(auth_object = nil)
+  def self.ransackable_attributes(_auth_object = nil)
     %w[carrier_name created_at device_type error_code
        formatted_phone_number id mobile_country_code
        mobile_network_code raw_phone_number updated_at
@@ -77,7 +81,7 @@ class Contact < ApplicationRecord
        trust_hub_verification_score trust_hub_regulatory_status trust_hub_business_name]
   end
 
-  def self.ransackable_associations(auth_object = nil)
+  def self.ransackable_associations(_auth_object = nil)
     []
   end
 
