@@ -25,7 +25,7 @@ class HttpClient
 
   # Application identity for API requests
   APP_NAME = 'TwilioBulkLookup'.freeze
-  APP_VERSION = '2.1.0'.freeze
+  APP_VERSION = '2.1.1'.freeze
   USER_AGENT = "#{APP_NAME}/#{APP_VERSION} (Ruby/#{RUBY_VERSION})".freeze
 
   # Conservative timeouts for external APIs
