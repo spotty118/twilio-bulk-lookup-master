@@ -1,8 +1,13 @@
 require 'net/http'
 require 'json'
+require 'securerandom'
 
-# Centralized HTTP client with consistent timeout configuration
-# and optional circuit breaker for external API resilience
+# Centralized HTTP client with:
+# - Connection pooling (keep-alive for better performance)
+# - Consistent timeout configuration
+# - Circuit breaker integration
+# - Request ID tracking for debugging
+# - API version headers
 #
 # Usage:
 #   response = HttpClient.get(uri) do |request|
@@ -18,219 +23,246 @@ class HttpClient
   class TimeoutError < StandardError; end
   class CircuitOpenError < StandardError; end
 
+  # Application identity for API requests
+  APP_NAME = 'TwilioBulkLookup'.freeze
+  APP_VERSION = '2.1.0'.freeze
+  USER_AGENT = "#{APP_NAME}/#{APP_VERSION} (Ruby/#{RUBY_VERSION})".freeze
+
   # Conservative timeouts for external APIs
   # - read_timeout: Max time waiting for response data
   # - open_timeout: Max time establishing connection
   # - connect_timeout: Max time for socket connection
+  # - keep_alive_timeout: Max time to wait for reuse
   DEFAULT_TIMEOUTS = {
     read_timeout: 10,
     open_timeout: 5,
-    connect_timeout: 5
+    connect_timeout: 5,
+    keep_alive_timeout: 30
   }.freeze
 
+  # Connection pool settings
+  # Keep connections alive for reuse across requests
+  CONNECTION_POOL = Concurrent::Map.new
+
   # Circuit breaker state (distributed via Rails.cache/Redis)
-  # Shared across all Sidekiq workers/processes for consistent behavior
-  # State expires automatically after 5 minutes of inactivity
-  CIRCUIT_CACHE_PREFIX = 'circuit_breaker'
+  CIRCUIT_CACHE_PREFIX = 'circuit_breaker'.freeze
   CIRCUIT_STATE_TTL = 5.minutes
+  CIRCUIT_FAILURE_THRESHOLD = 5
+  CIRCUIT_COOLOFF_SECONDS = 60
 
-  # Perform GET request with automatic timeout configuration
-  #
-  # @param uri [URI] The URI to request
-  # @param circuit_name [String, nil] Optional circuit breaker name
-  # @param options [Hash] Override timeout values
-  # @yield [Net::HTTP::Get] Configure request headers
-  # @return [Net::HTTPResponse]
-  # @raise [TimeoutError] If request times out
-  # @raise [CircuitOpenError] If circuit breaker is open
-  #
-  def self.get(uri, circuit_name: nil, **options)
-    check_circuit!(circuit_name) if circuit_name
+  class << self
+    # Perform GET request with automatic timeout configuration
+    #
+    # @param uri [URI] The URI to request
+    # @param circuit_name [String, nil] Optional circuit breaker name
+    # @param options [Hash] Override timeout values
+    # @yield [Net::HTTP::Get] Configure request headers
+    # @return [Net::HTTPResponse]
+    # @raise [TimeoutError] If request times out
+    # @raise [CircuitOpenError] If circuit breaker is open
+    #
+    def get(uri, circuit_name: nil, **options)
+      execute_request(:get, uri, circuit_name: circuit_name, **options) do |request|
+        yield(request) if block_given?
+      end
+    end
 
-    response = Net::HTTP.start(uri.hostname, uri.port,
-                                use_ssl: uri.scheme == 'https',
-                                **DEFAULT_TIMEOUTS.merge(options)) do |http|
-      request = Net::HTTP::Get.new(uri)
+    # Perform POST request with automatic timeout configuration
+    #
+    # @param uri [URI] The URI to request
+    # @param body [String, Hash] Request body (Hash auto-converted to JSON)
+    # @param circuit_name [String, nil] Optional circuit breaker name
+    # @param options [Hash] Override timeout values
+    # @yield [Net::HTTP::Post] Configure request headers
+    # @return [Net::HTTPResponse]
+    #
+    def post(uri, body:, circuit_name: nil, **options)
+      execute_request(:post, uri, body: body, circuit_name: circuit_name, **options) do |request|
+        yield(request) if block_given?
+      end
+    end
+
+    # Perform PATCH request with automatic timeout configuration
+    def patch(uri, body:, circuit_name: nil, **options)
+      execute_request(:patch, uri, body: body, circuit_name: circuit_name, **options) do |request|
+        yield(request) if block_given?
+      end
+    end
+
+    # Perform PUT request with automatic timeout configuration
+    def put(uri, body:, circuit_name: nil, **options)
+      execute_request(:put, uri, body: body, circuit_name: circuit_name, **options) do |request|
+        yield(request) if block_given?
+      end
+    end
+
+    # Perform DELETE request
+    def delete(uri, circuit_name: nil, **options)
+      execute_request(:delete, uri, circuit_name: circuit_name, **options) do |request|
+        yield(request) if block_given?
+      end
+    end
+
+    # Get circuit state for monitoring/debugging
+    def circuit_state(name = nil)
+      if name
+        {
+          failures: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures"),
+          open: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
+        }
+      else
+        {}
+      end
+    end
+
+    # Manually reset circuit (for admin intervention)
+    def reset_circuit!(name)
+      Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
+      Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
+      Rails.logger.info("[HttpClient] Circuit #{name} manually reset")
+    end
+
+    # Clear connection pool (for graceful shutdown)
+    def clear_connections!
+      CONNECTION_POOL.each_value(&:finish)
+      CONNECTION_POOL.clear
+      Rails.logger.info('[HttpClient] Connection pool cleared')
+    end
+
+    private
+
+    # Unified request execution with connection reuse
+    def execute_request(method, uri, body: nil, circuit_name: nil, **options)
+      request_id = generate_request_id
+      check_circuit!(circuit_name) if circuit_name
+
+      http = get_connection(uri, options)
+      request = build_request(method, uri, body, request_id)
       yield(request) if block_given?
-      http.request(request)
+
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      response = http.request(request)
+      duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+
+      log_request(method, uri, response.code, duration_ms, request_id)
+      record_success(circuit_name) if circuit_name
+
+      response
+    rescue Net::OpenTimeout, Net::ReadTimeout => e
+      record_failure(circuit_name) if circuit_name
+      Rails.logger.error("[HttpClient] Timeout: #{method.upcase} #{uri} (#{request_id}): #{e.message}")
+      raise TimeoutError, "HTTP request timed out: #{e.message}"
+    rescue IOError, SocketError, Errno::ECONNRESET, Errno::ECONNREFUSED => e
+      record_failure(circuit_name) if circuit_name
+      # Remove stale connection from pool
+      pool_key = connection_pool_key(uri)
+      CONNECTION_POOL.delete(pool_key)
+      Rails.logger.error("[HttpClient] Connection error: #{method.upcase} #{uri} (#{request_id}): #{e.message}")
+      raise TimeoutError, "HTTP connection error: #{e.message}"
     end
 
-    record_success(circuit_name) if circuit_name
-    response
-  rescue Net::OpenTimeout, Net::ReadTimeout => e
-    record_failure(circuit_name) if circuit_name
-    raise TimeoutError, "HTTP request timed out: #{e.message}"
-  end
+    # Get or create connection from pool
+    def get_connection(uri, options)
+      pool_key = connection_pool_key(uri)
+      timeouts = DEFAULT_TIMEOUTS.merge(options.slice(:read_timeout, :open_timeout, :connect_timeout,
+                                                      :keep_alive_timeout))
 
-  # Perform POST request with automatic timeout configuration
-  #
-  # @param uri [URI] The URI to request
-  # @param body [String, Hash] Request body (Hash auto-converted to JSON)
-  # @param circuit_name [String, nil] Optional circuit breaker name
-  # @param options [Hash] Override timeout values
-  # @yield [Net::HTTP::Post] Configure request headers
-  # @return [Net::HTTPResponse]
-  #
-  def self.post(uri, body:, circuit_name: nil, **options)
-    check_circuit!(circuit_name) if circuit_name
+      # Check for existing connection
+      existing = CONNECTION_POOL[pool_key]
+      return existing if existing&.active?
 
-    response = Net::HTTP.start(uri.hostname, uri.port,
-                                use_ssl: uri.scheme == 'https',
-                                **DEFAULT_TIMEOUTS.merge(options)) do |http|
-      request = Net::HTTP::Post.new(uri)
-      request.body = body.is_a?(Hash) ? body.to_json : body
-      request['Content-Type'] = 'application/json' if body.is_a?(Hash)
-      yield(request) if block_given?
-      http.request(request)
+      # Create new connection with keep-alive
+      http = Net::HTTP.new(uri.hostname, uri.port)
+      http.use_ssl = uri.scheme == 'https'
+      http.read_timeout = timeouts[:read_timeout]
+      http.open_timeout = timeouts[:open_timeout]
+      http.keep_alive_timeout = timeouts[:keep_alive_timeout]
+
+      # Enable keep-alive
+      http.start
+
+      CONNECTION_POOL[pool_key] = http
+      http
+    rescue StandardError => e
+      Rails.logger.warn("[HttpClient] Failed to create connection to #{uri.host}: #{e.message}")
+      raise TimeoutError, "Failed to connect: #{e.message}"
     end
 
-    record_success(circuit_name) if circuit_name
-    response
-  rescue Net::OpenTimeout, Net::ReadTimeout => e
-    record_failure(circuit_name) if circuit_name
-    raise TimeoutError, "HTTP request timed out: #{e.message}"
-  end
-
-  # Perform PATCH request with automatic timeout configuration
-  #
-  # @param uri [URI] The URI to request
-  # @param body [String, Hash] Request body (Hash auto-converted to JSON)
-  # @param circuit_name [String, nil] Optional circuit breaker name
-  # @param options [Hash] Override timeout values
-  # @yield [Net::HTTP::Patch] Configure request headers
-  # @return [Net::HTTPResponse]
-  #
-  def self.patch(uri, body:, circuit_name: nil, **options)
-    check_circuit!(circuit_name) if circuit_name
-
-    response = Net::HTTP.start(uri.hostname, uri.port,
-                                use_ssl: uri.scheme == 'https',
-                                **DEFAULT_TIMEOUTS.merge(options)) do |http|
-      request = Net::HTTP::Patch.new(uri)
-      request.body = body.is_a?(Hash) ? body.to_json : body
-      request['Content-Type'] = 'application/json' if body.is_a?(Hash)
-      yield(request) if block_given?
-      http.request(request)
+    def connection_pool_key(uri)
+      "#{uri.scheme}://#{uri.hostname}:#{uri.port}"
     end
 
-    record_success(circuit_name) if circuit_name
-    response
-  rescue Net::OpenTimeout, Net::ReadTimeout => e
-    record_failure(circuit_name) if circuit_name
-    raise TimeoutError, "HTTP request timed out: #{e.message}"
-  end
+    # Build request with standard headers
+    def build_request(method, uri, body, request_id)
+      request_class = {
+        get: Net::HTTP::Get,
+        post: Net::HTTP::Post,
+        patch: Net::HTTP::Patch,
+        put: Net::HTTP::Put,
+        delete: Net::HTTP::Delete
+      }[method]
 
-  # Perform PUT request with automatic timeout configuration
-  #
-  # @param uri [URI] The URI to request
-  # @param body [String, Hash] Request body (Hash auto-converted to JSON)
-  # @param circuit_name [String, nil] Optional circuit breaker name
-  # @param options [Hash] Override timeout values
-  # @yield [Net::HTTP::Put] Configure request headers
-  # @return [Net::HTTPResponse]
-  #
-  def self.put(uri, body:, circuit_name: nil, **options)
-    check_circuit!(circuit_name) if circuit_name
+      request = request_class.new(uri)
 
-    response = Net::HTTP.start(uri.hostname, uri.port,
-                                use_ssl: uri.scheme == 'https',
-                                **DEFAULT_TIMEOUTS.merge(options)) do |http|
-      request = Net::HTTP::Put.new(uri)
-      request.body = body.is_a?(Hash) ? body.to_json : body
-      request['Content-Type'] = 'application/json' if body.is_a?(Hash)
-      yield(request) if block_given?
-      http.request(request)
+      # Standard headers
+      request['User-Agent'] = USER_AGENT
+      request['Accept'] = 'application/json'
+      request['X-Request-ID'] = request_id
+      request['Connection'] = 'keep-alive'
+
+      # Body handling
+      if body
+        request.body = body.is_a?(Hash) ? body.to_json : body
+        request['Content-Type'] = 'application/json' if body.is_a?(Hash)
+      end
+
+      request
     end
 
-    record_success(circuit_name) if circuit_name
-    response
-  rescue Net::OpenTimeout, Net::ReadTimeout => e
-    record_failure(circuit_name) if circuit_name
-    raise TimeoutError, "HTTP request timed out: #{e.message}"
-  end
-
-  private
-
-  # Check if circuit breaker is open (too many recent failures)
-  def self.check_circuit!(name)
-    open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
-    state = Rails.cache.read(open_key)
-    
-    return unless state&.[](:open)
-
-    # Auto-close circuit after cool-off period
-    if Time.current > state[:open_until]
-      Rails.cache.delete(open_key)
-      Rails.logger.info("Circuit #{name} closed after cool-off period")
-    else
-      seconds_until_retry = (state[:open_until] - Time.current).to_i
-      raise CircuitOpenError, "Circuit #{name} is open (retry in #{seconds_until_retry}s)"
+    def generate_request_id
+      "req_#{SecureRandom.hex(8)}"
     end
-  end
 
-  # Record successful request (resets failure count)
-  # Deletes circuit state from Redis to free memory and allow immediate retries
-  def self.record_success(name)
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
-  end
-
-  # Record failed request (opens circuit after threshold)
-  # Uses Rails.cache.increment with atomic increments
-  def self.record_failure(name)
-    cache_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:failures"
-    open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
-
-    # Atomic increment supported by Redis/Memcached
-    failures = Rails.cache.increment(cache_key, 1, expires_in: CIRCUIT_STATE_TTL)
-    
-    # Handle case where key didn't exist (returns nil or 1 depending on store, but usually 1 if initialized)
-    # If using Redis store, increment initializes to 0 if missing then adds 1.
-    # We ensure it's at least 1.
-    failures ||= 1
-
-    # Open circuit after 5 consecutive failures
-    if failures >= 5
-      # Set open state
-      open_until = Time.current + 60.seconds
-      Rails.cache.write(open_key, { open: true, open_until: open_until }, expires_in: 60.seconds)
-      
-      Rails.logger.warn("Circuit #{name} opened after #{failures} failures (cool-off: 60s)")
+    def log_request(method, uri, status_code, duration_ms, request_id)
+      level = status_code.to_i >= 400 ? :warn : :debug
+      Rails.logger.send(level,
+                        "[HttpClient] #{method.upcase} #{uri.host}#{uri.path} -> #{status_code} (#{duration_ms}ms) [#{request_id}]")
     end
-  end
 
-  # Get circuit state for monitoring/debugging
-  # Returns state from Redis cache for specific circuit or all circuits
-  def self.circuit_state(name = nil)
-    if name
+    # Check if circuit breaker is open
+    def check_circuit!(name)
+      open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
+      state = Rails.cache.read(open_key)
+
+      return unless state&.[](:open)
+
+      if Time.current > state[:open_until]
+        Rails.cache.delete(open_key)
+        Rails.logger.info("[HttpClient] Circuit #{name} closed after cool-off period")
+      else
+        seconds_until_retry = (state[:open_until] - Time.current).to_i
+        raise CircuitOpenError, "Circuit #{name} is open (retry in #{seconds_until_retry}s)"
+      end
+    end
+
+    # Record successful request
+    def record_success(name)
+      Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
+      Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
+    end
+
+    # Record failed request
+    def record_failure(name)
       cache_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:failures"
       open_key = "#{CIRCUIT_CACHE_PREFIX}:#{name}:open"
-      {
-        failures: Rails.cache.read(cache_key),
-        open: Rails.cache.read(open_key)
-      }
-    else
-      # Return all circuit states (expensive - for debugging only)
-      # Note: This requires iterating Redis keys, not efficient at scale
-      all_states = {}
-      Rails.cache.instance_variable_get(:@data)&.keys&.each do |key|
-        if key.to_s.start_with?(CIRCUIT_CACHE_PREFIX)
-          circuit_name = key.to_s.sub("#{CIRCUIT_CACHE_PREFIX}:", '')
-          all_states[circuit_name] = {
-            failures: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{circuit_name}:failures"),
-            open: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{circuit_name}:open")
-          }
-        end
-      end
-      all_states
-    end
-  end
 
-  # Manually reset circuit (for admin intervention)
-  # Removes circuit state from Redis, allowing immediate retry
-  def self.reset_circuit!(name)
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
-    Rails.cache.delete("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
-    Rails.logger.info("Circuit #{name} manually reset")
+      failures = Rails.cache.increment(cache_key, 1, expires_in: CIRCUIT_STATE_TTL) || 1
+
+      return unless failures >= CIRCUIT_FAILURE_THRESHOLD
+
+      open_until = Time.current + CIRCUIT_COOLOFF_SECONDS.seconds
+      Rails.cache.write(open_key, { open: true, open_until: open_until }, expires_in: CIRCUIT_COOLOFF_SECONDS.seconds)
+      Rails.logger.warn("[HttpClient] Circuit #{name} opened after #{failures} failures (cool-off: #{CIRCUIT_COOLOFF_SECONDS}s)")
+    end
   end
 end
