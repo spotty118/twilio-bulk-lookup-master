@@ -6,6 +6,109 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.1.1] - 2024-12-16
+
+### 🔧 Infrastructure Improvements
+
+- **HTTP Client Pooling** (`lib/http_client.rb`)
+  - Connection reuse with keep-alive (30s timeout)
+  - Request ID tracking (`X-Request-ID` header)
+  - User-Agent versioning (`TwilioBulkLookup/2.1.1`)
+  - DELETE method support
+  - Improved error handling for connection resets
+
+- **Enhanced Health Checks** (`app/controllers/health_controller.rb`)
+  - Kubernetes-ready `/health/ready` readiness probe
+  - Memory usage tracking (RSS in MB)
+  - Process uptime monitoring
+  - Circuit breaker status in detailed health
+  - Connection pool statistics
+
+### 🧪 Test Coverage
+
+- **ErrorTrackingService spec** (`spec/services/error_tracking_service_spec.rb`)
+  - Error logging and Sentry integration tests
+  - Error categorization tests
+  - Structured logging format tests
+
+- **HealthController spec** (`spec/controllers/health_controller_spec.rb`)
+  - Liveness probe tests
+  - Readiness probe tests
+  - Detailed health check tests
+
+### 🛠️ Operations Tooling
+
+New Rake tasks in `lib/tasks/contacts.rake`:
+- `rake maintenance:circuit_breakers` — Show circuit breaker status
+- `rake maintenance:reset_circuits` — Reset all circuit breakers
+- `rake maintenance:clear_connections` — Clear HTTP connection pool
+- `rake maintenance:health_check` — CLI health check
+- `rake maintenance:clear_cache` — Clear all caches
+- `rake maintenance:diagnostics` — Full system diagnostics
+
+---
+
+## [2.1.0] - 2024-12-16
+
+### 🛡️ Stability Improvements (Sprints 1-3)
+
+- **Sentry Integration** (`config/initializers/sentry.rb`)
+  - Production error tracking with `sentry-ruby` and `sentry-rails`
+  - Sensitive data filtering
+  - Environment-based sampling
+
+- **Circuit Breaker** (`app/jobs/lookup_request_job.rb`)
+  - Twilio API calls wrapped with circuit breaker
+  - Prevents cascade failures when API is degraded
+
+- **Atomic Counters** (`app/models/webhook.rb`)
+  - Race condition fixes in delivery/failure counters
+  - SQL-based atomic increments
+
+- **Database Constraints** (`db/migrate/20251216140000_add_database_check_constraints.rb`)
+  - 9 CHECK constraints for status fields
+  - Numeric range validation at database level
+
+- **Error Tracking Service** (`app/services/error_tracking_service.rb`)
+  - Unified structured logging
+  - Error categorization (transient, permanent, configuration)
+  - Sentry integration wrapper
+
+- **N+1 Query Fix** (`app/admin/duplicates.rb`)
+  - Batch loading in duplicate merge history
+  - Reduced from 50 queries to 1
+
+- **Nil Safety** (`app/services/duplicate_detection_service.rb`, `app/services/email_enrichment_service.rb`)
+  - Guards for email domain matching
+  - Single-name contact handling
+
+### 🎨 Premium Frontend UI
+
+- **Gradient Mesh Backgrounds** (`app/assets/stylesheets/_variables.scss`)
+  - Multi-color radial gradients for light/dark modes
+  - Premium color palette
+
+- **Glassmorphism UI** (`app/assets/stylesheets/active_admin.scss`)
+  - Backdrop blur effects on panels and sidebar
+  - Enterprise-style table headers
+  - Animated progress bars
+
+- **Theme Toggle** (`app/assets/stylesheets/_theme_toggle.scss`, `app/assets/javascripts/theme_toggle.js`)
+  - System preference detection
+  - Glow effects and tooltip
+  - Keyboard shortcut (⌘+D)
+
+- **Micro-interactions** (`app/assets/stylesheets/_components.scss`)
+  - Hover lifts and entrance animations
+  - Loading spinners and status badges
+  - Animated number counters
+
+- **Keyboard Shortcuts** (`app/assets/javascripts/active_admin.js`)
+  - ⌘+K: Focus search field
+  - ⌘+D: Toggle dark/light mode
+
+---
+
 ## [Unreleased] - 2025-10-01
 
 ### ✨ Added
