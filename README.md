@@ -823,6 +823,26 @@ heroku run rails console
 - **Micro-interactions**: Hover lifts, entrance animations, loading spinners
 - **Status Badges**: Risk-level support (high/medium/low), pulse animation
 
+### v2.1.1 (December 2024) — Infrastructure & Operations
+
+**🔧 Infrastructure Improvements**
+- **HTTP Client Pooling**: Connection reuse with keep-alive (30s timeout)
+- **Request Tracing**: X-Request-ID header on all outbound API calls
+- **User-Agent Versioning**: `TwilioBulkLookup/2.1.0` on all requests
+- **Enhanced Health Checks**: Memory usage, uptime, circuit breaker status
+- **Kubernetes-Ready**: `/health/ready` readiness probe endpoint
+
+**🧪 Test Coverage**
+- **ErrorTrackingService spec**: Logging, Sentry integration, error categorization
+- **HealthController spec**: Liveness, readiness, detailed health probes
+
+**🛠️ Operations Tooling**
+- `rake maintenance:circuit_breakers` — Show circuit breaker status
+- `rake maintenance:reset_circuits` — Reset all circuit breakers
+- `rake maintenance:health_check` — CLI health check
+- `rake maintenance:clear_cache` — Clear all caches
+- `rake maintenance:diagnostics` — Full system diagnostics
+
 ## 🤝 Contributing
 
 1. Fork the repository
