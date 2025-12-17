@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_12_16_195319) do
+ActiveRecord::Schema[7.2].define(version: 2025_12_17_031546) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -401,6 +401,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_16_195319) do
     t.string "verizon_api_key"
     t.string "verizon_api_secret"
     t.string "verizon_account_name"
+    t.string "openrouter_api_key"
+    t.boolean "enable_openrouter"
+    t.string "openrouter_model"
     t.index ["is_singleton"], name: "index_twilio_credentials_singleton", unique: true, where: "(is_singleton = true)"
   end
 

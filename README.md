@@ -445,6 +445,20 @@ API Key: AIzaxxxxxxxxxxxxxxxxxxxxxxx
 Enable: Geocoding toggle
 ```
 
+**🆕 OpenRouter** (Multi-model AI gateway)
+```
+API Key: sk-or-xxxxxxxxxxxx
+Model: openai/gpt-4o-mini (default)
+Enable: OpenRouter toggle
+Preferred LLM Provider: openrouter
+```
+
+Popular OpenRouter models:
+- `openai/gpt-4o-mini` - Fast, cost-effective
+- `anthropic/claude-3.5-sonnet` - Best reasoning
+- `meta-llama/llama-3.1-70b-instruct` - Open source
+- `google/gemini-pro` - Multimodal
+
 ### CRM Integrations
 
 **🆕 Salesforce** (Sales CRM sync)

@@ -12,19 +12,20 @@ class TwilioCredential < ApplicationRecord
   encrypts :openai_api_key
   encrypts :anthropic_api_key
   encrypts :google_ai_api_key
+  encrypts :openrouter_api_key
 
   # Validations
   validates :account_sid, :auth_token, presence: true
   validates :account_sid,
             format: {
               with: /\AAC[a-z0-9]{32}\z/i,
-              message: "must be a valid Twilio Account SID (AC followed by 32 characters)"
+              message: 'must be a valid Twilio Account SID (AC followed by 32 characters)'
             },
             uniqueness: true
   validates :auth_token,
             format: {
               with: /\A[a-z0-9]{32}\z/i,
-              message: "must be a valid Twilio Auth Token (32 alphanumeric characters)"
+              message: 'must be a valid Twilio Auth Token (32 alphanumeric characters)'
             }
 
   # Singleton enforcement via defense-in-depth:
@@ -36,9 +37,9 @@ class TwilioCredential < ApplicationRecord
     # Only enforce if creating an active singleton record
     return unless is_singleton?
 
-    if TwilioCredential.where(is_singleton: true).exists?
-      errors.add(:base, "Only one Twilio credential record is allowed. Please update the existing record.")
-    end
+    return unless TwilioCredential.where(is_singleton: true).exists?
+
+    errors.add(:base, 'Only one Twilio credential record is allowed. Please update the existing record.')
   end
 
   # Class method to get current credentials (cached)
