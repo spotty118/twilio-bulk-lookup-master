@@ -875,6 +875,27 @@ heroku run rails console
 - `rake maintenance:clear_cache` — Clear all caches
 - `rake maintenance:diagnostics` — Full system diagnostics
 
+### v2.1.2 (December 2024) — Codebase Cleanup & Test Fixes
+
+**🧹 Codebase Cleanup**
+- Removed 37 obsolete files (~1MB reduction):
+  - 24 session report markdown files
+  - 10 test artifact files (rspec results, logs)
+  - 3 debug scripts
+- Updated `.gitignore` with patterns for test artifacts, logs, and IDE files
+- Streamlined documentation to 11 essential files
+
+**🧪 Test Suite Improvements**
+- Fixed `contact_bulk_operations_spec.rb` — all 16 tests now pass
+- Fixed `StatusManageable` validation edge cases
+- Fixed RSpec mock syntax issues
+- Updated `HttpClient.circuit_state` for proper hash structure
+
+**🔧 Code Quality**
+- Fixed `lookup_performed_at` requirement for completed contacts
+- Improved factory traits for test data consistency
+- Relaxed flaky performance test assertions
+
 ## 🤝 Contributing
 
 1. Fork the repository
