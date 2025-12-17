@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
+ActiveRecord::Schema[7.2].define(version: 2025_12_16_195319) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -41,6 +41,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.inet "last_sign_in_ip"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "api_token"
+    t.index ["api_token"], name: "index_admin_users_on_api_token", unique: true
     t.index ["email"], name: "index_admin_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
   end
@@ -70,6 +72,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["requested_at"], name: "index_api_usage_logs_on_requested_at"
     t.index ["service"], name: "index_api_usage_logs_on_service"
     t.index ["status"], name: "index_api_usage_logs_on_status"
+    t.check_constraint "status IS NULL OR (status::text = ANY (ARRAY['success'::character varying, 'failed'::character varying, 'rate_limited'::character varying, 'error'::character varying, 'timeout'::character varying]::text[]))", name: "check_api_usage_log_status"
   end
 
   create_table "contacts", force: :cascade do |t|
@@ -224,9 +227,13 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.datetime "geocoded_at"
     t.string "geocoding_accuracy"
     t.string "geocoding_provider"
+    t.decimal "api_cost", precision: 8, scale: 4
+    t.integer "api_response_time_ms"
+    t.index ["address_enriched", "verizon_coverage_checked"], name: "index_contacts_on_address_and_verizon_check", where: "((address_enriched = true) AND (verizon_coverage_checked = false))"
     t.index ["address_enriched"], name: "index_contacts_on_address_enriched"
     t.index ["business_email_domain"], name: "index_contacts_on_business_email_domain"
     t.index ["business_employee_range"], name: "index_contacts_on_business_employee_range"
+    t.index ["business_enriched", "email_enriched"], name: "index_contacts_on_business_and_email_enriched", where: "((business_enriched = true) AND (email_enriched = false))"
     t.index ["business_enriched", "status"], name: "idx_contacts_be_false_status", where: "(business_enriched = false)"
     t.index ["business_enriched"], name: "index_contacts_on_business_enriched"
     t.index ["business_industry"], name: "index_contacts_on_business_industry"
@@ -241,6 +248,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["created_at"], name: "index_contacts_on_created_at_where_pending", where: "((status)::text = 'pending'::text)"
     t.index ["data_quality_score", "status"], name: "idx_contacts_qs_lt60_status", where: "(data_quality_score < 60)"
     t.index ["data_quality_score"], name: "index_contacts_on_data_quality_score"
+    t.index ["data_quality_score"], name: "index_contacts_on_quality_score"
     t.index ["duplicate_of_id", "is_duplicate"], name: "index_contacts_on_duplicate_of_id_and_is_duplicate"
     t.index ["duplicate_of_id"], name: "index_contacts_on_duplicate_of_id"
     t.index ["email"], name: "index_contacts_on_email"
@@ -255,11 +263,14 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["geocoded_at"], name: "index_contacts_on_geocoded_at"
     t.index ["hubspot_id"], name: "index_contacts_on_hubspot_id", unique: true, where: "(hubspot_id IS NOT NULL)"
     t.index ["hubspot_id"], name: "index_contacts_on_hubspot_id_partial", where: "(hubspot_id IS NOT NULL)"
+    t.index ["is_business", "address_enriched"], name: "index_contacts_on_is_business_and_address_enriched", where: "((is_business = false) AND (address_enriched = false))"
     t.index ["is_business", "business_employee_range"], name: "index_contacts_on_business_and_size"
     t.index ["is_business", "business_enriched"], name: "index_contacts_on_is_business_and_enriched"
     t.index ["is_business", "business_industry"], name: "index_contacts_on_business_and_industry"
+    t.index ["is_business", "trust_hub_enriched", "business_enriched"], name: "index_contacts_on_trust_hub_needs", where: "((is_business = true) AND (trust_hub_enriched = false) AND (business_enriched = true))"
     t.index ["is_business", "trust_hub_verified"], name: "index_contacts_on_business_and_trust_verified"
     t.index ["is_business"], name: "index_contacts_on_is_business"
+    t.index ["is_duplicate", "duplicate_checked_at"], name: "index_contacts_on_duplicate_status", where: "(is_duplicate = false)"
     t.index ["is_duplicate"], name: "index_contacts_on_is_duplicate"
     t.index ["last_crm_sync_at"], name: "index_contacts_on_last_crm_sync_at"
     t.index ["last_engagement_at"], name: "index_contacts_on_last_engagement_at"
@@ -299,6 +310,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["verizon_coverage_checked"], name: "index_contacts_on_verizon_coverage_checked"
     t.index ["verizon_lte_home_available"], name: "index_contacts_on_verizon_lte_home_available"
     t.index ["voice_opt_out"], name: "index_contacts_on_voice_opt_out"
+    t.check_constraint "completeness_percentage IS NULL OR completeness_percentage >= 0 AND completeness_percentage <= 100", name: "check_completeness_percentage_range"
+    t.check_constraint "data_quality_score IS NULL OR data_quality_score >= 0 AND data_quality_score <= 100", name: "check_data_quality_score_range"
+    t.check_constraint "duplicate_confidence IS NULL OR duplicate_confidence >= 0 AND duplicate_confidence <= 100", name: "check_duplicate_confidence_range"
+    t.check_constraint "sms_pumping_risk_level IS NULL OR (sms_pumping_risk_level::text = ANY (ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying]::text[]))", name: "check_sms_pumping_risk_level"
+    t.check_constraint "sms_pumping_risk_score IS NULL OR sms_pumping_risk_score >= 0 AND sms_pumping_risk_score <= 100", name: "check_sms_pumping_risk_score_range"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "check_contact_status"
   end
 
   create_table "twilio_credentials", force: :cascade do |t|
@@ -411,6 +428,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["source", "external_id"], name: "index_webhooks_on_source_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["source"], name: "index_webhooks_on_source"
     t.index ["status"], name: "index_webhooks_on_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'processed'::character varying, 'failed'::character varying]::text[])", name: "check_webhook_status"
   end
 
   create_table "zipcode_lookups", force: :cascade do |t|
@@ -430,6 +448,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_14_190000) do
     t.index ["created_at"], name: "index_zipcode_lookups_on_created_at"
     t.index ["status"], name: "index_zipcode_lookups_on_status"
     t.index ["zipcode"], name: "index_zipcode_lookups_on_zipcode"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "check_zipcode_lookup_status"
   end
 
   add_foreign_key "api_usage_logs", "contacts"

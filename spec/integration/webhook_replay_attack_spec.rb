@@ -7,10 +7,16 @@ require 'rails_helper'
 # - Redis (for Sidekiq background jobs)
 # - Run with: bundle exec rspec spec/integration/webhook_replay_attack_spec.rb
 
-RSpec.describe 'Webhook replay attack protection', type: :integration do
+RSpec.describe 'Webhook replay attack protection', type: :request do
   include ActiveJob::TestHelper
 
-  describe 'POST /webhooks/twilio_sms_status' do
+  before do
+    # Mock Twilio credentials and signature validation
+    allow(TwilioCredential).to receive(:current).and_return(double(auth_token: 'test_token'))
+    allow_any_instance_of(Twilio::Security::RequestValidator).to receive(:validate).and_return(true)
+  end
+
+  describe 'POST /webhooks/twilio/sms_status' do
     let(:valid_webhook_params) do
       {
         MessageSid: 'SM1234567890abcdef1234567890abcdef',
@@ -26,7 +32,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'accepts first webhook POST and processes it' do
       expect do
-        post '/webhooks/twilio_sms_status', params: valid_webhook_params
+        post '/webhooks/twilio/sms_status', params: valid_webhook_params
       end.to change(Webhook, :count).by(1)
 
       expect(response).to have_http_status(:ok)
@@ -46,14 +52,14 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'rejects duplicate webhook POST (replay attack)' do
       # First POST: Create webhook
-      post '/webhooks/twilio_sms_status', params: valid_webhook_params
+      post '/webhooks/twilio/sms_status', params: valid_webhook_params
       expect(response).to have_http_status(:ok)
       initial_webhook_count = Webhook.count
       initial_job_count = enqueued_jobs.size
 
       # Second POST: Replay attack (same MessageSid)
       expect do
-        post '/webhooks/twilio_sms_status', params: valid_webhook_params
+        post '/webhooks/twilio/sms_status', params: valid_webhook_params
       end.not_to change(Webhook, :count)
 
       expect(response).to have_http_status(:ok) # Still returns 200 (idempotent)
@@ -65,12 +71,12 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'allows different webhooks with different MessageSids' do
       # First webhook
-      post '/webhooks/twilio_sms_status', params: valid_webhook_params.merge(MessageSid: 'SM_FIRST')
+      post '/webhooks/twilio/sms_status', params: valid_webhook_params.merge(MessageSid: 'SM_FIRST')
       expect(response).to have_http_status(:ok)
 
       # Second webhook (different MessageSid)
       expect do
-        post '/webhooks/twilio_sms_status', params: valid_webhook_params.merge(MessageSid: 'SM_SECOND')
+        post '/webhooks/twilio/sms_status', params: valid_webhook_params.merge(MessageSid: 'SM_SECOND')
       end.to change(Webhook, :count).by(1)
 
       expect(response).to have_http_status(:ok)
@@ -79,7 +85,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'handles replay attack after webhook has been processed' do
       # First POST: Create and process webhook
-      post '/webhooks/twilio_sms_status', params: valid_webhook_params
+      post '/webhooks/twilio/sms_status', params: valid_webhook_params
       webhook = Webhook.last
 
       # Simulate processing
@@ -89,7 +95,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Replay attack on processed webhook
       expect do
-        post '/webhooks/twilio_sms_status', params: valid_webhook_params
+        post '/webhooks/twilio/sms_status', params: valid_webhook_params
       end.not_to change(Webhook, :count)
 
       expect(response).to have_http_status(:ok)
@@ -104,27 +110,27 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       allow(Rails.logger).to receive(:info)
 
       # First POST
-      post '/webhooks/twilio_sms_status', params: valid_webhook_params
+      post '/webhooks/twilio/sms_status', params: valid_webhook_params
 
       # Replay attack
-      post '/webhooks/twilio_sms_status', params: valid_webhook_params
+      post '/webhooks/twilio/sms_status', params: valid_webhook_params
 
       # Verify duplicate was logged
       expect(Rails.logger).to have_received(:info).with(
-        /Duplicate webhook rejected: SM1234567890abcdef1234567890abcdef/
+        /Duplicate SMS webhook ignored \(pending\): SM1234567890abcdef1234567890abcdef/
       )
     end
 
     it 'handles replay attack with modified payload (same MessageSid)' do
       # First POST: delivered status
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: valid_webhook_params.merge(MessageStatus: 'delivered')
 
       original_webhook = Webhook.last
       initial_count = Webhook.count
 
       # Replay attack: Same MessageSid but different status (attacker trying to modify)
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: valid_webhook_params.merge(MessageStatus: 'failed')
 
       # Verify no new webhook created
@@ -136,7 +142,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
     end
   end
 
-  describe 'POST /webhooks/twilio_voice_status' do
+  describe 'POST /webhooks/twilio/voice_status' do
     let(:voice_webhook_params) do
       {
         CallSid: 'CA1234567890abcdef1234567890abcdef',
@@ -150,13 +156,13 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'accepts first voice webhook and rejects replay' do
       # First POST
-      post '/webhooks/twilio_voice_status', params: voice_webhook_params
+      post '/webhooks/twilio/voice_status', params: voice_webhook_params
       expect(response).to have_http_status(:ok)
       expect(Webhook.count).to eq(1)
 
       # Replay attack
       expect do
-        post '/webhooks/twilio_voice_status', params: voice_webhook_params
+        post '/webhooks/twilio/voice_status', params: voice_webhook_params
       end.not_to change(Webhook, :count)
 
       expect(response).to have_http_status(:ok)
@@ -164,12 +170,12 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'allows same CallSid for SMS and Voice (different sources)' do
       # Create SMS webhook with ID "ID123"
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: { MessageSid: 'ID123', MessageStatus: 'delivered', To: '+14155551234', From: '+14155555678' }
 
       # Create Voice webhook with same ID "ID123" (different source)
       expect do
-        post '/webhooks/twilio_voice_status',
+        post '/webhooks/twilio/voice_status',
              params: { CallSid: 'ID123', CallStatus: 'completed', To: '+14155551234', From: '+14155555678' }
       end.to change(Webhook, :count).by(1)
 
@@ -185,7 +191,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       # Simulate two concurrent POST requests with same MessageSid
       threads = 2.times.map do
         Thread.new do
-          post '/webhooks/twilio_sms_status',
+          post '/webhooks/twilio/sms_status',
                params: {
                  MessageSid: 'SM_CONCURRENT_TEST',
                  MessageStatus: 'delivered',
@@ -202,35 +208,19 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
     end
 
     it 'handles ActiveRecord::RecordNotUnique gracefully' do
-      # Pre-create webhook
-      Webhook.create!(
-        source: 'twilio_sms',
-        external_id: 'SM_RACE_CONDITION',
-        event_type: 'sms_status',
-        payload: { MessageStatus: 'delivered' },
-        received_at: Time.current
-      )
-
-      # Simulate race condition: Controller uses find_or_create_by, but record was just created
+      allow(Webhook).to receive(:find_or_initialize_by).and_raise(ActiveRecord::RecordNotUnique.new('Duplicate entry'))
       allow(Rails.logger).to receive(:warn)
 
-      # Should not raise error (should rescue ActiveRecord::RecordNotUnique)
-      expect do
-        post '/webhooks/twilio_sms_status',
-             params: {
-               MessageSid: 'SM_RACE_CONDITION',
-               MessageStatus: 'delivered',
-               To: '+14155551234',
-               From: '+14155555678'
-             }
-      end.not_to raise_error
+      post '/webhooks/twilio/sms_status',
+           params: {
+             MessageSid: 'SM_RACE_CONDITION',
+             MessageStatus: 'delivered',
+             To: '+14155551234',
+             From: '+14155555678'
+           }
 
       expect(response).to have_http_status(:ok)
-
-      # Verify warning was logged
-      expect(Rails.logger).to have_received(:warn).with(
-        /Duplicate webhook \(race condition\): SM_RACE_CONDITION/
-      )
+      expect(Rails.logger).to have_received(:warn).with(/Duplicate SMS webhook \(race condition\): SM_RACE_CONDITION/)
     end
   end
 
@@ -238,7 +228,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
     it 'handles very long MessageSid (500 characters)' do
       long_message_sid = 'SM' + ('A' * 498)
 
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: long_message_sid,
              MessageStatus: 'delivered',
@@ -254,7 +244,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Replay with same long MessageSid should be rejected
       expect do
-        post '/webhooks/twilio_sms_status',
+        post '/webhooks/twilio/sms_status',
              params: { MessageSid: long_message_sid, MessageStatus: 'delivered', To: '+14155551234',
                        From: '+14155555678' }
       end.not_to change(Webhook, :count)
@@ -263,7 +253,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
     it 'handles MessageSid with special characters' do
       special_message_sid = 'SM-123:456/789'
 
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: special_message_sid,
              MessageStatus: 'delivered',
@@ -279,7 +269,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Replay should be rejected
       expect do
-        post '/webhooks/twilio_sms_status',
+        post '/webhooks/twilio/sms_status',
              params: { MessageSid: special_message_sid, MessageStatus: 'delivered', To: '+14155551234',
                        From: '+14155555678' }
       end.not_to change(Webhook, :count)
@@ -289,7 +279,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       allow(Rails.logger).to receive(:warn)
 
       # POST without MessageSid (should use payload hash as fallback)
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageStatus: 'delivered',
              To: '+14155551234',
@@ -310,7 +300,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Replay with same payload should be rejected (same hash)
       expect do
-        post '/webhooks/twilio_sms_status',
+        post '/webhooks/twilio/sms_status',
              params: {
                MessageStatus: 'delivered',
                To: '+14155551234',
@@ -333,7 +323,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       }
 
       # First POST: Legitimate payment confirmation
-      post '/webhooks/twilio_sms_status', params: payment_confirmation_params
+      post '/webhooks/twilio/sms_status', params: payment_confirmation_params
       expect(response).to have_http_status(:ok)
 
       webhook = Webhook.last
@@ -351,7 +341,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Replay attack: Attacker tries to trigger duplicate processing
       10.times do
-        post '/webhooks/twilio_sms_status', params: payment_confirmation_params
+        post '/webhooks/twilio/sms_status', params: payment_confirmation_params
       end
 
       # Verify NO additional webhooks created
@@ -365,7 +355,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
     it 'prevents attacker from bypassing idempotency by changing capitalization' do
       # First POST: Normal MessageSid
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: 'SM1234567890abcdef',
              MessageStatus: 'delivered',
@@ -378,7 +368,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       # Replay attack: Same MessageSid with different capitalization
       # Note: Twilio IDs are case-sensitive, so this would be treated as different
       # However, our idempotency key is case-sensitive too, so this is correctly handled
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: 'SM1234567890ABCDEF', # Different capitalization
              MessageStatus: 'delivered',
@@ -402,7 +392,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
 
       # Mass replay attack: 100 duplicate POSTs
       100.times do
-        post '/webhooks/twilio_sms_status',
+        post '/webhooks/twilio/sms_status',
              params: {
                MessageSid: 'SM_MASS_REPLAY',
                MessageStatus: 'delivered',
@@ -425,7 +415,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
       allow(StatsD).to receive(:increment) if defined?(StatsD)
 
       # First POST
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: 'SM_STATSD_TEST',
              MessageStatus: 'delivered',
@@ -434,7 +424,7 @@ RSpec.describe 'Webhook replay attack protection', type: :integration do
            }
 
       # Replay attack
-      post '/webhooks/twilio_sms_status',
+      post '/webhooks/twilio/sms_status',
            params: {
              MessageSid: 'SM_STATSD_TEST',
              MessageStatus: 'delivered',

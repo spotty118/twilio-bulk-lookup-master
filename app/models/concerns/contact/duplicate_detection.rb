@@ -5,7 +5,12 @@ module Contact::DuplicateDetection
 
   included do
     # Duplicate detection scopes
-    scope :potential_duplicates, -> { where(is_duplicate: false).where('duplicate_checked_at IS NULL OR duplicate_checked_at < ?', 7.days.ago) }
+    scope :potential_duplicates, lambda {
+      where(is_duplicate: false).where('duplicate_checked_at IS NULL OR duplicate_checked_at < ?', 7.days.ago)
+    }
+
+    # Associations
+    belongs_to :duplicate_of, class_name: 'Contact', optional: true
     scope :confirmed_duplicates, -> { where(is_duplicate: true) }
     scope :primary_contacts, -> { where(is_duplicate: false) }
     scope :high_quality, -> { where('data_quality_score >= ?', 70) }
@@ -95,16 +100,16 @@ module Contact::DuplicateDetection
     return nil unless name.present?
 
     # Normalize: downcase, remove special chars, sort words
-    normalized = name.downcase
-                     .gsub(/[^a-z0-9\s]/, '')
-                     .split
-                     .sort
-                     .join(' ')
-    normalized
+    name.downcase
+        .gsub(/[^a-z0-9\s]/, '')
+        .split
+        .sort
+        .join(' ')
   end
 
   def calculate_email_fingerprint
     return nil unless email.present?
+
     email.downcase.strip
   end
 
@@ -140,17 +145,17 @@ module Contact::DuplicateDetection
   # Callback conditions
   def should_update_fingerprints?
     saved_change_to_raw_phone_number? ||
-    saved_change_to_formatted_phone_number? ||
-    saved_change_to_business_name? ||
-    saved_change_to_full_name? ||
-    saved_change_to_email?
+      saved_change_to_formatted_phone_number? ||
+      saved_change_to_business_name? ||
+      saved_change_to_full_name? ||
+      saved_change_to_email?
   end
 
   def should_calculate_quality?
     saved_change_to_email? ||
-    saved_change_to_business_enriched? ||
-    saved_change_to_phone_valid? ||
-    saved_change_to_full_name?
+      saved_change_to_business_enriched? ||
+      saved_change_to_phone_valid? ||
+      saved_change_to_full_name?
   end
 
   def update_fingerprints_if_needed

@@ -65,8 +65,13 @@ FactoryBot.define do
       last_name { 'Doe' }
     end
 
-    # Alias for backwards compatibility
+    # Alias for backwards compatibility and design doc consistency
     trait :with_business_data do
+      business
+    end
+
+    # Design doc specified trait name
+    trait :with_business do
       business
     end
 

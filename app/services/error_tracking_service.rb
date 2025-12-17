@@ -129,7 +129,7 @@ class ErrorTrackingService
       end
     end
 
-    def log_structured(level:, category:, message:, context: {}, tags: {}, backtrace: nil)
+    def log_structured(level:, category:, message:, context: {}, tags: {}, backtrace: nil, exception_class: nil)
       log_entry = {
         timestamp: Time.current.iso8601,
         level: level.to_s.upcase,
@@ -140,6 +140,7 @@ class ErrorTrackingService
       }
 
       log_entry[:backtrace] = backtrace if backtrace.present?
+      log_entry[:exception_class] = exception_class if exception_class.present?
 
       # Format for structured logging (JSON in production, readable in dev)
       if Rails.env.production?

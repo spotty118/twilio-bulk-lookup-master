@@ -7,7 +7,7 @@ module Contact::PhoneIntelligence
     # Line type scopes
     scope :mobile, -> { where(line_type: 'mobile') }
     scope :landline, -> { where(line_type: 'landline') }
-    scope :voip, -> { where(line_type: ['voip', 'fixedVoip', 'nonFixedVoip']) }
+    scope :voip, -> { where(line_type: %w[voip fixedVoip nonFixedVoip]) }
     scope :toll_free, -> { where(line_type: 'tollFree') }
 
     # Validation scopes
@@ -31,13 +31,15 @@ module Contact::PhoneIntelligence
   end
 
   def is_voip?
-    ['voip', 'fixedVoip', 'nonFixedVoip'].include?(line_type)
+    %w[voip fixedVoip nonFixedVoip].include?(line_type)
   end
 
   # Line type display with fallback
   def line_type_display
-    return device_type if line_type.blank? # Fallback to old field
-    line_type&.titleize || 'Unknown'
+    return 'Unknown' if line_type.blank? && device_type.blank?
+    return device_type if line_type.blank?
+
+    line_type.titleize
   end
 
   # Fraud risk assessment
@@ -52,6 +54,7 @@ module Contact::PhoneIntelligence
   def fraud_risk_display
     return 'Unknown' if sms_pumping_risk_score.nil?
     return 'Blocked' if sms_pumping_number_blocked
+
     "#{sms_pumping_risk_level&.titleize} (#{sms_pumping_risk_score}/100)"
   end
 end

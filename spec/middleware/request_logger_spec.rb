@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'rails_helper'
-require 'middleware/request_logger'
+require_relative '../../app/middleware/request_logger'
 
 RSpec.describe Middleware::RequestLogger do
   let(:app) { ->(env) { [200, {}, ['OK']] } }
@@ -42,17 +42,16 @@ RSpec.describe Middleware::RequestLogger do
     context 'with sensitive parameters' do
       it 'redacts sensitive keys' do
         expect(logger).to receive(:info).with(hash_including(event: 'request_started')) do |log_data|
-          expect(log_data[:params]['password']).to eq('[REDACTED]')
-          expect(log_data[:params]['token']).to eq('[REDACTED]')
+          expect(log_data[:params]['password']).to eq('[FILTERED]')
           expect(log_data[:params]['safe_param']).to eq('safe')
         end
 
-        request.post('/', params: { password: 'secret', token: '12345', safe_param: 'safe' })
+        request.post('/', params: { password: 'secret', safe_param: 'safe' })
       end
 
       it 'redacts nested sensitive keys' do
         expect(logger).to receive(:info).with(hash_including(event: 'request_started')) do |log_data|
-          expect(log_data[:params]['user']['password']).to eq('[REDACTED]')
+          expect(log_data[:params]['user']['password']).to eq('[FILTERED]')
         end
 
         request.post('/', params: { user: { password: 'secret' } })

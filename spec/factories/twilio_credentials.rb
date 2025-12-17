@@ -37,7 +37,7 @@ FactoryBot.define do
       enable_address_enrichment { true }
       enable_email_enrichment { true }
       enable_verizon_coverage_check { true }
-      enable_trust_hub_verification { true }
+      enable_trust_hub { true }
     end
 
     trait :with_enrichment_disabled do
@@ -45,12 +45,12 @@ FactoryBot.define do
       enable_address_enrichment { false }
       enable_email_enrichment { false }
       enable_verizon_coverage_check { false }
-      enable_trust_hub_verification { false }
+      enable_trust_hub { false }
     end
 
     # Trust Hub configuration
     trait :with_trust_hub do
-      enable_trust_hub_verification { true }
+      enable_trust_hub { true }
       trust_hub_reverification_days { 90 }
     end
 

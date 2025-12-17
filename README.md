@@ -695,6 +695,38 @@ rails db:migrate:status
 | `status` | Processing status | `pending`, `completed`, `failed` |
 | `error_code` | Error message if failed | `Invalid number format` |
 
+## 📡 API Reference (v1)
+
+The application provides a REST API for headless operation. All endpoints are prefixed with `/api/v1`.
+
+### Authentication
+Authenticate requests using a Bearer Token found in your Admin User profile.
+
+```bash
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+### Endpoints
+
+#### 1. Create Lookup
+Submit a phone number for processing.
+
+- **POST** `/api/v1/contacts`
+- **Body**: `{ "phone_number": "+15551234567" }`
+- **Response**: `201 Created`
+
+#### 2. Get Contact
+Retrieve details for a single contact.
+
+- **GET** `/api/v1/contacts/:id`
+- **Response**: `200 OK`
+
+#### 3. List Contacts
+Retrieve paginated list of processed contacts.
+
+- **GET** `/api/v1/contacts?page=1`
+- **Response**: `200 OK`
+
 ## 🧪 Development
 
 ### Running Tests

@@ -28,3 +28,23 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 coverage/
+
+# Test artifacts
+rspec_*.txt
+rspec_*.json
+brakeman_report.json
+
+# Server logs
+*.log
+!log/.keep
+
+# IDE/Editor
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (local overrides)
+.env
+.env.local
+.env.*.local

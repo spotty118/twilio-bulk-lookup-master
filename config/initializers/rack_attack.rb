@@ -16,14 +16,17 @@ class Rack::Attack
 
   # Health checks: 60 req/min per IP
   throttle('health/ip', limit: 60, period: 1.minute) do |req|
-    req.ip if req.path.match?(/\/(health|up)/)
+    req.ip if req.path.match?(%r{/(health|up)})
   end
 
   # Admin login: 5 failed attempts per 20 min per email
   throttle('admin_login/email', limit: 5, period: 20.minutes) do |req|
-    if req.path == '/admin_users/sign_in' && req.post?
-      req.params['admin_user']&.[]('email')&.to_s&.downcase&.presence
-    end
+    req.params['admin_user']&.[]('email')&.to_s&.downcase&.presence if req.path == '/admin_users/sign_in' && req.post?
+  end
+
+  # Generic login throttle by IP (Protection from credential stuffing)
+  throttle('logins/ip', limit: 5, period: 20.seconds) do |req|
+    req.ip if req.path == '/admin/login' && req.post?
   end
 
   # General API: 300 req/5min per IP

@@ -1,0 +1,247 @@
+# Implementation Plan
+
+## Summary
+
+All core implementation tasks are complete. The test suite foundation has been established with comprehensive coverage for:
+- Test infrastructure (RSpec, FactoryBot, DatabaseCleaner, WebMock)
+- Model tests (Contact status workflow, duplicate detection, TwilioCredential singleton)
+- Job tests (LookupRequestJob idempotency and race condition prevention)
+- Service tests (CircuitBreakerService, BusinessEnrichmentService)
+- Controller tests (WebhooksController)
+- API tests (API v1 contacts endpoint)
+- Integration tests (end-to-end lookup flow)
+
+Optional property-based tests remain available for enhanced correctness verification.
+
+---
+
+- [x] 1. Set up test infrastructure and configuration
+  - [x] 1.1 Configure RSpec and Rails helper files
+    - Update `spec/spec_helper.rb` with RSpec configuration
+    - Update `spec/rails_helper.rb` with Rails-specific setup
+    - Configure SimpleCov for coverage reporting
+    - _Requirements: 6.1, 6.2_
+  - [x] 1.2 Set up FactoryBot configuration
+    - Create `spec/support/factory_bot.rb` with FactoryBot configuration
+    - Enable factory lint in CI
+    - _Requirements: 6.1, 6.2_
+  - [x] 1.3 Configure DatabaseCleaner
+    - Create `spec/support/database_cleaner.rb` with transaction strategy
+    - _Requirements: 6.1_
+  - [x] 1.4 Configure WebMock for HTTP stubbing
+    - Create `spec/support/webmock.rb` to disable external requests
+    - _Requirements: 8.1, 8.2_
+
+- [x] 2. Create FactoryBot factories
+  - [x] 2.1 Create Contact factory with traits
+    - Implement base contact factory with valid E.164 phone numbers
+    - Add traits: :pending, :processing, :completed, :failed, :with_business
+    - _Requirements: 6.1, 6.2, 6.3_
+  - [ ]* 2.2 Write property test for Contact factory phone format
+    - **Property 11: Factory Phone Format Validity**
+    - **Validates: Requirements 6.1**
+  - [x] 2.3 Create TwilioCredential factory
+    - Generate valid Account SID (AC + 32 hex) and Auth Token formats
+    - _Requirements: 6.4_
+  - [ ]* 2.4 Write property test for TwilioCredential factory format
+    - **Property 12: Factory Credential Format Validity**
+    - **Validates: Requirements 6.4**
+  - [x] 2.5 Create Webhook and AdminUser factories
+    - Webhook factory with source and event_type
+    - AdminUser factory with api_token for API tests
+    - _Requirements: 5.1, 10.1_
+
+- [x] 3. Implement Contact model status workflow tests
+  - [x] 3.1 Create status workflow spec file
+    - Create `spec/models/contact/status_workflow_spec.rb`
+    - Test default status on creation
+    - _Requirements: 1.1_
+  - [ ]* 3.2 Write property test for status default value
+    - **Property 1: Status Default Value**
+    - **Validates: Requirements 1.1**
+  - [x] 3.3 Implement valid transition tests
+    - Test pending → processing, processing → completed, processing → failed
+    - Test failed → pending (retry scenario)
+    - _Requirements: 1.2, 1.3, 1.4, 1.6_
+  - [ ]* 3.4 Write property test for valid status transitions
+    - **Property 2: Valid Status Transitions**
+    - **Validates: Requirements 1.2, 1.3, 1.4, 1.6**
+  - [x] 3.5 Implement invalid transition tests
+    - Test completed → pending rejection
+    - Verify validation error message
+    - _Requirements: 1.5_
+  - [ ]* 3.6 Write property test for invalid status transitions
+    - **Property 3: Invalid Status Transitions Rejected**
+    - **Validates: Requirements 1.5**
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 5. Implement LookupRequestJob tests
+  - [x] 5.1 Create job spec file with test helpers
+    - Create `spec/jobs/lookup_request_job_spec.rb`
+    - Create `spec/support/helpers/job_helpers.rb`
+    - _Requirements: 2.1_
+  - [x] 5.2 Implement idempotency tests
+    - Test skip processing for completed contacts
+    - Test skip processing for already-processing contacts
+    - _Requirements: 2.2, 2.3_
+  - [ ]* 5.3 Write property test for job idempotency
+    - **Property 4: Job Idempotency**
+    - **Validates: Requirements 2.2, 2.3**
+  - [x] 5.4 Implement race condition prevention tests
+    - Test pessimistic locking with concurrent job simulation
+    - Verify only one API call is made
+    - _Requirements: 2.4_
+  - [ ]* 5.5 Write property test for race condition prevention
+    - **Property 5: Race Condition Prevention**
+    - **Validates: Requirements 2.4**
+
+- [x] 6. Implement duplicate detection fingerprint tests
+  - [x] 6.1 Create fingerprint spec file
+    - Create `spec/models/contact/duplicate_detection_spec.rb`
+    - _Requirements: 3.1, 3.2, 3.3_
+  - [x] 6.2 Implement fingerprint determinism tests
+    - Test identical phones produce identical fingerprints
+    - _Requirements: 3.2, 3.5_
+  - [ ]* 6.3 Write property test for fingerprint determinism
+    - **Property 6: Fingerprint Determinism**
+    - **Validates: Requirements 3.2, 3.5**
+  - [x] 6.4 Implement fingerprint uniqueness tests
+    - Test different phones produce different fingerprints
+    - _Requirements: 3.3_
+  - [ ]* 6.5 Write property test for fingerprint uniqueness
+    - **Property 7: Fingerprint Uniqueness**
+    - **Validates: Requirements 3.3**
+  - [x] 6.6 Implement fingerprint recalculation tests
+    - Test phone update triggers fingerprint recalculation
+    - Test name update triggers fingerprint recalculation
+    - _Requirements: 3.1, 3.4_
+  - [ ]* 6.7 Write property test for fingerprint recalculation
+    - **Property 8: Fingerprint Recalculation**
+    - **Validates: Requirements 3.1, 3.4**
+
+- [x] 7. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 8. Implement TwilioCredential singleton tests
+  - [x] 8.1 Create TwilioCredential spec file
+    - Create `spec/models/twilio_credential_spec.rb`
+    - _Requirements: 4.1, 4.2_
+  - [x] 8.2 Implement singleton pattern tests
+    - Test TwilioCredential.current returns singleton
+    - Test second record creation is rejected
+    - _Requirements: 4.1, 4.2_
+  - [ ]* 8.3 Write property test for singleton enforcement
+    - **Property 9: Singleton Enforcement**
+    - **Validates: Requirements 4.2**
+  - [x] 8.4 Implement cache behavior tests
+    - Test cache invalidation on update
+    - Test cached results within TTL
+    - _Requirements: 4.3, 4.4_
+
+- [x] 9. Implement WebhooksController tests
+  - [x] 9.1 Create webhooks controller spec file
+    - Create `spec/controllers/webhooks_controller_spec.rb`
+    - _Requirements: 5.1, 5.2, 5.3_
+  - [x] 9.2 Implement webhook acknowledgment tests
+    - Test valid webhook returns 200 and creates record
+    - Test validation failure returns 200 and logs error
+    - Test unexpected error returns 200
+    - _Requirements: 5.1, 5.2, 5.3_
+  - [ ]* 9.3 Write property test for webhook acknowledgment
+    - **Property 10: Webhook Always Acknowledges**
+    - **Validates: Requirements 5.1, 5.2, 5.3**
+  - [x] 9.4 Implement duplicate webhook handling test
+    - Test duplicate MessageSid is handled gracefully
+    - _Requirements: 5.4_
+
+- [x] 10. Implement CircuitBreakerService tests
+  - [x] 10.1 Create circuit breaker spec file
+    - Create `spec/services/circuit_breaker_service_spec.rb`
+    - _Requirements: 7.1, 7.2, 7.3_
+  - [x] 10.2 Implement circuit state transition tests
+    - Test successful calls keep circuit closed
+    - Test repeated failures open circuit
+    - Test open circuit raises error without API call
+    - _Requirements: 7.1, 7.2, 7.3_
+  - [ ]* 10.3 Write property test for circuit breaker state transitions
+    - **Property 13: Circuit Breaker State Transitions**
+    - **Validates: Requirements 7.1, 7.2, 7.3**
+  - [x] 10.4 Implement circuit reset tests
+    - Test half-open state after timeout
+    - Test manual reset closes circuit
+    - _Requirements: 7.4, 7.5_
+
+- [x] 11. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 12. Implement enrichment service error handling tests
+  - [x] 12.1 Create BusinessEnrichmentService spec file
+    - Create `spec/services/business_enrichment_service_spec.rb`
+    - _Requirements: 8.1_
+  - [x] 12.2 Implement error isolation tests
+    - Test API error is logged and returns gracefully
+    - Test invalid response doesn't corrupt contact data
+    - _Requirements: 8.1, 8.2_
+  - [ ]* 12.3 Write property test for error isolation
+    - **Property 14: Enrichment Error Isolation**
+    - **Validates: Requirements 8.1, 8.2**
+  - [x] 12.4 Implement provider fallback tests
+    - Test failure triggers fallback to next provider
+    - _Requirements: 8.4_
+  - [ ]* 12.5 Write property test for provider fallback
+    - **Property 15: Provider Fallback**
+    - **Validates: Requirements 8.4**
+
+- [x] 13. Implement callback recursion prevention tests
+  - [x] 13.1 Create callback recursion spec
+    - Add tests to `spec/models/contact_spec.rb`
+    - _Requirements: 9.1, 9.2_
+  - [x] 13.2 Implement update_columns verification tests
+    - Test fingerprint update uses update_columns
+    - Test no additional callbacks triggered
+    - _Requirements: 9.1, 9.2_
+  - [ ]* 13.3 Write property test for callback recursion prevention
+    - **Property 16: Callback Recursion Prevention**
+    - **Validates: Requirements 9.1, 9.2**
+
+- [x] 14. Implement API v1 contacts tests
+  - [x] 14.1 Create API request spec file
+    - Create `spec/requests/api/v1/contacts_spec.rb`
+    - Create `spec/support/helpers/api_helpers.rb`
+    - _Requirements: 10.1, 10.2_
+  - [x] 14.2 Implement authentication tests
+    - Test valid Bearer token returns contacts
+    - Test missing/invalid token returns 401
+    - _Requirements: 10.1, 10.2_
+  - [ ]* 14.3 Write property test for authentication enforcement
+    - **Property 17: API Authentication Enforcement**
+    - **Validates: Requirements 10.2**
+  - [x] 14.4 Implement contact creation tests
+    - Test valid phone creates contact
+    - Test invalid phone format rejected
+    - _Requirements: 10.3_
+  - [ ]* 14.5 Write property test for phone validation
+    - **Property 18: API Phone Validation**
+    - **Validates: Requirements 10.3**
+  - [x] 14.6 Implement single contact retrieval tests
+    - Test existing contact returns details
+    - Test non-existent contact returns 404
+    - _Requirements: 10.4_
+
+- [x] 15. Implement integration tests
+  - [x] 15.1 Create lookup flow integration spec
+    - Create `spec/integration/lookup_flow_spec.rb`
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [x] 15.2 Implement end-to-end lookup flow test
+    - Test contact progresses through all status states
+    - Test enrichment jobs are queued on success
+    - _Requirements: 11.1, 11.2_
+  - [x] 15.3 Implement error flow test
+    - Test Twilio API error marks contact as failed
+    - Verify error details are stored
+    - _Requirements: 11.3_
+
+- [x] 16. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

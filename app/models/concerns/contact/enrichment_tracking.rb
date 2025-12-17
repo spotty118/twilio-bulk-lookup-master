@@ -9,10 +9,18 @@ module Contact::EnrichmentTracking
     scope :with_verified_email, -> { where(email_verified: true) }
     scope :needs_email_enrichment, -> { where(email_enriched: false, business_enriched: true) }
 
+    before_validation :normalize_email, if: -> { email.present? }
+
     # Address enrichment scopes
     scope :address_enriched, -> { where(address_enriched: true) }
-    scope :needs_address_enrichment, -> { where(is_business: false, address_enriched: false).where.not(status: 'pending') }
+    scope :needs_address_enrichment, lambda {
+      where(is_business: false, address_enriched: false).where.not(status: 'pending')
+    }
     scope :with_verified_address, -> { where(address_verified: true) }
+  end
+
+  def normalize_email
+    self.email = email.strip.downcase
   end
 
   # Email enrichment helpers
@@ -28,6 +36,7 @@ module Contact::EnrichmentTracking
     return 'No Email' unless email.present?
     return 'Verified' if email_verified
     return 'Unverified' if email_score && email_score > 70
+
     'Low Quality'
   end
 
@@ -42,6 +51,7 @@ module Contact::EnrichmentTracking
 
   def full_address
     return nil unless has_full_address?
+
     [consumer_address, consumer_city, "#{consumer_state} #{consumer_postal_code}", consumer_country].compact.join(', ')
   end
 

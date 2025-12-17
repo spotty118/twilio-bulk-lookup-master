@@ -2,11 +2,24 @@ class LookupRequestJob < ApplicationJob
   queue_as :default
 
   # Retry configuration for transient failures
-  retry_on Twilio::REST::RestError, wait: :exponentially_longer, attempts: 3 do |job, exception|
-    contact_id = job.arguments.first
-    contact = Contact.find_by(id: contact_id)
-    contact&.mark_failed!("Twilio API error after retries: #{exception.message}")
+  # Retry configuration for transient failures
+  # Using custom polynomial backoff for better rate limit handling
+  retry_on Twilio::REST::RestError, attempts: 5 do |job, exception|
+    # Custom error handling block
+    if exception.code == 20_429 # Rate Limit
+      # Don't mark failed, just let it retry with the custom wait below
+    else
+      contact_id = job.arguments.first
+      contact = Contact.find_by(id: contact_id)
+      contact&.mark_failed!("Twilio API error after retries: #{exception.message}")
+    end
   end
+
+  # Custom retry wait logic
+  # Return wait time in seconds based on execution count
+  retry_on Twilio::REST::RestError,
+           wait: ->(executions) { (executions**4) + 15 + rand(10) }, # 16s, 31s, 96s, 271s... + jitter
+           attempts: 5
 
   # Retry on network errors (Faraday is loaded by twilio-ruby gem)
   # Explicit rescue is safer than conditional StandardError filtering
@@ -22,7 +35,7 @@ class LookupRequestJob < ApplicationJob
   end
 
   # Don't retry on permanent failures
-  discard_on ActiveRecord::RecordNotFound do |job, exception|
+  discard_on ActiveRecord::RecordNotFound do |_job, exception|
     Rails.logger.error("Contact not found: #{exception.message}")
   end
 
@@ -103,7 +116,7 @@ class LookupRequestJob < ApplicationJob
       validation_errors = lookup_result.validation_errors || []
       country_code = lookup_result.country_code
       calling_country_code = lookup_result.calling_country_code
-      national_format = lookup_result.national_format
+      # national_format unused
 
       # Extract Line Type Intelligence data
       line_type_data = lookup_result.line_type_intelligence || {}
@@ -170,6 +183,7 @@ class LookupRequestJob < ApplicationJob
       Rails.logger.info("Successfully processed contact #{contact.id}: #{contact.formatted_phone_number}")
 
       # Enqueue enrichment coordinator to fan-out enrichment jobs in parallel
+      # Enqueue enrichment coordinator to fan-out enrichment jobs in parallel
       EnrichmentCoordinatorJob.perform_later(contact.id)
     rescue Twilio::REST::RestError => e
       handle_twilio_error(contact, e)
@@ -189,6 +203,13 @@ class LookupRequestJob < ApplicationJob
       Rails.logger.error("Unexpected error for contact #{contact.id}: #{e.class} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       contact.mark_failed!("Unexpected error: #{e.message}")
+    ensure
+      # Notify Slack on completion of a batch (simple heuristic: if this was the last pending contact)
+      # Note: In a high-concurrency environment, this count might be slightly off due to race conditions,
+      # but it's sufficient for a "job done" notification. A more robust approach would be a BatchJob tracker.
+      if Contact.pending.count == 0 && Contact.processing.count == 0
+        SLACK_NOTIFIER.ping "🎉 Bulk Lookup Complete! Total Processed: #{Contact.completed.count} | Failed: #{Contact.failed.count}"
+      end
     end
   end
 

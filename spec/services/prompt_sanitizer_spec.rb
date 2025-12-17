@@ -53,7 +53,7 @@ RSpec.describe PromptSanitizer do
       it 'strips zero-width spaces' do
         input = "Hello\u200BWorld"
         result = PromptSanitizer.sanitize(input)
-        expect(result).to eq('Hello World')  # Space normalized
+        expect(result).to eq('HelloWorld')  # Zero-width space removed
       end
 
       it 'strips right-to-left override (RLO) characters' do

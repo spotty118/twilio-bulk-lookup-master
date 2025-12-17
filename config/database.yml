@@ -81,4 +81,7 @@ test:
 production:
   <<: *default
   url: <%= ENV['DATABASE_URL'] %>
+  pool: <%= ENV.fetch("DB_POOL") { 25 } %>
+  checkout_timeout: 5
+  reaping_frequency: 10
 

@@ -104,15 +104,17 @@ class HttpClient
     end
 
     # Get circuit state for monitoring/debugging
+    # Always returns a hash with :failures and :open keys
     def circuit_state(name = nil)
-      if name
-        {
-          failures: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures"),
-          open: Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
-        }
-      else
-        {}
-      end
+      return {} unless name
+
+      failures = Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
+      open_state = Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
+
+      {
+        failures: failures,
+        open: open_state&.dig(:open)
+      }
     end
 
     # Manually reset circuit (for admin intervention)

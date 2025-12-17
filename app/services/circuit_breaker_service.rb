@@ -21,6 +21,28 @@
 #   - timeout: Seconds to wait before trying again (half-open state)
 #
 class CircuitBreakerService
+  # Thread-safe memoized Redis client for circuit breaker state
+  # Uses Rails.cache's Redis if available, otherwise creates new connection
+  def self.redis_client
+    @redis_client ||= begin
+      if defined?(Redis) && ENV['REDIS_URL'].present?
+        Redis.new(url: ENV['REDIS_URL'])
+      elsif Rails.cache.respond_to?(:redis)
+        Rails.cache.redis
+      else
+        nil
+      end
+    rescue StandardError => e
+      Rails.logger.warn "CircuitBreakerService: Could not connect to Redis: #{e.message}"
+      nil
+    end
+  end
+
+  # Allow tests to inject a mock Redis client
+  class << self
+    attr_writer :redis_client
+  end
+
   # Circuit breaker configuration for critical external APIs
   # Add new services here as needed
   SERVICES = {
@@ -126,12 +148,12 @@ class CircuitBreakerService
     # Create Stoplight circuit breaker
     light = Stoplight("#{service_name}_api", &block)
             .with_threshold(config[:threshold])
-            .with_timeout(config[:timeout])
+            .with_cool_off_time(config[:timeout])
             .with_error_handler { |error, handle| log_error(service_name, error, handle) }
             .with_fallback { |error| handle_circuit_open(service_name, error) }
 
     # Use Redis data store if available (for persistence across workers)
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(Redis.current)) if defined?(Redis) && Redis.current
+    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
 
     # Execute with circuit breaker protection
     light.run
@@ -151,7 +173,7 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(Redis.current)) if defined?(Redis) && Redis.current
+    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
 
     state = light.color
 
@@ -172,7 +194,7 @@ class CircuitBreakerService
     SERVICES.keys.each_with_object({}) do |service_name, states|
       light = Stoplight("#{service_name}_api") { nil }
 
-      light = light.with_data_store(Stoplight::DataStore::Redis.new(Redis.current)) if defined?(Redis) && Redis.current
+      light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
 
       states[service_name] = {
         state: state(service_name),
@@ -195,9 +217,11 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(Redis.current)) if defined?(Redis) && Redis.current
+    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
 
+    # Clear failures and unlock the circuit
     light.data_store.clear_failures(light)
+    light.data_store.set_state(light, Stoplight::State::UNLOCKED)
     Rails.logger.info "Circuit breaker RESET for #{service_name}"
     true
   end
@@ -212,19 +236,14 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(Redis.current)) if defined?(Redis) && Redis.current
+    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
 
-    # Record enough failures to open circuit
-    config = SERVICES[service_name]
-    (config[:threshold] + 1).times do
-      light.data_store.record_failure(light, StandardError.new('Manual circuit open'))
-    end
+    # Use Stoplight's lock mechanism to force circuit to red (open) state
+    light.data_store.set_state(light, Stoplight::State::LOCKED_RED)
 
     Rails.logger.warn "Circuit breaker MANUALLY OPENED for #{service_name}"
     true
   end
-
-  private
 
   #
   # Log circuit breaker errors
@@ -241,6 +260,7 @@ class CircuitBreakerService
       Rails.logger.info "Circuit breaker CLOSED for #{service_name} (recovered)"
     end
   end
+  private_class_method :log_error
 
   #
   # Fallback handler when circuit is open
@@ -248,6 +268,7 @@ class CircuitBreakerService
   #
   def self.handle_circuit_open(service_name, error)
     config = SERVICES[service_name]
+    error ||= StandardError.new('Circuit open')
 
     Rails.logger.warn "Circuit breaker OPEN: #{service_name} (#{config[:description]}) temporarily unavailable. " \
                      "Will retry in #{config[:timeout]}s. Error: #{error.message}"
@@ -262,4 +283,5 @@ class CircuitBreakerService
       fallback: true
     }
   end
+  private_class_method :handle_circuit_open
 end

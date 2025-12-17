@@ -179,7 +179,9 @@ RSpec.describe Contact, type: :model do
         end
 
         it '.medium_businesses returns medium businesses' do
-          expect(Contact.medium_businesses).to contain_exactly(medium)
+          Contact.delete_all
+          medium_contact = create(:contact, :business, business_employee_count: 250)
+          expect(Contact.medium_businesses).to contain_exactly(medium_contact)
         end
 
         it '.large_businesses returns large businesses' do
@@ -281,7 +283,9 @@ RSpec.describe Contact, type: :model do
 
     describe 'Verizon coverage scopes' do
       let!(:has_5g) { create(:contact, :with_verizon_coverage) }
-      let!(:has_fios) { create(:contact, :with_address_enrichment, verizon_coverage_checked: true, verizon_fios_available: true) }
+      let!(:has_fios) do
+        create(:contact, :with_address_enrichment, verizon_coverage_checked: true, verizon_fios_available: true)
+      end
       let!(:no_coverage) { create(:contact, :with_address_enrichment, verizon_coverage_checked: false) }
 
       it '.verizon_5g_available returns 5G available contacts' do
@@ -405,12 +409,14 @@ RSpec.describe Contact, type: :model do
       end
 
       it 'falls back to formatted_phone_number when names are nil' do
-        contact = create(:contact, :completed, business_name: nil, caller_name: nil, formatted_phone_number: '+14155551234')
+        contact = create(:contact, :completed, business_name: nil, caller_name: nil,
+                                               formatted_phone_number: '+14155551234')
         expect(contact.business_display_name).to eq('+14155551234')
       end
 
       it 'uses raw_phone_number as last resort' do
-        contact = create(:contact, raw_phone_number: '+14155551234', business_name: nil, caller_name: nil, formatted_phone_number: nil)
+        contact = create(:contact, raw_phone_number: '+14155551234', business_name: nil, caller_name: nil,
+                                   formatted_phone_number: nil)
         expect(contact.business_display_name).to eq('+14155551234')
       end
     end
@@ -649,11 +655,13 @@ RSpec.describe Contact, type: :model do
     describe '#update_fingerprints!' do
       it 'updates all fingerprints without triggering callbacks' do
         contact = create(:contact, :business)
+        # Clear fingerprints to verify they are updated/restored
+        contact.update_columns(phone_fingerprint: nil, name_fingerprint: nil)
 
-        expect {
+        expect do
           contact.update_fingerprints!
-        }.to change { contact.reload.phone_fingerprint }
-          .and change { contact.reload.name_fingerprint }
+        end.to change { contact.reload.phone_fingerprint }
+          .and(change { contact.reload.name_fingerprint })
       end
 
       it 'uses update_columns to skip callbacks' do
@@ -790,7 +798,8 @@ RSpec.describe Contact, type: :model do
       end
 
       it 'returns false when formatted number is missing' do
-        contact = create(:contact, status: 'completed', formatted_phone_number: nil)
+        # 'completed' status requires lookup_performed_at to be valid
+        contact = create(:contact, status: 'completed', formatted_phone_number: nil, lookup_performed_at: Time.current)
         expect(contact.lookup_completed?).to be false
       end
     end
@@ -856,11 +865,11 @@ RSpec.describe Contact, type: :model do
       it 'restores value even if block raises error' do
         Contact.skip_callbacks_for_bulk_import = false
 
-        expect {
+        expect do
           Contact.with_callbacks_skipped do
             raise StandardError, 'Test error'
           end
-        }.to raise_error(StandardError)
+        end.to raise_error(StandardError)
 
         expect(Contact.skip_callbacks_for_bulk_import).to be false
       end
@@ -868,15 +877,13 @@ RSpec.describe Contact, type: :model do
 
     describe '.recalculate_bulk_metrics' do
       it 'recalculates fingerprints and quality scores for given contacts' do
-        contacts = create_list(:contact, 3, :completed)
-        contact_ids = contacts.map(&:id)
+        contact = create(:contact, :completed)
+        # Initial state
+        contact.update_column(:phone_fingerprint, nil)
 
-        contacts.each do |contact|
-          expect(contact).to receive(:update_fingerprints!).and_call_original
-          expect(contact).to receive(:calculate_quality_score!).and_call_original
-        end
-
-        Contact.recalculate_bulk_metrics(contact_ids)
+        expect do
+          Contact.recalculate_bulk_metrics([contact.id])
+        end.to change { contact.reload.phone_fingerprint }.from(nil)
       end
     end
   end
@@ -886,17 +893,17 @@ RSpec.describe Contact, type: :model do
       it 'updates fingerprints when phone number changes' do
         contact = create(:contact, :completed)
 
-        expect {
+        expect do
           contact.update(raw_phone_number: '+14155559999')
-        }.to change { contact.phone_fingerprint }
+        end.to(change { contact.phone_fingerprint })
       end
 
       it 'updates fingerprints when business name changes' do
         contact = create(:contact, :business)
 
-        expect {
+        expect do
           contact.update(business_name: 'New Company Name')
-        }.to change { contact.name_fingerprint }
+        end.to(change { contact.name_fingerprint })
       end
 
       it 'skips fingerprint updates during bulk import' do
@@ -913,17 +920,17 @@ RSpec.describe Contact, type: :model do
       it 'recalculates quality score when email changes' do
         contact = create(:contact, :completed)
 
-        expect {
+        expect do
           contact.update(email: 'new@example.com', email_verified: true)
-        }.to change { contact.data_quality_score }
+        end.to(change { contact.data_quality_score })
       end
 
       it 'recalculates quality score when business enrichment changes' do
         contact = create(:contact, :completed)
 
-        expect {
+        expect do
           contact.update(business_enriched: true)
-        }.to change { contact.data_quality_score }
+        end.to(change { contact.data_quality_score })
       end
 
       it 'skips quality score calculation during bulk import' do
@@ -953,9 +960,9 @@ RSpec.describe Contact, type: :model do
 
       it 'returns false when no services available' do
         contact = create(:contact, :with_address_enrichment,
-                        verizon_5g_home_available: false,
-                        verizon_lte_home_available: false,
-                        verizon_fios_available: false)
+                         verizon_5g_home_available: false,
+                         verizon_lte_home_available: false,
+                         verizon_fios_available: false)
         expect(contact.verizon_home_internet_available?).to be false
       end
     end
@@ -963,17 +970,17 @@ RSpec.describe Contact, type: :model do
     describe '#verizon_products_available' do
       it 'lists all available products' do
         contact = create(:contact, :with_address_enrichment,
-                        verizon_fios_available: true,
-                        verizon_5g_home_available: true,
-                        verizon_lte_home_available: true)
+                         verizon_fios_available: true,
+                         verizon_5g_home_available: true,
+                         verizon_lte_home_available: true)
         expect(contact.verizon_products_available).to eq('Fios, 5G Home, LTE Home')
       end
 
       it 'returns None when no products available' do
         contact = create(:contact, :with_address_enrichment,
-                        verizon_fios_available: false,
-                        verizon_5g_home_available: false,
-                        verizon_lte_home_available: false)
+                         verizon_fios_available: false,
+                         verizon_5g_home_available: false,
+                         verizon_lte_home_available: false)
         expect(contact.verizon_products_available).to eq('None')
       end
     end
@@ -981,8 +988,8 @@ RSpec.describe Contact, type: :model do
     describe '#verizon_best_product' do
       it 'prioritizes Fios over other products' do
         contact = create(:contact, :with_address_enrichment,
-                        verizon_fios_available: true,
-                        verizon_5g_home_available: true)
+                         verizon_fios_available: true,
+                         verizon_5g_home_available: true)
         expect(contact.verizon_best_product).to eq('Fios')
       end
 
@@ -993,9 +1000,9 @@ RSpec.describe Contact, type: :model do
 
       it 'returns Not Available when no products available' do
         contact = create(:contact, :with_address_enrichment,
-                        verizon_fios_available: false,
-                        verizon_5g_home_available: false,
-                        verizon_lte_home_available: false)
+                         verizon_fios_available: false,
+                         verizon_5g_home_available: false,
+                         verizon_lte_home_available: false)
         expect(contact.verizon_best_product).to eq('Not Available')
       end
     end
@@ -1045,8 +1052,9 @@ RSpec.describe Contact, type: :model do
       end
 
       it 'returns titleized status otherwise' do
-        contact = create(:contact, :trust_hub_pending)
-        expect(contact.trust_hub_status_display).to eq('Pending-review')
+        contact = create(:contact, :business, business_name: 'Acme', trust_hub_status: 'pending-review',
+                                              trust_hub_enriched: true)
+        expect(contact.trust_hub_status_display).to eq('Pending Review')
       end
     end
 

@@ -12,12 +12,16 @@ class MessagingService
   # Send SMS message
   def send_sms(message_body, options = {})
     return { success: false, error: 'SMS messaging not enabled' } unless @credentials&.enable_sms_messaging
-    return { success: false, error: 'No Twilio phone number configured' } unless @credentials.twilio_phone_number.present?
+
+    unless @credentials.twilio_phone_number.present?
+      return { success: false,
+               error: 'No Twilio phone number configured' }
+    end
     return { success: false, error: 'Contact has opted out of SMS' } if @contact.sms_opt_out
     return { success: false, error: 'Invalid phone number' } unless @contact.formatted_phone_number.present?
 
-    # Check rate limits
-    rate_limit_check = check_sms_rate_limit
+    # Check rate limits (atomic check-and-increment)
+    rate_limit_check = check_and_consume_sms_rate_limit
     return rate_limit_check unless rate_limit_check[:success]
 
     start_time = Time.current
@@ -37,8 +41,7 @@ class MessagingService
         last_engagement_at: Time.current
       )
 
-      # Increment rate limit counter after successful send
-      increment_sms_rate_limit!
+      # Rate limit counter already incremented in check_and_consume_sms_rate_limit
 
       # Log API usage
       log_api_usage(
@@ -77,13 +80,13 @@ class MessagingService
     return { success: false, error: 'No credentials configured' } unless @credentials
 
     template = case template_type
-    when 'intro'
-      @credentials.sms_intro_template
-    when 'follow_up'
-      @credentials.sms_follow_up_template
-    else
-      nil
-    end
+               when 'intro'
+                 @credentials.sms_intro_template
+               when 'follow_up'
+                 @credentials.sms_follow_up_template
+               else
+                 nil
+               end
 
     return { success: false, error: "No template found for type: #{template_type}" } unless template.present?
 
@@ -108,13 +111,21 @@ class MessagingService
   # Make voice call
   def make_voice_call(options = {})
     return { success: false, error: 'Voice messaging not enabled' } unless @credentials&.enable_voice_messaging
-    return { success: false, error: 'No Twilio phone number configured' } unless @credentials.twilio_phone_number.present?
+
+    unless @credentials.twilio_phone_number.present?
+      return { success: false,
+               error: 'No Twilio phone number configured' }
+    end
     return { success: false, error: 'Contact has opted out of voice calls' } if @contact.voice_opt_out
     return { success: false, error: 'Invalid phone number' } unless @contact.formatted_phone_number.present?
-    return { success: false, error: 'No voice webhook URL configured' } unless @credentials.voice_call_webhook_url.present?
 
-    # Check rate limits
-    rate_limit_check = check_voice_rate_limit
+    unless @credentials.voice_call_webhook_url.present?
+      return { success: false,
+               error: 'No voice webhook URL configured' }
+    end
+
+    # Check rate limits (atomic check-and-increment)
+    rate_limit_check = check_and_consume_voice_rate_limit
     return rate_limit_check unless rate_limit_check[:success]
 
     start_time = Time.current
@@ -135,8 +146,7 @@ class MessagingService
         last_engagement_at: Time.current
       )
 
-      # Increment rate limit counter after successful call
-      increment_voice_rate_limit!
+      # Rate limit counter already incremented in check_and_consume_voice_rate_limit
 
       # Log API usage
       log_api_usage(
@@ -221,49 +231,37 @@ class MessagingService
 
   def initialize_twilio_client
     return nil unless @credentials
+
     Twilio::REST::Client.new(@credentials.account_sid, @credentials.auth_token)
   end
 
-  def check_sms_rate_limit
+  def check_and_consume_sms_rate_limit
     max_per_hour = @credentials.max_sms_per_hour || 100
-
-    # Use atomic counter for accurate rate limiting across workers
     cache_key = "sms_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
-    
-    # Read current count (don't increment yet - that happens after successful send)
-    sent_this_hour = Rails.cache.read(cache_key) || 0
 
-    if sent_this_hour >= max_per_hour
-      { success: false, error: "Rate limit exceeded: #{sent_this_hour}/#{max_per_hour} SMS sent in the last hour" }
+    # Atomic increment - counts attempts to prevent race conditions
+    # If key is missing, increment behaves as if it was 0
+    current_count = Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
+
+    if current_count > max_per_hour
+      { success: false, error: "Rate limit exceeded: #{current_count}/#{max_per_hour} SMS attempts in the last hour" }
     else
       { success: true }
     end
   end
 
-  def increment_sms_rate_limit!
-    cache_key = "sms_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
-    Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
-  end
-
-  def check_voice_rate_limit
+  def check_and_consume_voice_rate_limit
     max_per_hour = @credentials.max_calls_per_hour || 50
-
-    # Use atomic counter for accurate rate limiting across workers
     cache_key = "voice_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
-    
-    # Read current count (don't increment yet - that happens after successful call)
-    calls_this_hour = Rails.cache.read(cache_key) || 0
 
-    if calls_this_hour >= max_per_hour
-      { success: false, error: "Rate limit exceeded: #{calls_this_hour}/#{max_per_hour} calls in the last hour" }
+    # Atomic increment
+    current_count = Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
+
+    if current_count > max_per_hour
+      { success: false, error: "Rate limit exceeded: #{current_count}/#{max_per_hour} call attempts in the last hour" }
     else
       { success: true }
     end
-  end
-
-  def increment_voice_rate_limit!
-    cache_key = "voice_rate_limit:#{Time.current.strftime('%Y-%m-%d-%H')}"
-    Rails.cache.increment(cache_key, 1, expires_in: 1.hour)
   end
 
   def build_status_callback_url(type)

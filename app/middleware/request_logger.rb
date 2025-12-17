@@ -71,36 +71,8 @@ module Middleware
     def redact_params(params)
       return {} unless params.is_a?(Hash)
 
-      params.deep_dup.tap do |p|
-        filter_sensitive_data(p)
-      end
-    end
-
-    def filter_sensitive_data(data)
-      return unless data.is_a?(Hash)
-
-      data.each do |key, value|
-        if sensitive_key?(key)
-          data[key] = '[REDACTED]'
-        elsif value.is_a?(Hash)
-          filter_sensitive_data(value)
-        elsif value.is_a?(Array)
-          value.each { |item| filter_sensitive_data(item) if item.is_a?(Hash) }
-        end
-      end
-    end
-
-    SENSITIVE_KEYS = %w[
-      password token secret key api_key auth_token access_token refresh_token
-      authorization bearer credentials account_sid auth_code
-      ssn social_security_number tax_id ein passport drivers_license
-      credit_card card_number cvv ccv security_code bank_account routing_number
-      private_key certificate pem
-    ].freeze
-
-    def sensitive_key?(key)
-      key_s = key.to_s.downcase
-      SENSITIVE_KEYS.any? { |k| key_s.include?(k) }
+      @parameter_filter ||= ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
+      @parameter_filter.filter(params)
     end
   end
 end

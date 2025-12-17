@@ -47,6 +47,15 @@ class Contact < ApplicationRecord
   validates :completeness_percentage, numericality: { only_integer: true, in: 0..100 }, allow_nil: true
   validates :country_code, length: { is: 2 }, allow_blank: true
 
+  # Callbacks
+  before_save :reset_formatted_phone_when_changed, if: lambda {
+    raw_phone_number_changed? && !formatted_phone_number_changed?
+  }
+
+  def reset_formatted_phone_when_changed
+    self.formatted_phone_number = nil
+  end
+
   # Base status scopes (core functionality, not domain-specific)
   scope :pending, -> { where(status: 'pending') }
   scope :processing, -> { where(status: 'processing') }
@@ -78,7 +87,8 @@ class Contact < ApplicationRecord
        address_confidence_score verizon_5g_home_available verizon_lte_home_available
        verizon_fios_available verizon_coverage_checked estimated_download_speed
        trust_hub_verified trust_hub_status trust_hub_business_sid trust_hub_enriched
-       trust_hub_verification_score trust_hub_regulatory_status trust_hub_business_name]
+       trust_hub_verification_score trust_hub_regulatory_status trust_hub_business_name
+       api_cost api_response_time_ms]
   end
 
   def self.ransackable_associations(_auth_object = nil)
@@ -121,6 +131,7 @@ class Contact < ApplicationRecord
 
   # Mark as completed with timestamp
   def mark_completed!
+    calculate_api_cost
     update!(status: 'completed', lookup_performed_at: Time.current)
   end
 
@@ -161,6 +172,14 @@ class Contact < ApplicationRecord
   rescue StandardError => e
     # Don't let broadcast failures affect contact operations
     Rails.logger.warn("Dashboard broadcast failed: #{e.message}")
+  end
+
+  # Cost Tracking Constants
+  LOOKUP_COST_PER_REQUEST = 0.005 # $0.005 per lookup
+
+  # Calculate and store API cost
+  def calculate_api_cost
+    self.api_cost = LOOKUP_COST_PER_REQUEST
   end
 
   def broadcast_refresh

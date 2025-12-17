@@ -60,6 +60,15 @@ group :development, :test do
   gem 'faker', '~> 3.2' # Generate fake data for tests
   gem 'rspec-rails', '~> 7.0' # Modern testing framework
   gem 'shoulda-matchers', '~> 6.0' # RSpec matchers for common validations
+
+  # Performance profiling
+  gem 'memory_profiler', '~> 1.0', require: false
+  gem 'rack-mini-profiler', '~> 3.3', require: false
+  gem 'stackprof', '~> 0.2.26', require: false
+
+  # Automation & Notifications
+  gem 'slack-notifier' # Webhook notifications
+  gem 'whenever', require: false # Cron job scheduling
 end
 
 group :development do
@@ -86,6 +95,7 @@ group :test do
   gem 'webdrivers', '~> 5.3' # Auto-manages driver binaries
 
   # Test helpers
+  gem 'database_cleaner-active_record', '~> 2.1' # Database cleaning strategies
   gem 'mock_redis', '~> 0.46' # Mock Redis for circuit breaker tests
   gem 'webmock', '~> 3.19' # HTTP request stubbing
 end

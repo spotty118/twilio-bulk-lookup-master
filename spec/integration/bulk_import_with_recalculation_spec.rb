@@ -157,7 +157,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
       expect(contact3.phone_fingerprint).to eq('4155553333')
       expect(contact3.name_fingerprint).to eq('jane smith')
       expect(contact3.email_fingerprint).to be_nil
-      expect(contact3.data_quality_score).to be_between(30, 50)  # Medium quality
+      expect(contact3.data_quality_score).to be_between(30, 50) # Medium quality
     end
 
     it 'correctly handles duplicate detection after bulk import' do
@@ -165,7 +165,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
       contact_ids = Contact.with_callbacks_skipped do
         [
           Contact.create!(raw_phone_number: '+14155551234', full_name: 'John Doe'),
-          Contact.create!(raw_phone_number: '+14155551234', full_name: 'John Doe'),  # Duplicate phone + name
+          Contact.create!(raw_phone_number: '+14155551234', full_name: 'John Doe'), # Duplicate phone + name
           Contact.create!(raw_phone_number: '+14155555678', full_name: 'Jane Smith')
         ].map(&:id)
       end
@@ -179,8 +179,8 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
       # Phase 3: Run DuplicateDetectionJob manually (normally runs as background job)
       Contact.where(id: contact_ids).find_each do |contact|
         duplicates = Contact.where(phone_fingerprint: contact.phone_fingerprint)
-                           .where.not(id: contact.id)
-                           .where('created_at < ?', contact.created_at)
+                            .where.not(id: contact.id)
+                            .where('created_at < ?', contact.created_at)
 
         if duplicates.exists?
           contact.update!(
@@ -229,7 +229,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
 
       # Verify callbacks ran for normal update
       bulk_contact.reload
-      expect(bulk_contact.phone_fingerprint).not_to be_nil  # Should be calculated on update
+      expect(bulk_contact.phone_fingerprint).not_to be_nil # Should be calculated on update
       expect(bulk_contact.name_fingerprint).to eq('name updated')
     end
   end
@@ -279,7 +279,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
     it 'rolls back transaction if bulk import fails mid-batch' do
       initial_count = Contact.count
 
-      expect {
+      expect do
         Contact.transaction do
           Contact.with_callbacks_skipped do
             # Create 5 valid contacts
@@ -289,7 +289,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
             raise ActiveRecord::Rollback
           end
         end
-      }.not_to change(Contact, :count)
+      end.not_to change(Contact, :count)
 
       # Verify no contacts were persisted
       expect(Contact.count).to eq(initial_count)
@@ -304,14 +304,17 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
         ].map(&:id)
       end
 
-      # Stub one contact to raise error on update
-      allow_any_instance_of(Contact).to receive(:update_fingerprints!).and_call_original
-      allow_any_instance_of(Contact).to receive(:update_fingerprints!).and_raise(StandardError, 'Simulated error').once
+      # Stub contacts to raise error on first call only
+      call_count = 0
+      allow_any_instance_of(Contact).to receive(:update_fingerprints!) do
+        call_count += 1
+        raise StandardError, 'Simulated error' if call_count == 1
+      end
 
       # Should not raise error (should rescue and continue)
-      expect {
+      expect do
         Contact.recalculate_bulk_metrics(contact_ids)
-      }.not_to raise_error
+      end.not_to raise_error
 
       # At least some contacts should have fingerprints calculated
       contacts_with_fingerprints = Contact.where(id: contact_ids)
@@ -328,7 +331,7 @@ RSpec.describe 'Bulk import workflow with metric recalculation', type: :integrat
 
       t1 = Thread.new do
         Contact.with_callbacks_skipped do
-          sleep 0.1  # Ensure threads overlap
+          sleep 0.1 # Ensure threads overlap
           contact = Contact.create!(raw_phone_number: '+14155551111')
           thread1_fingerprints << contact.phone_fingerprint
         end
