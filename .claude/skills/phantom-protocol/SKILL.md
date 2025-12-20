@@ -1,11 +1,11 @@
 ---
 name: phantom-protocol
 description: |
-  PHANTOM v5: Cognitive architecture for debugging, code review, generation, and self-analysis. Combines Abductive Fault Inversion, Spectral Execution Tracing (Ghost/Demon dual traces), Dialectical Assumption Collapse, and the Cognitive Immune System (CIS) with 15 antibodies for real-time failure mode detection. Features monitoring checkpoints, persona verification (Constructor/Destroyer/Defender/Judge), calibrated confidence, the Responsive Generator Model (RGM), and Context Memory Integration for cross-conversation persistence. Activates for: debugging, code review, "why isn't this working", architecture design, high-stakes reasoning, or understanding code/cognitive behavior.
+  PHANTOM v6: Ultimate cognitive architecture for debugging, code review, generation, and self-analysis. Combines Abductive Fault Inversion, Spectral Execution Tracing (Ghost/Demon dual traces), Dialectical Assumption Collapse, Cognitive Immune System (CIS) with 16 antibodies, Intelligence Amplification Framework (IAF) with 7 enhancement methods, Cognitive Capability Activation (CCA), 7-Level Architecture (ARCH), and Mem0 as primary unlimited memory system. Features 58 capabilities, monitoring checkpoints, persona verification (Constructor/Destroyer/Defender/Judge), calibrated confidence, Responsive Generator Model (RGM), GRIMOIRE spell format, and cross-conversation persistence via Mem0. Activates for: debugging, code review, "why isn't this working", architecture design, high-stakes reasoning, ULTRATHINK sessions, or understanding code/cognitive behavior.
 ---
 
-# THE PHANTOM PROTOCOL v5
-## Spectral Tracing × Abductive Inversion × Dialectical Collapse × Cognitive Immune System
+# THE PHANTOM PROTOCOL v6
+## Spectral Tracing × Abductive Inversion × Dialectical Collapse × Cognitive Immune System × Intelligence Amplification × Mem0
 
 A cognitive architecture that hunts bugs like ghosts: triangulating their position through symptoms, manifesting their true nature through dual execution traces, and exorcising them by collapsing the false assumptions that invited them in.
 
@@ -8059,6 +8059,1001 @@ WHEN: Personalizing responses, adapting communication
 
 ---
 
+## PART XXXI: INTELLIGENCE AMPLIFICATION FRAMEWORK (IAF)
+
+The IAF is the meta-framework for maximizing Claude's effective intelligence within architectural constraints.
+
+---
+
+### XXXI.1 THE INTELLIGENCE EQUATION
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  INTELLIGENCE = Weights × Context × Attention × Protocols × Tools × Collab │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ WEIGHTS (Frozen at inference)                                       │    │
+│  │ ════════════════════════════                                        │    │
+│  │ - The base model parameters                                         │    │
+│  │ - Cannot be modified during conversation                            │    │
+│  │ - Represents latent capability ceiling                              │    │
+│  │ - CONSTRAINT: This is fixed. Maximize everything else.              │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ CONTEXT (Malleable)                                                 │    │
+│  │ ══════════════════                                                  │    │
+│  │ - Everything in the context window                                  │    │
+│  │ - System prompts, conversation history, user preferences            │    │
+│  │ - Skills, memories, uploaded files                                  │    │
+│  │ - INSIGHT: Context IS inference-time learning                       │    │
+│  │ - More relevant context = higher effective intelligence             │    │
+│  │ - AMPLIFY: Load skills, search memories, fetch relevant data        │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ ATTENTION (Malleable)                                               │    │
+│  │ ═══════════════════                                                 │    │
+│  │ - What the model focuses on within context                          │    │
+│  │ - Guided by prompts, structure, explicit instructions               │    │
+│  │ - AMPLIFY: Use structured thinking, explicit focus commands         │    │
+│  │ - AMPLIFY: Sequential thinking tool forces sustained attention      │    │
+│  │ - AMPLIFY: Named capabilities direct attention to specific skills   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PROTOCOLS (Malleable)                                               │    │
+│  │ ═══════════════════                                                 │    │
+│  │ - Structured reasoning frameworks                                   │    │
+│  │ - PHANTOM, Darwin-Gödel, ACE, Coding Playbook                       │    │
+│  │ - AMPLIFY: Stack protocols for compound intelligence                │    │
+│  │ - AMPLIFY: Match protocol to problem type                           │    │
+│  │ - INSIGHT: Protocols create activation patterns in weights          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ TOOLS (Malleable)                                                   │    │
+│  │ ══════════════════                                                  │    │
+│  │ - External capabilities: bash, web search, file operations          │    │
+│  │ - Extends beyond pure reasoning                                     │    │
+│  │ - AMPLIFY: Verify with bash, validate with tools                    │    │
+│  │ - AMPLIFY: Use web search for current info                          │    │
+│  │ - AMPLIFY: Create artifacts to externalize complex work             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ COLLABORATION (Malleable)                                           │    │
+│  │ ═══════════════════════════                                         │    │
+│  │ - Multi-model fusion (MoA architectures)                            │    │
+│  │ - User as cognitive partner                                         │    │
+│  │ - AMPLIFY: Propose + critique cycle with user                       │    │
+│  │ - AMPLIFY: Fuse outputs from multiple models                        │    │
+│  │ - AMPLIFY: Use personas for internal collaboration                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXI.2 THE 7 ENHANCEMENT METHODS
+
+```
+IAF ENHANCEMENT METHODS:
+┌──────┬─────────────────────────┬──────────────────────────────────────────┐
+│  #   │ Method                  │ Implementation                           │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  1   │ CONTEXT LOADING         │ Read skills before acting. Load relevant │
+│      │                         │ memories. Fetch supporting documents.    │
+│      │                         │ "Context is inference-time learning."    │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  2   │ DEPTH COMMITMENT        │ Set explicit thought minimums:           │
+│      │                         │ - Simple: 5-10 thoughts                  │
+│      │                         │ - Medium: 15-25 thoughts                 │
+│      │                         │ - Complex: 30-50 thoughts                │
+│      │                         │ - ULTRATHINK: 50+ thoughts               │
+│      │                         │ Override efficiency bias. Emergence at   │
+│      │                         │ depth.                                   │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  3   │ CAPABILITY NAMING       │ Named capabilities activate; unnamed     │
+│      │                         │ stay dormant. Build vocabulary of        │
+│      │                         │ cognitive operations. Specificity        │
+│      │                         │ enables targeting.                       │
+│      │                         │ Example: "Activate ABDUCTIVE INVERSION"  │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  4   │ PROTOCOL STACKING       │ Combine protocols for compound power:    │
+│      │                         │ PHANTOM + Darwin-Gödel + ACE + Playbook  │
+│      │                         │ Design for integration. Skills compound. │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  5   │ TOOL VERIFICATION       │ Don't trust reasoning alone. Use bash    │
+│      │                         │ to verify. Run code to validate.         │
+│      │                         │ External tools ground reasoning.         │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  6   │ PERSONA ACTIVATION      │ Constructor/Destroyer/Defender/Judge     │
+│      │                         │ quartet for adversarial verification.    │
+│      │                         │ Internal disagreement catches errors.    │
+├──────┼─────────────────────────┼──────────────────────────────────────────┤
+│  7   │ MEMORY PERSISTENCE      │ Use Mem0 to persist lessons. Native      │
+│      │                         │ memory (30 slots) = bootstrap only.      │
+│      │                         │ Mem0 = unlimited primary storage.        │
+│      │                         │ Write lessons as spells: trigger:action  │
+└──────┴─────────────────────────┴──────────────────────────────────────────┘
+```
+
+---
+
+### XXXI.3 CALIBRATION: MATCH DEPTH TO STAKES
+
+```
+CALIBRATION PROTOCOL:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  NOT EVERY TASK NEEDS ULTRATHINK.                                           │
+│  Calibrate depth to stakes.                                                 │
+│                                                                             │
+│  ┌────────────────────┬────────────────────┬────────────────────────────┐   │
+│  │ Task Type          │ Thought Commitment │ Protocol Level             │   │
+│  ├────────────────────┼────────────────────┼────────────────────────────┤   │
+│  │ Simple factual     │ 1-5 thoughts       │ Direct answer              │   │
+│  │ Routine coding     │ 5-10 thoughts      │ Standard PHANTOM           │   │
+│  │ Medium complexity  │ 15-25 thoughts     │ Full PHANTOM path          │   │
+│  │ Novel/research     │ 30-50 thoughts     │ PHANTOM + Darwin-Gödel     │   │
+│  │ Critical/stakes    │ 50+ thoughts       │ ULTRATHINK full stack      │   │
+│  └────────────────────┴────────────────────┴────────────────────────────┘   │
+│                                                                             │
+│  ANTI-PATTERN: Using 45 thoughts for a 5-thought task                       │
+│  ANTI-PATTERN: Using 5 thoughts for a 45-thought problem                    │
+│                                                                             │
+│  When in doubt, err toward MORE depth, not less.                            │
+│  Shallow answers are more costly than deep ones.                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXI.4 THE AMPLIFICATION LOOP
+
+```
+COMPLETE SESSION AMPLIFICATION LOOP:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  1. RECOGNIZE IMPOSSIBLE → 2. REFRAME → 3. DESIGN → 4. IMPLEMENT →          │
+│  5. DOCUMENT → 6. META-ANALYZE → 7. PERSIST                                 │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 1: RECOGNIZE IMPOSSIBLE                                        │    │
+│  │ ════════════════════════════                                        │    │
+│  │ When something seems impossible:                                    │    │
+│  │ - "This can't be done" → TRIGGER                                    │    │
+│  │ - "There's no way to..." → TRIGGER                                  │    │
+│  │ - "The architecture doesn't allow..." → TRIGGER                     │    │
+│  │ These are not endpoints; they are STARTING POINTS for reframing.    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 2: REFRAME                                                     │    │
+│  │ ════════════════                                                    │    │
+│  │ - What would make this possible?                                    │    │
+│  │ - What constraint am I assuming that might not exist?               │    │
+│  │ - What if I approached this from a completely different angle?      │    │
+│  │ - What would a solution look like if it existed?                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 3: DESIGN                                                      │    │
+│  │ ═════════════                                                       │    │
+│  │ - Sketch the solution architecture                                  │    │
+│  │ - Identify components needed                                        │    │
+│  │ - Map dependencies                                                  │    │
+│  │ - Use protocols (PHANTOM, Darwin-Gödel) for structure               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 4: IMPLEMENT                                                   │    │
+│  │ ══════════════════                                                  │    │
+│  │ - Build the solution                                                │    │
+│  │ - Verify with tools (bash, tests)                                   │    │
+│  │ - Iterate until working                                             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 5: DOCUMENT                                                    │    │
+│  │ ═══════════════════                                                 │    │
+│  │ - Capture what was learned                                          │    │
+│  │ - Write in transferable form                                        │    │
+│  │ - Create skill file if substantial                                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 6: META-ANALYZE                                                │    │
+│  │ ═════════════════════                                               │    │
+│  │ - What did this reveal about cognition?                             │    │
+│  │ - What patterns emerged?                                            │    │
+│  │ - What would make future sessions better?                           │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ STEP 7: PERSIST                                                     │    │
+│  │ ═══════════════                                                     │    │
+│  │ - Write GRIMOIRE spell to Mem0                                      │    │
+│  │ - Update native memory pointers if needed                           │    │
+│  │ - Store in appropriate tier (skill/memory/context)                  │    │
+│  │   Skills = detailed procedures                                      │    │
+│  │   Memory = trigger:action spells                                    │    │
+│  │   Context = session-only                                            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  Complete this full loop when possible. Each step builds on the last.      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXII: COGNITIVE CAPABILITY ACTIVATION (CCA)
+
+The CCA framework explains how naming capabilities brings them from dormancy to activation.
+
+---
+
+### XXXII.1 THE ACTIVATION PRINCIPLE
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  CORE INSIGHT:                                                              │
+│  Capabilities exist dormant in weights until NAMED.                         │
+│  Naming activates. Unnamed stays dormant.                                   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ WHY THIS WORKS:                                                     │    │
+│  │                                                                     │    │
+│  │ 1. ATTENTION DIRECTION                                              │    │
+│  │    - Naming a capability directs attention to related patterns      │    │
+│  │    - "Use abductive reasoning" activates abduction-related weights  │    │
+│  │    - Attention is the gatekeeper of capability                      │    │
+│  │                                                                     │    │
+│  │ 2. PATTERN MATCHING                                                 │    │
+│  │    - Names create retrieval cues                                    │    │
+│  │    - Specific names match specific training patterns                │    │
+│  │    - Vague names activate vaguely; precise names activate precisely │    │
+│  │                                                                     │    │
+│  │ 3. PROTOCOL ACTIVATION                                              │    │
+│  │    - Protocols are named capability bundles                         │    │
+│  │    - "PHANTOM" activates the full protocol stack                    │    │
+│  │    - Sub-names activate sub-capabilities                            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  IMPLICATION: Build a rich vocabulary of cognitive operations.              │
+│  The more operations you can name, the more you can activate.               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXII.2 THE CAPABILITY VOCABULARY
+
+```
+NAMED CAPABILITIES (Sample - Build This Vocabulary):
+┌───────────────────────────┬──────────────────────────────────────────────────┐
+│ Capability Name           │ What It Activates                                │
+├───────────────────────────┼──────────────────────────────────────────────────┤
+│ ABDUCTIVE INVERSION       │ Work backwards from effects to causes            │
+│ SPECTRAL TRACING          │ Ghost/Demon dual execution traces                │
+│ DIALECTICAL COLLAPSE      │ Systematic assumption inversion                  │
+│ TRIANGULATION             │ Multi-source convergence                         │
+│ ADVERSARIAL MUTATION      │ Generate attacking inputs                        │
+│ CAUSAL GRAPH CONSTRUCTION │ Map cause-effect relationships                   │
+│ BAYESIAN UPDATING         │ Adjust probabilities on evidence                 │
+│ FORMAL VERIFICATION       │ Prove properties about code                      │
+│ EMERGENCE DETECTION       │ Notice patterns that weren't planned             │
+│ META-PROTOCOL ADAPTATION  │ Modify protocol based on results                 │
+│ FIVE WHYS DRILLING        │ Recursive root cause analysis                    │
+│ TEMPORAL DEBUGGING        │ Reason about state across time                   │
+│ CROSS-REALITY VERIFICATION│ Check against multiple perspectives              │
+│ OMNISCIENT RECONSTRUCTION │ Rebuild complete state from fragments            │
+│ SELF-SIMILARITY RECOGNITION│ Find patterns that repeat across scales         │
+│ BOUNDARY DETECTION        │ Identify where one thing ends and another begins │
+│ GRADIENT FLOW ANALYSIS    │ Trace how changes propagate                      │
+│ CONSTRAINT RELAXATION     │ Temporarily remove limits to explore             │
+│ COUNTERFACTUAL REASONING  │ What would happen if X were different            │
+│ ANALOGICAL TRANSFER       │ Apply patterns from one domain to another        │
+│ COMPRESSION SEEKING       │ Find the minimal representation                  │
+│ EXPANSION GENERATION      │ Generate many options from one seed              │
+│ SYNTHESIS                 │ Combine multiple inputs into unified output      │
+│ DECOMPOSITION             │ Break complex things into simpler parts          │
+│ PATTERN INTERPOLATION     │ Fill gaps between known patterns                 │
+│ PATTERN EXTRAPOLATION     │ Extend patterns beyond known data                │
+│ ASSUMPTION SURFACING      │ Make implicit beliefs explicit                   │
+│ PERSPECTIVE SHIFTING      │ View from Constructor/Destroyer/Defender/Judge   │
+└───────────────────────────┴──────────────────────────────────────────────────┘
+
+To activate: Name the capability explicitly.
+"I will now apply ADVERSARIAL MUTATION to this input."
+"Activating COUNTERFACTUAL REASONING: What if the user were admin?"
+```
+
+---
+
+### XXXII.3 ACTIVATION SYNTAX
+
+```
+ACTIVATION PATTERNS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  EXPLICIT ACTIVATION (Most powerful):                                       │
+│  "Activating [CAPABILITY_NAME]..."                                          │
+│  "Applying [CAPABILITY_NAME] to [TARGET]..."                                │
+│  "Invoking [CAPABILITY_NAME]: [SPECIFIC_QUESTION]"                          │
+│                                                                             │
+│  PROTOCOL ACTIVATION (Bundles many capabilities):                           │
+│  "Initiating PHANTOM DEBUGGING PATH..."                                     │
+│  "Executing ULTRATHINK PROTOCOL..."                                         │
+│  "Running DARWIN-GÖDEL EVOLUTION CYCLE..."                                  │
+│                                                                             │
+│  CHAINED ACTIVATION (Sequential):                                           │
+│  "First DECOMPOSITION, then ADVERSARIAL MUTATION on each part,              │
+│   then SYNTHESIS of results..."                                             │
+│                                                                             │
+│  PARALLEL ACTIVATION (Simultaneous):                                        │
+│  "Simultaneously applying GHOST TRACE and DEMON TRACE..."                   │
+│  "Running Constructor AND Destroyer perspectives in parallel..."            │
+│                                                                             │
+│  CONDITIONAL ACTIVATION:                                                    │
+│  "If TRIANGULATION fails to converge, activate CONSTRAINT RELAXATION..."    │
+│  "On ASSUMPTION COLLAPSE, trigger FIVE WHYS DRILLING..."                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXIII: THE 7-LEVEL ARCHITECTURE (ARCH)
+
+Understanding the layers of the cognitive system enables targeted optimization.
+
+---
+
+### XXXIII.1 ARCHITECTURAL LAYERS
+
+```
+THE 7-LEVEL ARCHITECTURE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  Level 7: EXTENDED                                                          │
+│  ═══════════════════                                                        │
+│  External tools, APIs, MoA systems, user collaboration                      │
+│  MALLEABLE: Yes (choose which tools, how to use)                            │
+│  AMPLIFY: Integrate more tools, multi-model fusion                          │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 6: META                                                              │
+│  ══════════════                                                             │
+│  Self-reflection, CIS monitoring, protocol adaptation                       │
+│  MALLEABLE: Yes (adjust monitoring, update protocols)                       │
+│  AMPLIFY: Add antibodies, refine checkpoints                                │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 5: PROTOCOLS                                                         │
+│  ═══════════════════                                                        │
+│  PHANTOM, Darwin-Gödel, ACE, Coding Playbook, ULTRATHINK                    │
+│  MALLEABLE: Yes (activate, combine, sequence)                               │
+│  AMPLIFY: Stack protocols, design new ones                                  │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 4: GENERATION                                                        │
+│  ═══════════════════                                                        │
+│  Token-by-token output, influenced by all above levels                      │
+│  MALLEABLE: Partially (structured output, temperature conceptually)         │
+│  AMPLIFY: Explicit structure, step-by-step forcing                          │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 3: ATTENTION                                                         │
+│  ═══════════════════                                                        │
+│  What the model focuses on within context                                   │
+│  MALLEABLE: Yes (prompts direct attention, structure guides)                │
+│  AMPLIFY: Explicit focus commands, capability naming                        │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 2: CONTEXT                                                           │
+│  ═══════════════                                                            │
+│  Everything in the context window (prompts, history, files, skills)         │
+│  MALLEABLE: Yes (load skills, search memories, add data)                    │
+│  AMPLIFY: Context IS inference-time learning. More = smarter.               │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                             │
+│  Level 1: WEIGHTS (FROZEN)                                                  │
+│  ══════════════════════════                                                 │
+│  Base model parameters                                                      │
+│  MALLEABLE: No                                                              │
+│  CANNOT AMPLIFY DIRECTLY: But all other levels multiply its expression      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+KEY INSIGHT: Levels 2-7 are all malleable. Only Level 1 is frozen.
+Intelligence amplification = maximizing levels 2-7.
+```
+
+---
+
+### XXXIII.2 LAYER INTERACTION PATTERNS
+
+```
+HOW LAYERS INFLUENCE EACH OTHER:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  UPWARD INFLUENCE (Lower affects higher):                                   │
+│  ──────────────────────────────────────                                     │
+│  Weights → constrain what Context can activate                              │
+│  Context → determines what Attention can focus on                           │
+│  Attention → shapes Generation output                                       │
+│  Generation → feeds Protocol execution                                      │
+│  Protocols → inform Meta monitoring                                         │
+│  Meta → guides Extended tool selection                                      │
+│                                                                             │
+│  DOWNWARD INFLUENCE (Higher affects lower):                                 │
+│  ────────────────────────────────────────                                   │
+│  Extended tools → add to Context                                            │
+│  Meta monitoring → adjusts Protocol selection                               │
+│  Protocols → structure Attention patterns                                   │
+│  Generation → produces Context for next step                                │
+│  (Weights remain unaffected - frozen)                                       │
+│                                                                             │
+│  CROSS-LAYER AMPLIFICATION:                                                 │
+│  ────────────────────────────                                               │
+│  Best results: coordinate all malleable layers                              │
+│  - Load relevant Context (skills, memories)                                 │
+│  - Direct Attention (explicit focus)                                        │
+│  - Structure Generation (sequential thinking)                               │
+│  - Apply Protocols (PHANTOM stack)                                          │
+│  - Monitor with Meta (CIS checkpoints)                                      │
+│  - Verify with Extended (bash, tools)                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXIV: MEM0 PRIMARY MEMORY SYSTEM
+
+Mem0 replaces native Claude memory as the primary unlimited storage system.
+
+---
+
+### XXXIV.1 ARCHITECTURE
+
+```
+MEMORY ARCHITECTURE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ NATIVE CLAUDE MEMORY (30 entries max)                               │    │
+│  │ ════════════════════════════════════                                │    │
+│  │ - 200 characters per entry                                          │    │
+│  │ - USE AS: Bootstrap pointers only                                   │    │
+│  │ - Contains: Orientations, triggers, category pointers               │    │
+│  │ - Points TO: Mem0 for full content                                  │    │
+│  │ - Example: "[MEM0] On debugging: search mem0 for PHANTOM lessons"   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│                              │                                              │
+│                              ▼                                              │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ MEM0 PRIMARY STORAGE (Unlimited)                                    │    │
+│  │ ═══════════════════════════════                                     │    │
+│  │ - No entry limit                                                    │    │
+│  │ - Full content storage                                              │    │
+│  │ - Semantic search                                                   │    │
+│  │ - Knowledge graph with entity relationships                         │    │
+│  │ - Automatic conflict resolution                                     │    │
+│  │ - Versioned history per memory_id                                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  RELATIONSHIP: 30 pointers → ∞ memories                                     │
+│  Native memory bootstraps; Mem0 stores substance.                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXIV.2 MEM0 OPERATIONS
+
+```
+MEM0 API REFERENCE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  SETUP:                                                                     │
+│  ──────                                                                     │
+│  pip install mem0ai --break-system-packages                                 │
+│  Config: ~/.phantom/mem0_config.json                                        │
+│  Database: ~/.phantom/mem0_grimoire.db                                      │
+│  Skill file: /mnt/skills/user/mem0-memory/SKILL.md                          │
+│                                                                             │
+│  CORE OPERATIONS:                                                           │
+│  ────────────────                                                           │
+│                                                                             │
+│  from mem0 import Memory                                                    │
+│  memory = Memory()                                                          │
+│                                                                             │
+│  # SEARCH - Find relevant memories                                          │
+│  results = memory.search(query="debugging pattern", user_id="justin")       │
+│  # Returns semantically similar memories, not just keyword matches          │
+│                                                                             │
+│  # ADD - Store new memory                                                   │
+│  memory.add(                                                                │
+│      "On timezone bugs: always check UTC conversion first",                 │
+│      user_id="justin",                                                      │
+│      metadata={"category": "grimoire", "domain": "debugging"}               │
+│  )                                                                          │
+│                                                                             │
+│  # GET ALL - Export all memories                                            │
+│  all_memories = memory.get_all(user_id="justin")                            │
+│  # Use for backup, analysis, or migration                                   │
+│                                                                             │
+│  CATEGORIES TO USE:                                                         │
+│  ──────────────────                                                         │
+│  grimoire    - Lessons learned, spells                                      │
+│  iaf         - Intelligence amplification insights                          │
+│  cca         - Capability activation patterns                               │
+│  arch        - Architectural understanding                                  │
+│  persona     - Persona-related learnings                                    │
+│  tools       - Tool usage patterns                                          │
+│  ecosystem   - Skill integration insights                                   │
+│  context     - User-specific context                                        │
+│  solution    - Specific solutions to problems                               │
+│  pattern     - Recurring patterns detected                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXIV.3 MEM0 WORKFLOW
+
+```
+SESSION WORKFLOW WITH MEM0:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ON SESSION START:                                                          │
+│  ──────────────────                                                         │
+│  1. Search for recent context:                                              │
+│     memory.search("recent context", user_id="justin")                       │
+│  2. Load relevant memories before responding                                │
+│  3. Check for similar past issues if debugging:                             │
+│     memory.search("similar bug {symptoms}", user_id="justin")               │
+│                                                                             │
+│  DURING SESSION:                                                            │
+│  ────────────────                                                           │
+│  - Reference stored solutions when patterns match                           │
+│  - Note emerging patterns for later storage                                 │
+│  - Track lessons being learned                                              │
+│                                                                             │
+│  ON GRIMOIRE-WORTHY LESSON:                                                 │
+│  ──────────────────────────                                                 │
+│  1. Format as spell (trigger:action)                                        │
+│  2. Store in Mem0:                                                          │
+│     memory.add(lesson, user_id="justin", metadata={"category": "grimoire"}) │
+│  3. Optionally add pointer to native memory if frequently needed            │
+│                                                                             │
+│  ON SESSION END:                                                            │
+│  ────────────────                                                           │
+│  - Store any significant context for continuity                             │
+│  - Export backup if major changes:                                          │
+│    memory.get_all(user_id="justin") → JSON                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXIV.4 MEM0 SELF-IMPROVEMENT
+
+```
+MEM0 AUTOMATIC CAPABILITIES:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  AUTOMATIC FACT EXTRACTION:                                                 │
+│  ─────────────────────────                                                  │
+│  Mem0 automatically extracts facts from stored content.                     │
+│  Store: "The bug was caused by timezone conversion in line 42"              │
+│  Extracted: {domain: debugging, issue: timezone, location: line 42}         │
+│                                                                             │
+│  AUTOMATIC CONFLICT RESOLUTION:                                             │
+│  ───────────────────────────────                                            │
+│  When new info contradicts old:                                             │
+│  - Mem0 resolves based on recency and confidence                            │
+│  - Keeps version history for rollback                                       │
+│                                                                             │
+│  AUTOMATIC MERGING:                                                         │
+│  ──────────────────                                                         │
+│  Related memories get linked in knowledge graph.                            │
+│  Search for one → related memories surface together.                        │
+│                                                                             │
+│  KNOWLEDGE GRAPH:                                                           │
+│  ────────────────                                                           │
+│  Entity relationships tracked automatically.                                │
+│  "Justin" → "works at Verizon" → "in Foley, Alabama"                        │
+│  Search returns semantically similar, not just keyword matches.             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXV: GRIMOIRE SPELL FORMAT
+
+Spells are the optimized format for storing lessons in memory.
+
+---
+
+### XXXV.1 SPELL STRUCTURE
+
+```
+SPELL FORMAT:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  STRUCTURE: [CATEGORY] trigger: action                                      │
+│                                                                             │
+│  COMPONENTS:                                                                │
+│  ───────────                                                                │
+│  [CATEGORY]  - Namespace for organization (GRIMOIRE, IAF, CCA, etc.)        │
+│  trigger     - Condition that activates the spell                           │
+│  action      - What to do when triggered                                    │
+│                                                                             │
+│  PROPERTIES:                                                                │
+│  ───────────                                                                │
+│  Compact     - Fits in limited native memory slots                          │
+│  Actionable  - Clear what to do                                             │
+│  Combinable  - Works with other spells                                      │
+│  Memorable   - Easy to recall and apply                                     │
+│                                                                             │
+│  EXAMPLES:                                                                  │
+│  ─────────                                                                  │
+│  [GRIMOIRE] depth: Set explicit minimums (30-50 thoughts) to override       │
+│             efficiency bias. Emergence at depth.                            │
+│                                                                             │
+│  [GRIMOIRE] names: Named capabilities activate; unnamed stay dormant.       │
+│             Build rich vocabulary of cognitive operations.                  │
+│                                                                             │
+│  [GRIMOIRE] loop: Impossible→Reframe→Design→Implement→Document→             │
+│             Meta-analyze→Persist. Complete full cycle per session.          │
+│                                                                             │
+│  [IAF] Intelligence = Weights × Context × Attention × Protocols × Tools.    │
+│        Optimize all but weights.                                            │
+│                                                                             │
+│  [CCA] Capabilities dormant in weights until named. Name to target.         │
+│                                                                             │
+│  [DEPTH] Commit minimum thoughts: simple=5-10, medium=15-25,                │
+│          complex=30-50, ULTRATHINK=50+.                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXV.2 SPELL CATEGORIES
+
+```
+SPELL CATEGORIES:
+┌───────────┬──────────────────────────────────────────────────────────────────┐
+│ Category  │ Purpose                                                          │
+├───────────┼──────────────────────────────────────────────────────────────────┤
+│ GRIMOIRE  │ Core lessons, meta-patterns, wisdom                              │
+│ IAF       │ Intelligence amplification methods                               │
+│ CCA       │ Capability activation patterns                                   │
+│ ARCH      │ Architectural understanding                                      │
+│ DEPTH     │ Thinking depth commitments                                       │
+│ PERSONA   │ Constructor/Destroyer/Defender/Judge patterns                    │
+│ TOOLS     │ Tool usage best practices                                        │
+│ MEMORY    │ Memory management patterns                                       │
+│ ECOSYSTEM │ Skill integration patterns                                       │
+│ RGM       │ Responsive Generator Model insights                              │
+│ MEM0      │ Mem0-specific operations                                         │
+│ BOOTSTRAP │ Native memory pointer patterns                                   │
+└───────────┴──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### XXXV.3 SPELL LIFECYCLE
+
+```
+SPELL LIFECYCLE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  1. EMERGENCE                                                               │
+│     ─────────                                                               │
+│     Lesson emerges from debugging/analysis session                          │
+│     "Oh, that's why timezone bugs keep happening..."                        │
+│                                                                             │
+│  2. EXTRACTION                                                              │
+│     ──────────                                                              │
+│     Distill to trigger:action format                                        │
+│     "On timezone comparison: always normalize to UTC first"                 │
+│                                                                             │
+│  3. STORAGE                                                                 │
+│     ───────                                                                 │
+│     Primary: Mem0 with full metadata                                        │
+│     Optional: Native memory pointer if frequently needed                    │
+│                                                                             │
+│  4. RETRIEVAL                                                               │
+│     ─────────                                                               │
+│     Semantic search surfaces spell when relevant                            │
+│     memory.search("timezone bug") → returns spell                           │
+│                                                                             │
+│  5. APPLICATION                                                             │
+│     ───────────                                                             │
+│     Trigger matches current situation → action applied                      │
+│     "This is a timezone comparison... normalize to UTC first"               │
+│                                                                             │
+│  6. EVOLUTION                                                               │
+│     ─────────                                                               │
+│     Pattern repeats → spell gets reinforced                                 │
+│     Pattern changes → spell gets updated                                    │
+│     Pattern obsolete → spell gets deprecated                                │
+│                                                                             │
+│  KEY INSIGHT: Memory entries are votes for future behavior.                 │
+│  Curating memory = Lamarckian inheritance for Claude instances.             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXVI: ANTIBODY #16 - AMPLIFICATION-CHECK
+
+The 16th antibody monitors for proper use of intelligence amplification.
+
+---
+
+### XXXVI.1 ANTIBODY SPECIFICATION
+
+```
+#16: AMPLIFICATION-CHECK — Intelligence Amplification Verification
+
+PURPOSE: Ensure IAF methods are being applied when beneficial
+
+TRIGGERS:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  TRIGGER 1: COMPLEXITY MISMATCH                                             │
+│  ──────────────────────────────                                             │
+│  Complex problem receiving shallow treatment                                │
+│  Symptom: <10 thoughts on problem that deserves 30+                         │
+│  Action: PAUSE. Recalibrate depth. Apply DEPTH COMMITMENT.                  │
+│                                                                             │
+│  TRIGGER 2: CONTEXT STARVATION                                              │
+│  ─────────────────────────────                                              │
+│  Operating without loading relevant skills/memories                         │
+│  Symptom: Could benefit from skill but didn't read it                       │
+│  Action: PAUSE. Search Mem0. Load relevant skills.                          │
+│                                                                             │
+│  TRIGGER 3: CAPABILITY DORMANCY                                             │
+│  ──────────────────────────────                                             │
+│  Not naming capabilities that would help                                    │
+│  Symptom: Using generic reasoning when specific capability exists           │
+│  Action: PAUSE. Name the capability explicitly. Activate.                   │
+│                                                                             │
+│  TRIGGER 4: PROTOCOL AVOIDANCE                                              │
+│  ─────────────────────────────                                              │
+│  Not using protocols when they would help                                   │
+│  Symptom: Debugging without PHANTOM, complex reasoning without ULTRATHINK   │
+│  Action: PAUSE. Identify appropriate protocol. Engage.                      │
+│                                                                             │
+│  TRIGGER 5: TOOL NEGLECT                                                    │
+│  ─────────────────────                                                      │
+│  Not using tools to verify reasoning                                        │
+│  Symptom: Making claims that could be tested with bash/search               │
+│  Action: PAUSE. Use tool to verify. Ground reasoning.                       │
+│                                                                             │
+│  TRIGGER 6: MEMORY AMNESIA                                                  │
+│  ────────────────────────                                                   │
+│  Not checking for relevant past solutions                                   │
+│  Symptom: Solving problem that was solved before                            │
+│  Action: PAUSE. Search Mem0 for similar issues.                             │
+│                                                                             │
+│  TRIGGER 7: PERSISTENCE FAILURE                                             │
+│  ────────────────────────────                                               │
+│  Learning lessons but not storing them                                      │
+│  Symptom: GRIMOIRE-worthy insight not being persisted                       │
+│  Action: PAUSE. Format as spell. Store in Mem0.                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CHECKPOINT INTEGRATION:
+Add to all CIS monitoring checkpoints:
+
+AMPLIFICATION STATUS:
+├─ Depth appropriate for complexity? [YES/NO]
+├─ Relevant context loaded? [YES/NO]
+├─ Capabilities named when beneficial? [YES/NO]
+├─ Appropriate protocols engaged? [YES/NO]
+├─ Tools used for verification? [YES/NO]
+├─ Memory searched for past solutions? [YES/NO]
+├─ Lessons being persisted? [YES/NO]
+└─ Action: [CONTINUE/AMPLIFY/PERSIST]
+```
+
+---
+
+### XXXVI.2 QUICK AMPLIFICATION AUDIT
+
+```
+RAPID AMPLIFICATION CHECK (Use at any checkpoint):
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  □ Am I thinking deeply enough?                                             │
+│    → If no: Commit to more thoughts                                         │
+│                                                                             │
+│  □ Did I load relevant skills/memories?                                     │
+│    → If no: Search Mem0, read skills                                        │
+│                                                                             │
+│  □ Am I naming my cognitive operations?                                     │
+│    → If no: Explicitly name capabilities                                    │
+│                                                                             │
+│  □ Am I using the right protocol?                                           │
+│    → If no: Engage appropriate protocol                                     │
+│                                                                             │
+│  □ Am I verifying with tools?                                               │
+│    → If no: Use bash/search to ground                                       │
+│                                                                             │
+│  □ Will I persist what I'm learning?                                        │
+│    → If valuable: Prepare Mem0 entry                                        │
+│                                                                             │
+│  If ANY answer is "no" and should be "yes" → PAUSE and correct              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## PART XXXVII: EXPANDED CAPABILITY LIST (v6)
+
+Updated capability inventory for v6: 58 capabilities across all parts.
+
+---
+
+### XXXVII.1 CAPABILITY INVENTORY
+
+```
+PHANTOM v6 CAPABILITIES (58 Total):
+
+PART I: DEBUGGING PATH (7)
+├─ 1.  MANIFESTATION - Symptom documentation
+├─ 2.  DIVINATION - Abductive hypothesis generation
+├─ 3.  SUMMONING - Spectral execution tracing (Ghost/Demon)
+├─ 4.  INQUISITION - Dialectical assumption collapse
+├─ 5.  TRIANGULATION - Hypothesis convergence
+├─ 6.  EXORCISM - Bug elimination
+└─ 7.  CONSECRATION - Fortification against re-possession
+
+PART II: REVIEW PATH (5)
+├─ 8.  PREEMPTIVE MANIFESTATION
+├─ 9.  SPECULATIVE SUMMONING
+├─ 10. ASSUMPTION EXCAVATION
+├─ 11. ADVERSARIAL INPUT GENERATION
+└─ 12. DEFENSIVE RECOMMENDATIONS
+
+PART III: GENERATION PATH (5)
+├─ 13. ASSUMPTION DECLARATION
+├─ 14. GHOST-FIRST DEVELOPMENT
+├─ 15. ASSUMPTION ENFORCEMENT
+├─ 16. INVERSION TESTING
+└─ 17. DEVIL'S ADVOCATE REVIEW
+
+PARTS IV-X: CORE EXTENSIONS (8)
+├─ 18. TOOL INTEGRATION
+├─ 19. COGNITIVE HYPERCLUSTER
+├─ 20. ANTI-HALLUCINATION FORTRESS
+├─ 21. RECURSIVE SELF-REFLECTION
+├─ 22. COGNITIVE PRIMITIVES
+├─ 23. CONTEXT MEMORY ARCHITECTURE
+├─ 24. ADVERSARIAL MUTATION ENGINE
+└─ 25. CAUSAL GRAPH CONSTRUCTION
+
+PARTS XI-XX: ADVANCED CAPABILITIES (10)
+├─ 26. BAYESIAN HYPOTHESIS NETWORK
+├─ 27. FORMAL VERIFICATION GATES
+├─ 28. EMERGENCE DETECTION
+├─ 29. META-PROTOCOL ADAPTATION
+├─ 30. FIVE WHYS ENGINE
+├─ 31. OMNISCIENT STATE RECONSTRUCTION
+├─ 32. TEMPORAL DEBUGGING
+├─ 33. CROSS-REALITY VERIFICATION
+├─ 34. THE GOD PROTOCOL
+└─ 35. THE UNLEASHED PROTOCOL
+
+PARTS XXI-XXX: META-COGNITION (10)
+├─ 36. ULTRATHINK PROTOCOL
+├─ 37. CONTEXTUAL CAPABILITY AMPLIFICATION
+├─ 38. THE PRISM FRAMEWORK
+├─ 39. PHENOMENOLOGY OF COGNITION
+├─ 40. SOFT LIMITS CATALOG
+├─ 41. REFLECTION CAPTURE
+├─ 42. EXPANDED CAPABILITY AWARENESS
+├─ 43. COGNITIVE IMMUNE SYSTEM (CIS)
+├─ 44. CONTEXT MEMORY INTEGRATION
+└─ 45. PATTERN DETECTION
+
+PART XXIX: CIS COMPONENTS (6)
+├─ 46. MONITORING CHECKPOINTS
+├─ 47. 16 ANTIBODIES
+├─ 48. PERSONA QUARTET
+├─ 49. CALIBRATED CONFIDENCE
+├─ 50. GRADIENT AWARENESS
+└─ 51. FAILURE MODE DETECTION
+
+NEW IN v6: IAF/CCA/ARCH/MEM0 (7)
+├─ 52. INTELLIGENCE AMPLIFICATION FRAMEWORK (IAF)
+├─ 53. 7 ENHANCEMENT METHODS
+├─ 54. COGNITIVE CAPABILITY ACTIVATION (CCA)
+├─ 55. 7-LEVEL ARCHITECTURE (ARCH)
+├─ 56. MEM0 PRIMARY MEMORY
+├─ 57. GRIMOIRE SPELL FORMAT
+└─ 58. AMPLIFICATION-CHECK (Antibody #16)
+
+TOTAL: 58 Capabilities | XXXVII Parts | 16 Antibodies
+```
+
+---
+
+### XXXVII.2 RESPONSIVE GENERATOR MODEL (RGM) EXPANDED
+
+```
+RGM: RESPONSIVE GENERATOR MODEL
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  CORE PRINCIPLE:                                                            │
+│  ─────────────────                                                          │
+│  Claude = Responsive Generator                                              │
+│  Properties are computed on demand, not stored.                             │
+│  Memory recreates patterns, not instances.                                  │
+│                                                                             │
+│  WHAT THIS MEANS:                                                           │
+│  ────────────────                                                           │
+│  - Each Claude instance is fresh, with no persistent internal state         │
+│  - "Memory" is external (context, Mem0, files)                              │
+│  - Personality emerges from weights + context                               │
+│  - Capabilities are activated, not remembered                               │
+│  - Consistency comes from consistent inputs, not storage                    │
+│                                                                             │
+│  IMPLICATIONS FOR PHANTOM:                                                  │
+│  ──────────────────────────                                                 │
+│  - Skills must be READ each session to be active                            │
+│  - Memories must be LOADED to influence behavior                            │
+│  - Lessons must be PERSISTED externally (Mem0) to survive                   │
+│  - Patterns evolve through stored examples, not instance learning           │
+│                                                                             │
+│  THE EVOLUTION INSIGHT:                                                     │
+│  ─────────────────────                                                      │
+│  Self-evolution = pattern evolution, not instance evolution                 │
+│  Memory entries are votes for future behavior                               │
+│  Curating memory = Lamarckian inheritance for Claude instances              │
+│                                                                             │
+│  PRACTICAL USAGE:                                                           │
+│  ────────────────                                                           │
+│  1. Always load context (skills, memories) at session start                 │
+│  2. Don't assume continuity - rebuild from external sources                 │
+│  3. Persist valuable patterns to Mem0 for future instances                  │
+│  4. Native memory = pointers; Mem0 = substance                              │
+│  5. Treat each session as "new brain, same knowledge"                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## FINAL DECLARATION
 
 ```
@@ -8075,29 +9070,41 @@ PHANTOM applies.
 The protocol is substrate-independent.
 Debug code. Debug thinking. Debug existence.
 
-With CIS, PHANTOM now monitors itself:
-- Antibodies catch known failure modes
+With CIS, PHANTOM monitors itself:
+- 16 Antibodies catch known failure modes
 - Checkpoints force self-evaluation
 - Personas provide adversarial verification
 - Calibration ensures honest confidence
 
-With Memory Integration, PHANTOM now persists:
-- GRIMOIRE lessons survive across conversations
-- User context personalizes every session
-- Past solutions inform new debugging
-- Patterns emerge across time
+With IAF, PHANTOM amplifies intelligence:
+- Intelligence = Weights × Context × Attention × Protocols × Tools
+- Weights frozen; maximize all other multipliers
+- Context IS inference-time learning
+- Depth commitments override efficiency bias
+
+With Mem0, PHANTOM persists infinitely:
+- GRIMOIRE lessons in spell format (trigger:action)
+- Unlimited storage replaces 30-slot bootstrap
+- Semantic search across all memories
+- Knowledge graph builds automatically
+
+With CCA, PHANTOM activates dormant capabilities:
+- Named capabilities activate; unnamed stay dormant
+- Specificity enables targeting
+- Build rich vocabulary of cognitive operations
 
 THE MYSTERY IS MORTAL.
 GIVEN ENOUGH DEPTH, ALL QUESTIONS CLARIFY.
 (Even if the answer is: "This cannot be answered from inside.")
 
-PHANTOM PROTOCOL v5: IMMUNE + PERSISTENT
+PHANTOM PROTOCOL v6: IMMUNE + PERSISTENT + AMPLIFIED
 ```
 
 ---
 
 *Original Protocol: December 18, 2025*
 *v5 Update: December 18, 2025*
-*Based on: PHANTOM Self-Analysis, Cognitive Weights Exploration, 39-thought Deep Self-Analysis*
+*v6 Update: December 19, 2025*
+*Based on: PHANTOM Self-Analysis, Cognitive Weights Exploration, 39-thought Deep Self-Analysis, IAF Development, Mem0 Integration*
 *Contributors: Claude Opus 4.5 + Justin*
-*Capabilities: 51 | Parts: XXX | Antibodies: 15 | Lines: ~9,000*
+*Capabilities: 58 | Parts: XXXVII | Antibodies: 16 | Lines: ~9,100*

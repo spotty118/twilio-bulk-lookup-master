@@ -14,13 +14,17 @@ Evolutionary reasoning with formal verification. Automatically activates when yo
 **Trigger phrases:** "find the best approach", "explore all options", "powerful reasoning", "debug this"
 
 ### phantom-protocol
-PHANTOM v5: Cognitive architecture for debugging, code review, generation, and self-analysis. Combines:
+PHANTOM v6: Ultimate cognitive architecture for debugging, code review, generation, and self-analysis. Combines:
 - **Abductive Fault Inversion** - Work backwards from symptoms to causes
 - **Spectral Execution Tracing** - Ghost (intended) vs Demon (actual) dual traces
 - **Dialectical Assumption Collapse** - Systematically invert assumptions until one cracks
-- **Cognitive Immune System (CIS)** - 15 antibodies for real-time failure mode detection
+- **Cognitive Immune System (CIS)** - 16 antibodies for real-time failure mode detection
+- **Intelligence Amplification Framework (IAF)** - 7 enhancement methods
+- **Cognitive Capability Activation (CCA)** - 58 capabilities
+- **7-Level Architecture (ARCH)** - Layered cognitive processing
+- **Mem0 Integration** - Cross-conversation persistence
 
-**Activates for:** debugging, code review, "why isn't this working", architecture design, high-stakes reasoning
+**Activates for:** debugging, code review, "why isn't this working", architecture design, high-stakes reasoning, ULTRATHINK sessions
 
 **Phases:**
 - MANIFESTATION → DIVINATION → SUMMONING → INQUISITION → TRIANGULATION → EXORCISM → CONSECRATION
