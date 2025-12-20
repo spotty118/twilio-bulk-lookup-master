@@ -4,34 +4,32 @@ class WebhooksController < ApplicationController
 
   # Twilio SMS Status Webhook
   def twilio_sms_status
-    # Use find_or_initialize_by to detect if it's a new record
-    webhook = Webhook.find_or_initialize_by(
-      source: 'twilio_sms',
-      external_id: params[:MessageSid]
+    # Atomic upsert to prevent race conditions
+    # INSERT ... ON CONFLICT ensures exactly one record is created
+    result = Webhook.upsert(
+      {
+        source: 'twilio_sms',
+        external_id: params[:MessageSid],
+        event_type: 'sms_status',
+        payload: webhook_params.to_json,
+        headers: extract_headers.to_json,
+        status: 'pending',
+        received_at: Time.current,
+        created_at: Time.current,
+        updated_at: Time.current
+      },
+      unique_by: %i[source external_id],
+      returning: %w[id created_at updated_at]
     )
 
-    if webhook.new_record?
-      webhook.event_type = 'sms_status'
-      webhook.payload = webhook_params
-      webhook.headers = extract_headers
-      webhook.status = 'pending'
-      webhook.received_at = Time.current
-
-      if webhook.save
-        WebhookProcessorJob.perform_later(webhook.id)
-      else
-        Rails.logger.error("Failed to create SMS webhook: #{webhook.errors.full_messages.join(', ')}")
-      end
-    elsif webhook.status != 'pending'
-      Rails.logger.info("Duplicate SMS webhook rejected (already #{webhook.status}): #{params[:MessageSid]}")
+    # Check if this was a new insert (created_at == updated_at) or existing record
+    row = result.first
+    if row && row['created_at'] == row['updated_at']
+      WebhookProcessorJob.perform_later(row['id'])
     else
-      # Duplicate request for pending webhook - ignore (idempotent)
-      Rails.logger.info("Duplicate SMS webhook ignored (pending): #{params[:MessageSid]}")
+      Rails.logger.info("Duplicate SMS webhook ignored: #{params[:MessageSid]}")
     end
 
-    head :ok
-  rescue ActiveRecord::RecordNotUnique
-    Rails.logger.warn("Duplicate SMS webhook (race condition): #{params[:MessageSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("SMS webhook error: #{e.class} - #{e.message}")
@@ -40,32 +38,30 @@ class WebhooksController < ApplicationController
 
   # Twilio Voice Status Webhook
   def twilio_voice_status
-    webhook = Webhook.find_or_initialize_by(
-      source: 'twilio_voice',
-      external_id: params[:CallSid]
+    # Atomic upsert to prevent race conditions
+    result = Webhook.upsert(
+      {
+        source: 'twilio_voice',
+        external_id: params[:CallSid],
+        event_type: 'voice_status',
+        payload: webhook_params.to_json,
+        headers: extract_headers.to_json,
+        status: 'pending',
+        received_at: Time.current,
+        created_at: Time.current,
+        updated_at: Time.current
+      },
+      unique_by: %i[source external_id],
+      returning: %w[id created_at updated_at]
     )
 
-    if webhook.new_record?
-      webhook.event_type = 'voice_status'
-      webhook.payload = webhook_params
-      webhook.headers = extract_headers
-      webhook.status = 'pending'
-      webhook.received_at = Time.current
-
-      if webhook.save
-        WebhookProcessorJob.perform_later(webhook.id)
-      else
-        Rails.logger.error("Failed to create Voice webhook: #{webhook.errors.full_messages.join(', ')}")
-      end
-    elsif webhook.status != 'pending'
-      Rails.logger.info("Duplicate Voice webhook rejected (already #{webhook.status}): #{params[:CallSid]}")
+    row = result.first
+    if row && row['created_at'] == row['updated_at']
+      WebhookProcessorJob.perform_later(row['id'])
     else
-      Rails.logger.info("Duplicate Voice webhook ignored (pending): #{params[:CallSid]}")
+      Rails.logger.info("Duplicate Voice webhook ignored: #{params[:CallSid]}")
     end
 
-    head :ok
-  rescue ActiveRecord::RecordNotUnique
-    Rails.logger.warn("Duplicate Voice webhook (race condition): #{params[:CallSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("Voice webhook error: #{e.class} - #{e.message}")
@@ -74,32 +70,30 @@ class WebhooksController < ApplicationController
 
   # Twilio Trust Hub Status Webhook
   def twilio_trust_hub
-    webhook = Webhook.find_or_initialize_by(
-      source: 'twilio_trust_hub',
-      external_id: params[:CustomerProfileSid]
+    # Atomic upsert to prevent race conditions
+    result = Webhook.upsert(
+      {
+        source: 'twilio_trust_hub',
+        external_id: params[:CustomerProfileSid],
+        event_type: params[:StatusCallbackEvent] || 'status_update',
+        payload: webhook_params.to_json,
+        headers: extract_headers.to_json,
+        status: 'pending',
+        received_at: Time.current,
+        created_at: Time.current,
+        updated_at: Time.current
+      },
+      unique_by: %i[source external_id],
+      returning: %w[id created_at updated_at]
     )
 
-    if webhook.new_record?
-      webhook.event_type = params[:StatusCallbackEvent] || 'status_update'
-      webhook.payload = webhook_params
-      webhook.headers = extract_headers
-      webhook.status = 'pending'
-      webhook.received_at = Time.current
-
-      if webhook.save
-        WebhookProcessorJob.perform_later(webhook.id)
-      else
-        Rails.logger.error("Failed to create Trust Hub webhook: #{webhook.errors.full_messages.join(', ')}")
-      end
-    elsif webhook.status != 'pending'
-      Rails.logger.info("Duplicate Trust Hub webhook rejected (already #{webhook.status}): #{params[:CustomerProfileSid]}")
+    row = result.first
+    if row && row['created_at'] == row['updated_at']
+      WebhookProcessorJob.perform_later(row['id'])
     else
-      Rails.logger.info("Duplicate Trust Hub webhook ignored (pending): #{params[:CustomerProfileSid]}")
+      Rails.logger.info("Duplicate Trust Hub webhook ignored: #{params[:CustomerProfileSid]}")
     end
 
-    head :ok
-  rescue ActiveRecord::RecordNotUnique
-    Rails.logger.warn("Duplicate Trust Hub webhook (race condition): #{params[:CustomerProfileSid]}")
     head :ok
   rescue StandardError => e
     Rails.logger.error("Trust Hub webhook error: #{e.class} - #{e.message}")
@@ -139,6 +133,7 @@ class WebhooksController < ApplicationController
   private
 
   # Authenticate generic webhook using API key from Authorization header
+  # Uses timing-safe comparison to prevent timing attacks
   def authenticate_webhook_api_key
     auth_header = request.headers['Authorization']
     return false unless auth_header.present?
@@ -147,8 +142,10 @@ class WebhooksController < ApplicationController
     token = auth_header.split(' ').last
     return false unless token.present?
 
-    # Validate against admin user API tokens
-    AdminUser.exists?(api_token: token)
+    # Timing-safe token validation to prevent brute-force via timing analysis
+    # Fetch all tokens and compare using secure_compare to ensure constant-time
+    admin_tokens = AdminUser.where.not(api_token: nil).pluck(:api_token)
+    admin_tokens.any? { |stored_token| ActiveSupport::SecurityUtils.secure_compare(stored_token, token) }
   end
 
   def verify_twilio_signature

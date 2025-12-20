@@ -225,7 +225,13 @@ class LookupRequestJob < ApplicationJob
       # Uses cache-based atomic fetch to ensure only one notification per batch cycle
       if Contact.pending.count == 0 && Contact.processing.count == 0
         Rails.cache.fetch('bulk_lookup_completion_notified', expires_in: 5.minutes, race_condition_ttl: 10.seconds) do
-          SLACK_NOTIFIER.ping "🎉 Bulk Lookup Complete! Total Processed: #{Contact.completed.count} | Failed: #{Contact.failed.count}"
+          begin
+            if defined?(SLACK_NOTIFIER) && SLACK_NOTIFIER.respond_to?(:ping)
+              SLACK_NOTIFIER.ping "🎉 Bulk Lookup Complete! Total Processed: #{Contact.completed.count} | Failed: #{Contact.failed.count}"
+            end
+          rescue StandardError => e
+            Rails.logger.warn("Slack notification failed: #{e.message}")
+          end
           Time.current # Return a truthy value to cache
         end
       end

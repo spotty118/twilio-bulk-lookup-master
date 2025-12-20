@@ -116,11 +116,12 @@ class AiAssistantService
     return { error: "AI parsing failed" } unless response.is_a?(String)
 
     begin
-      # Extract JSON from response
-      json_match = response.match(/\{.*\}/m)
+      # Extract JSON from response using non-greedy match to get first complete JSON object
+      # Use balanced brace counting for accurate extraction
+      json_match = extract_first_json_object(response)
       return { error: "No JSON found in response" } unless json_match
 
-      parsed = JSON.parse(json_match[0])
+      parsed = JSON.parse(json_match)
       {
         filters: parsed['filters'],
         explanation: parsed['explanation'],
@@ -191,6 +192,38 @@ class AiAssistantService
     return false unless credentials&.enable_ai_features
     return false unless @api_key.present?
     true
+  end
+
+  # Extract first complete JSON object from text using balanced brace counting
+  # This is more reliable than greedy regex which can match too much
+  def extract_first_json_object(text)
+    start_idx = text.index('{')
+    return nil unless start_idx
+
+    depth = 0
+    in_string = false
+    escape_next = false
+
+    text[start_idx..].each_char.with_index do |char, i|
+      if escape_next
+        escape_next = false
+        next
+      end
+
+      case char
+      when '\\'
+        escape_next = true if in_string
+      when '"'
+        in_string = !in_string
+      when '{'
+        depth += 1 unless in_string
+      when '}'
+        depth -= 1 unless in_string
+        return text[start_idx..(start_idx + i)] if depth == 0
+      end
+    end
+
+    nil # No complete JSON object found
   end
 
   def call_openai(messages)
