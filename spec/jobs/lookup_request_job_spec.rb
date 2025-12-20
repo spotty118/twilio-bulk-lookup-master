@@ -34,7 +34,9 @@ RSpec.describe LookupRequestJob, type: :job do
         'sms_pumping_risk_score' => 15,
         'carrier_risk_category' => 'low',
         'number_blocked' => false
-      }
+      },
+      sim_swap: nil,
+      reassigned_number: nil
     )
   end
 
@@ -49,9 +51,9 @@ RSpec.describe LookupRequestJob, type: :job do
   describe 'processing pending contacts' do
     # _Requirements: 2.1_
     it 'marks contact as processing and performs lookup for pending contacts' do
-      expect {
+      expect do
         described_class.new.perform(contact.id)
-      }.to change { contact.reload.status }.from('pending').to('completed')
+      end.to change { contact.reload.status }.from('pending').to('completed')
     end
 
     it 'updates contact with API response data' do
@@ -81,9 +83,9 @@ RSpec.describe LookupRequestJob, type: :job do
     end
 
     it 'does not change status of completed contacts' do
-      expect {
+      expect do
         described_class.new.perform(completed_contact.id)
-      }.not_to change { completed_contact.reload.status }
+      end.not_to(change { completed_contact.reload.status })
     end
 
     it 'logs skip message for completed contacts' do
@@ -94,9 +96,9 @@ RSpec.describe LookupRequestJob, type: :job do
     end
 
     it 'does not enqueue enrichment jobs for already completed contacts' do
-      expect {
+      expect do
         described_class.new.perform(completed_contact.id)
-      }.not_to have_enqueued_job(EnrichmentCoordinatorJob)
+      end.not_to have_enqueued_job(EnrichmentCoordinatorJob)
     end
   end
 
@@ -115,9 +117,9 @@ RSpec.describe LookupRequestJob, type: :job do
     end
 
     it 'does not change status of processing contacts' do
-      expect {
+      expect do
         described_class.new.perform(processing_contact.id)
-      }.not_to change { processing_contact.reload.status }
+      end.not_to(change { processing_contact.reload.status })
     end
 
     it 'logs skip message when contact already processing' do
@@ -137,7 +139,7 @@ RSpec.describe LookupRequestJob, type: :job do
     it 'uses pessimistic locking to prevent race conditions' do
       # Create a fresh contact for this test
       test_contact = create(:contact, :pending)
-      
+
       # We need to verify with_lock is called on the contact
       # Since the job finds the contact by ID, we need to intercept that
       expect_any_instance_of(Contact).to receive(:with_lock).and_call_original
@@ -150,21 +152,21 @@ RSpec.describe LookupRequestJob, type: :job do
         # Create a contact for concurrent processing
         concurrent_contact = create(:contact, :pending)
         contact_id = concurrent_contact.id
-        
+
         # Track how many times the Twilio API is called
         api_call_count = 0
-        
+
         # Setup mock that counts calls
         mock_phone_numbers = double('PhoneNumbers')
         allow(mock_phone_numbers).to receive(:fetch) do
           api_call_count += 1
           mock_lookup_result
         end
-        
+
         mock_client = double('TwilioClient')
         mock_lookups = double('Lookups')
         mock_v2 = double('V2')
-        
+
         allow(Twilio::REST::Client).to receive(:new).and_return(mock_client)
         allow(mock_client).to receive(:lookups).and_return(mock_lookups)
         allow(mock_lookups).to receive(:v2).and_return(mock_v2)
@@ -196,7 +198,7 @@ RSpec.describe LookupRequestJob, type: :job do
       it 'skips contacts that transition to processing during lock acquisition' do
         # Create a contact
         race_contact = create(:contact, :pending)
-        
+
         # Simulate a race where another job already set status to processing
         # by updating the contact after the first job starts but before it checks status
         allow_any_instance_of(Contact).to receive(:with_lock) do |contact, &block|
@@ -216,9 +218,9 @@ RSpec.describe LookupRequestJob, type: :job do
     it 'allows retry of failed contacts' do
       failed_contact = create(:contact, :failed)
 
-      expect {
+      expect do
         described_class.new.perform(failed_contact.id)
-      }.to change { failed_contact.reload.status }.from('failed').to('completed')
+      end.to change { failed_contact.reload.status }.from('failed').to('completed')
     end
   end
 
@@ -249,22 +251,22 @@ RSpec.describe LookupRequestJob, type: :job do
     context 'when Twilio API returns permanent error' do
       it 'marks contact as failed without retrying' do
         # Setup mock that raises permanent error
-        error = twilio_error(code: 20404, message: 'Invalid number', status_code: 404)
-        
+        error = twilio_error(code: 20_404, message: 'Invalid number', status_code: 404)
+
         mock_client = double('TwilioClient')
         mock_lookups = double('Lookups')
         mock_v2 = double('V2')
         mock_phone_numbers = double('PhoneNumbers')
-        
+
         allow(Twilio::REST::Client).to receive(:new).and_return(mock_client)
         allow(mock_client).to receive(:lookups).and_return(mock_lookups)
         allow(mock_lookups).to receive(:v2).and_return(mock_v2)
         allow(mock_v2).to receive(:phone_numbers).and_return(mock_phone_numbers)
         allow(mock_phone_numbers).to receive(:fetch).and_raise(error)
 
-        expect {
+        expect do
           described_class.new.perform(contact.id)
-        }.not_to raise_error
+        end.not_to raise_error
 
         expect(contact.reload.status).to eq('failed')
       end
@@ -273,14 +275,14 @@ RSpec.describe LookupRequestJob, type: :job do
     context 'when Twilio API returns transient error (rate limit)' do
       it 'marks contact as failed and re-raises for retry' do
         # Setup mock that raises rate limit error
-        error = twilio_error(code: 20429, message: 'Rate limit exceeded', status_code: 429)
-        
+        error = twilio_error(code: 20_429, message: 'Rate limit exceeded', status_code: 429)
+
         # Bypass circuit breaker to test direct error handling
         allow(CircuitBreakerService).to receive(:call).with(:twilio).and_raise(error)
 
-        expect {
+        expect do
           described_class.new.perform(contact.id)
-        }.to raise_error(Twilio::REST::RestError)
+        end.to raise_error(Twilio::REST::RestError)
 
         expect(contact.reload.status).to eq('failed')
       end
@@ -288,9 +290,9 @@ RSpec.describe LookupRequestJob, type: :job do
 
     context 'when contact not found' do
       it 'raises RecordNotFound (job will be discarded)' do
-        expect {
-          described_class.new.perform(999999)
-        }.to raise_error(ActiveRecord::RecordNotFound)
+        expect do
+          described_class.new.perform(999_999)
+        end.to raise_error(ActiveRecord::RecordNotFound)
       end
     end
   end

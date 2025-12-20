@@ -18,7 +18,9 @@ Rails.application.configure do
 
   # Generate session nonces for permitted importmap, inline scripts, and inline styles.
   config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
-  config.content_security_policy_nonce_directives = %w[script-src style-src]
+  # Disable nonce directives - ActiveAdmin uses inline scripts/styles that cannot have nonces added
+  # Security relies on unsafe_inline which is acceptable for admin-only interfaces
+  config.content_security_policy_nonce_directives = %w[]
 
   # Report violations without enforcing the policy.
   # config.content_security_policy_report_only = true

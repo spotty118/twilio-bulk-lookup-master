@@ -60,7 +60,9 @@ ActiveAdmin.register_page 'API Health' do
 
     # Health check methods for each provider
     def check_twilio_health(credentials)
-      return { healthy: false, status: 'Not configured', error: nil } unless credentials.account_sid.present?
+      unless credentials.account_sid.present? && credentials.auth_token.present?
+        return { healthy: false, status: 'Not configured', error: nil }
+      end
 
       client = Twilio::REST::Client.new(credentials.account_sid, credentials.auth_token)
       client.api.accounts(credentials.account_sid).fetch
@@ -188,7 +190,9 @@ ActiveAdmin.register_page 'API Health' do
     end
 
     def check_verizon_health(credentials)
-      return { healthy: false, status: 'Not configured', error: nil } unless credentials.verizon_api_key.present?
+      unless credentials.verizon_api_key.present? && credentials.verizon_api_secret.present?
+        return { healthy: false, status: 'Not configured', error: nil }
+      end
 
       { healthy: true, status: 'Configured', error: nil }
     end
@@ -219,7 +223,7 @@ ActiveAdmin.register_page 'API Health' do
           div class: 'api-status' do
             span icon
             span ' '
-            status_tag health[:status], color
+            status_tag health[:status], class: color
           end
         end
 

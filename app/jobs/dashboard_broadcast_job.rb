@@ -14,6 +14,13 @@ class DashboardBroadcastJob < ApplicationJob
     return unless Rails.cache.write(throttle_key, true, expires_in: 1.second, unless_exist: true)
     
     begin
+      # Refresh materialized stats outside of write transactions
+      begin
+        DashboardStats.refresh!
+      rescue StandardError => e
+        Rails.logger.warn("Dashboard stats refresh failed: #{e.message}")
+      end
+
       # Broadcast the actual update
       Turbo::StreamsChannel.broadcast_replace_to(
         "dashboard_stats",

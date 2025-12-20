@@ -112,7 +112,8 @@ class AiAssistantService
     PROMPT
 
     response = query(prompt)
-    return { error: "AI parsing failed" } unless response
+    return response if response.is_a?(Hash) && response[:error].present?
+    return { error: "AI parsing failed" } unless response.is_a?(String)
 
     begin
       # Extract JSON from response

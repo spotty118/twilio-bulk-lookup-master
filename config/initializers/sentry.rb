@@ -44,15 +44,10 @@ if ENV['SENTRY_DSN'].present?
       'ActionController::InvalidAuthenticityToken'
     ]
 
-    # Capture user context when available
-    config.set_user do
-      # Hook into current_admin_user if available (ActiveAdmin)
-      if defined?(current_admin_user) && current_admin_user
-        {
-          id: current_admin_user.id,
-          email: current_admin_user.email
-        }
-      end
-    end
+    # NOTE: User context should be set at request-time in ApplicationController:
+    #   before_action :set_sentry_user
+    #   def set_sentry_user
+    #     Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email) if current_admin_user
+    #   end
   end
 end

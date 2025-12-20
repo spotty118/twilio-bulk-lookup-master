@@ -28,11 +28,12 @@ class ParallelEnrichmentService
     email: { service: EmailEnrichmentService, enabled_flag: :enable_email_enrichment },
     address: { service: AddressEnrichmentService, enabled_flag: :enable_address_enrichment },
     verizon: { service: VerizonCoverageService, enabled_flag: :enable_verizon_coverage_check, method: :check_coverage },
-    trust_hub: { service: TrustHubEnrichmentService, enabled_flag: :enable_trust_hub, method: :enrich }
+    trust_hub: { service: TrustHubService, enabled_flag: :enable_trust_hub, method: :enrich }
   }.freeze
 
   def initialize(contact)
     @contact = contact
+    @contact_id = contact.id
     @credentials = TwilioCredential.current
   end
 
@@ -68,11 +69,15 @@ class ParallelEnrichmentService
     start_time = Time.current
 
     # Create a promise for each enrichment
+    contact_id = @contact_id
+
     promises = types.map do |type|
       {
         type: type,
         promise: Concurrent::Promise.execute do
-          execute_enrichment(type)
+          ActiveRecord::Base.connection_pool.with_connection do
+            execute_enrichment(type, contact_id)
+          end
         end
       }
     end
@@ -141,7 +146,7 @@ class ParallelEnrichmentService
   #
   # Execute a single enrichment
   #
-  def execute_enrichment(type)
+  def execute_enrichment(type, contact_id)
     config = ENRICHMENT_TYPES[type]
     service_class = config[:service]
     method_name = config[:method] || :enrich
@@ -149,6 +154,7 @@ class ParallelEnrichmentService
     start_time = Time.current
 
     begin
+      contact = Contact.find(contact_id)
       service = service_class.new(contact)
       result = service.send(method_name)
       duration = ((Time.current - start_time) * 1000).round
@@ -158,10 +164,16 @@ class ParallelEnrichmentService
         result: result,
         duration: duration
       }
+    rescue ActiveRecord::RecordNotFound
+      {
+        success: false,
+        error: "Contact #{contact_id} not found",
+        duration: nil
+      }
     rescue StandardError => e
       duration = ((Time.current - start_time) * 1000).round
 
-      Rails.logger.error "#{type.to_s.titleize} enrichment failed for contact #{contact.id}: #{e.class} - #{e.message}"
+      Rails.logger.error "#{type.to_s.titleize} enrichment failed for contact #{contact_id}: #{e.class} - #{e.message}"
 
       {
         success: false,
@@ -230,8 +242,10 @@ class ParallelEnrichmentService
     end
 
     total_duration = ((Time.current - total_start) * 1000).round
-    Rails.logger.info "Total: #{contacts.count} contacts enriched in #{total_duration}ms " \
-                     "(avg #{total_duration / contacts.count}ms per contact)"
+    if contacts.any?
+      avg_time = (total_duration / contacts.count.to_f).round
+      Rails.logger.info "Total: #{contacts.count} contacts enriched in #{total_duration}ms (avg #{avg_time}ms per contact)"
+    end
 
     all_results
   end

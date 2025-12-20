@@ -1,4 +1,14 @@
 //= require active_admin/base
+//= require action_cable
+//= require turbo
+//= require_self
+//= require_tree ./channels
+
+// Initialize ActionCable
+(function() {
+  this.App || (this.App = {});
+  App.cable = ActionCable.createConsumer();
+}).call(this);
 
 // ========================================
 // Resizable Table Columns (Excel-like)
@@ -8,12 +18,14 @@ document.addEventListener('DOMContentLoaded', function () {
   initAnimatedCounters();
   initEntranceAnimations();
   initKeyboardShortcuts();
+  initLineStatusLegend();
 
   // Re-init on Turbo navigation
   document.addEventListener('turbo:load', function () {
     initResizableColumns();
     initAnimatedCounters();
     initEntranceAnimations();
+    initLineStatusLegend();
   });
 });
 
@@ -216,6 +228,37 @@ function initEntranceAnimations() {
 }
 
 // ========================================
+// Line Status Legend Bar (Top Nav Style)
+// ========================================
+function initLineStatusLegend() {
+  // Only run on contacts index page
+  if (!document.querySelector('body.admin_contacts.index')) return;
+
+  // Don't add twice
+  if (document.querySelector('.line-status-legend-bar')) return;
+
+  // Create the legend bar
+  var bar = document.createElement('div');
+  bar.className = 'line-status-legend-bar';
+  bar.innerHTML = [
+    '<span class="legend-label">Line Status:</span>',
+    '<div class="legend-items">',
+    '  <span class="legend-item"><span class="legend-dot ok"></span><span class="legend-text">Connected</span><span class="legend-desc">Active</span></span>',
+    '  <span class="legend-item"><span class="legend-dot error"></span><span class="legend-text">Disconnected</span><span class="legend-desc">Out of service</span></span>',
+    '  <span class="legend-item"><span class="legend-dot warning"></span><span class="legend-text">Pending</span><span class="legend-desc">Validating</span></span>',
+    '  <span class="legend-item"><span class="legend-dot warning"></span><span class="legend-text">Busy</span><span class="legend-desc">In use</span></span>',
+    '  <span class="legend-item"><span class="legend-dot warning"></span><span class="legend-text">Unreachable</span><span class="legend-desc">No carrier</span></span>',
+    '</div>'
+  ].join('');
+
+  // Insert after header
+  var header = document.getElementById('header');
+  if (header && header.nextSibling) {
+    header.parentNode.insertBefore(bar, header.nextSibling);
+  }
+}
+
+// ========================================
 // Keyboard Shortcuts
 // ========================================
 function initKeyboardShortcuts() {
@@ -247,14 +290,14 @@ function initKeyboardShortcuts() {
   });
 }
 
-// Add CSS for fade-in-visible
+// Add CSS for fade-in-visible and contact row updates
 const style = document.createElement('style');
 style.textContent = `
   .fade-in-visible {
     animation: fadeInUp 0.5s ease-out forwards !important;
     opacity: 1 !important;
   }
-  
+
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -263,6 +306,34 @@ style.textContent = `
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* Live contact row update animation */
+  .contact-updated {
+    animation: rowPulse 2s ease-out;
+  }
+
+  @keyframes rowPulse {
+    0% {
+      background-color: rgba(34, 197, 94, 0.4);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  /* Dark mode support for row pulse */
+  .dark .contact-updated {
+    animation: rowPulseDark 2s ease-out;
+  }
+
+  @keyframes rowPulseDark {
+    0% {
+      background-color: rgba(34, 197, 94, 0.3);
+    }
+    100% {
+      background-color: transparent;
     }
   }
 `;

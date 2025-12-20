@@ -26,9 +26,12 @@ class Contact < ApplicationRecord
 
   # Broadcast changes for real-time dashboard updates
   # Use throttled broadcasting to prevent overwhelming Redis during bulk operations
-  after_update_commit :broadcast_status_update, if: :saved_change_to_status?
+  after_update_commit :broadcast_refresh_throttled, unless: -> { Contact.skip_callbacks_for_bulk_import }
   after_create_commit :broadcast_refresh_throttled, unless: -> { Contact.skip_callbacks_for_bulk_import }
   after_destroy_commit :broadcast_refresh_throttled
+
+  # Broadcast individual contact updates for live table refresh
+  after_update_commit :broadcast_contact_update, unless: -> { Contact.skip_callbacks_for_bulk_import }
 
   # Status workflow: pending -> processing -> completed/failed
   STATUSES = %w[pending processing completed failed].freeze
@@ -63,6 +66,14 @@ class Contact < ApplicationRecord
   scope :failed, -> { where(status: 'failed') }
   scope :not_processed, -> { where(status: %w[pending failed]) }
 
+  # Line status scopes (Real Phone Validation)
+  scope :connected, -> { where(rpv_status: 'connected') }
+  scope :disconnected, -> { where(rpv_status: 'disconnected') }
+
+  # Porting status scopes (IceHook Scout)
+  scope :ported, -> { where(scout_ported: true) }
+  scope :not_ported, -> { where(scout_ported: false) }
+
   # Define searchable attributes for ActiveAdmin/Ransack
   def self.ransackable_attributes(_auth_object = nil)
     %w[carrier_name created_at device_type error_code
@@ -73,6 +84,8 @@ class Contact < ApplicationRecord
        caller_name caller_type sms_pumping_risk_score
        sms_pumping_risk_level sms_pumping_carrier_risk_category
        sms_pumping_number_blocked validation_errors
+       sim_swap_last_sim_swap_date sim_swap_swapped_period sim_swap_swapped_in_period
+       reassigned_number_is_reassigned reassigned_number_last_verified_date
        is_business business_name business_type business_category
        business_industry business_employee_count business_employee_range
        business_annual_revenue business_revenue_range business_city
@@ -88,7 +101,8 @@ class Contact < ApplicationRecord
        verizon_fios_available verizon_coverage_checked estimated_download_speed
        trust_hub_verified trust_hub_status trust_hub_business_sid trust_hub_enriched
        trust_hub_verification_score trust_hub_regulatory_status trust_hub_business_name
-       api_cost api_response_time_ms]
+       api_cost api_response_time_ms rpv_status rpv_error_text rpv_iscell rpv_cnam rpv_carrier
+       scout_ported scout_location_routing_number scout_operating_company_name scout_operating_company_type]
   end
 
   def self.ransackable_associations(_auth_object = nil)
@@ -111,6 +125,9 @@ class Contact < ApplicationRecord
     where(id: contact_ids).find_each do |contact|
       contact.update_fingerprints!
       contact.calculate_quality_score!
+    rescue StandardError => e
+      # Don't let individual failures stop the entire batch
+      ErrorTrackingService.capture(e, context: { contact_id: contact.id, action: 'recalculate_bulk_metrics' })
     end
   end
 
@@ -120,8 +137,9 @@ class Contact < ApplicationRecord
   end
 
   # Check if lookup should be retried
+  # A failed contact is retriable unless it has a permanent failure indication
   def retriable?
-    status == 'failed' && error_code.present? && !permanent_failure?
+    status == 'failed' && !permanent_failure?
   end
 
   # Mark as processing
@@ -140,17 +158,41 @@ class Contact < ApplicationRecord
     update!(status: 'failed', error_code: error_message)
   end
 
+  # Reset contact for fresh reprocessing
+  #
+  # ASSUMPTION CONTRACT (PHANTOM G1):
+  # ASSUMES: Contact is persisted, status is 'completed' or 'failed'
+  # GUARANTEES: Status becomes 'pending', lookup data cleared, returns boolean
+  #
+  # @return [Boolean] true if reset successful, false if cannot reset (e.g., processing)
+  # @raise [ActiveRecord::RecordInvalid] if validation fails
+  def reset_for_reprocessing!
+    # Guard: Don't interrupt active processing
+    return false if status == 'processing'
+
+    update!(
+      status: 'pending',
+      error_code: nil,
+      formatted_phone_number: nil,
+      phone_valid: nil,
+      lookup_performed_at: nil,
+      # Reset enrichment tracking
+      business_enriched: false,
+      email_enriched: false,
+      address_enriched: false,
+      verizon_coverage_checked: false,
+      trust_hub_enriched: false
+    )
+
+    true
+  end
+
   # Determine if failure is permanent (don't retry)
   def permanent_failure?
     return false if error_code.blank?
 
     # Permanent failures: invalid number format, not found, etc.
     error_code.match?(/invalid|not found|does not exist/i)
-  end
-
-  # Broadcast turbo stream updates for real-time dashboard
-  def broadcast_status_update
-    broadcast_refresh_throttled
   end
 
   def broadcast_refresh_throttled
@@ -172,6 +214,13 @@ class Contact < ApplicationRecord
   rescue StandardError => e
     # Don't let broadcast failures affect contact operations
     Rails.logger.warn("Dashboard broadcast failed: #{e.message}")
+  end
+
+  # Broadcast individual contact update for live table refresh
+  def broadcast_contact_update
+    ContactBroadcastJob.perform_later(id)
+  rescue StandardError => e
+    Rails.logger.warn("Contact broadcast failed for #{id}: #{e.message}")
   end
 
   # Cost Tracking Constants

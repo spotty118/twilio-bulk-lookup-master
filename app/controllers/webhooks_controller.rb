@@ -106,8 +106,15 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
-  # Generic webhook endpoint (for testing)
+  # Generic webhook endpoint (requires API key authentication)
+  # Usage: POST /webhooks/receive with Authorization: Bearer <api_token>
   def generic
+    # Verify API key authentication
+    unless authenticate_webhook_api_key
+      render json: { success: false, error: 'Unauthorized: Invalid or missing API key' }, status: :unauthorized
+      return
+    end
+
     webhook = Webhook.create(
       source: params[:source] || 'unknown',
       event_type: params[:event_type] || 'unknown',
@@ -131,12 +138,26 @@ class WebhooksController < ApplicationController
 
   private
 
+  # Authenticate generic webhook using API key from Authorization header
+  def authenticate_webhook_api_key
+    auth_header = request.headers['Authorization']
+    return false unless auth_header.present?
+
+    # Extract Bearer token
+    token = auth_header.split(' ').last
+    return false unless token.present?
+
+    # Validate against admin user API tokens
+    AdminUser.exists?(api_token: token)
+  end
+
   def verify_twilio_signature
     # Verify webhook is from Twilio using signature validation
-    credentials = TwilioCredential.current
-    return head :forbidden unless credentials
+    app_creds = defined?(AppConfig) ? AppConfig.twilio_credentials : nil
+    auth_token = app_creds&.dig(:auth_token) || TwilioCredential.current&.auth_token
+    return head :forbidden unless auth_token.present?
 
-    validator = Twilio::Security::RequestValidator.new(credentials.auth_token)
+    validator = Twilio::Security::RequestValidator.new(auth_token)
     signature = request.headers['HTTP_X_TWILIO_SIGNATURE']
     url = request.original_url
 

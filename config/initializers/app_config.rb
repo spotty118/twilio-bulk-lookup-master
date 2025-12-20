@@ -89,7 +89,7 @@ module AppConfig
       Rails.application.credentials.dig(:twilio)
     rescue ActiveSupport::EncryptedFile::MissingKeyError, ActiveSupport::MessageEncryptor::InvalidMessage
       nil
-    end).present? && twilio_creds[:account_sid].present?
+    end).present? && twilio_creds[:account_sid].present? && twilio_creds[:auth_token].present?
       {
         account_sid: twilio_creds[:account_sid],
         auth_token: twilio_creds[:auth_token],
@@ -101,7 +101,7 @@ module AppConfig
       rescue ActiveRecord::ActiveRecordError
         nil
       end
-      if cred
+      if cred&.account_sid.present? && cred&.auth_token.present?
         {
           account_sid: cred.account_sid,
           auth_token: cred.auth_token,
@@ -158,4 +158,3 @@ Rails.application.configure do
     Rails.logger.info "="*60
   end
 end
-

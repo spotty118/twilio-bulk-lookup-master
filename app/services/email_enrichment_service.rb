@@ -236,8 +236,9 @@ class EmailEnrichmentService
     # Use circuit breaker for Clearbit API
     result = CircuitBreakerService.call(:clearbit) do
       self.class.get(
-        "https://person.clearbit.com/v1/people/email/#{@contact.business_email_domain}",
+        'https://person.clearbit.com/v2/combined/find',
         query: {
+          email: "#{name_parts.first}@#{@contact.business_email_domain}",
           given_name: name_parts.first || '',
           family_name: name_parts.length > 1 ? name_parts.last : ''
         },

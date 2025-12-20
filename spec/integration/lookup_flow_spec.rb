@@ -36,7 +36,9 @@ RSpec.describe 'Complete lookup flow', type: :integration do
         'sms_pumping_risk_score' => 15,
         'carrier_risk_category' => 'low',
         'number_blocked' => false
-      }
+      },
+      sim_swap: nil,
+      reassigned_number: nil
     )
   end
 
@@ -112,14 +114,14 @@ RSpec.describe 'Complete lookup flow', type: :integration do
 
       contact = create(:contact, :pending, raw_phone_number: '+14155551234')
 
-      expect {
+      expect do
         LookupRequestJob.new.perform(contact.id)
-      }.to have_enqueued_job(EnrichmentCoordinatorJob).with(contact.id)
+      end.to have_enqueued_job(EnrichmentCoordinatorJob).with(contact.id)
     end
 
     it 'does not enqueue enrichment jobs when lookup fails' do
       # Setup mock that raises permanent error
-      error = twilio_error(code: 20404, message: 'Invalid number', status_code: 404)
+      error = twilio_error(code: 20_404, message: 'Invalid number', status_code: 404)
 
       mock_client = double('TwilioClient')
       mock_lookups = double('Lookups')
@@ -134,9 +136,9 @@ RSpec.describe 'Complete lookup flow', type: :integration do
 
       contact = create(:contact, :pending, raw_phone_number: '+14155551234')
 
-      expect {
+      expect do
         LookupRequestJob.new.perform(contact.id)
-      }.not_to have_enqueued_job(EnrichmentCoordinatorJob)
+      end.not_to have_enqueued_job(EnrichmentCoordinatorJob)
     end
 
     it 'enrichment coordinator runs all enabled enrichments' do
@@ -153,9 +155,10 @@ RSpec.describe 'Complete lookup flow', type: :integration do
       # Stub ParallelEnrichmentService before running the coordinator job
       mock_parallel_service = double('ParallelEnrichmentService')
       allow(mock_parallel_service).to receive(:enrich_with_retry).and_return({
-        business: { success: true, duration: 100 },
-        email: { success: true, duration: 150 }
-      })
+                                                                               business: { success: true,
+                                                                                           duration: 100 },
+                                                                               email: { success: true, duration: 150 }
+                                                                             })
 
       # Need to stub before the class is loaded
       allow_any_instance_of(EnrichmentCoordinatorJob).to receive(:perform) do |job, contact_id|
@@ -176,7 +179,7 @@ RSpec.describe 'Complete lookup flow', type: :integration do
 
     context 'when Twilio API returns invalid number error' do
       it 'marks contact as failed with error details' do
-        error = twilio_error(code: 20404, message: 'Invalid phone number', status_code: 404)
+        error = twilio_error(code: 20_404, message: 'Invalid phone number', status_code: 404)
 
         # Bypass circuit breaker to test direct error handling
         allow(CircuitBreakerService).to receive(:call).with(:twilio).and_raise(error)
@@ -192,7 +195,7 @@ RSpec.describe 'Complete lookup flow', type: :integration do
 
     context 'when Twilio API returns authentication error' do
       it 'marks contact as failed with authentication error' do
-        error = twilio_error(code: 20003, message: 'Authentication error', status_code: 401)
+        error = twilio_error(code: 20_003, message: 'Authentication error', status_code: 401)
 
         # Bypass circuit breaker to test direct error handling
         allow(CircuitBreakerService).to receive(:call).with(:twilio).and_raise(error)
@@ -208,16 +211,16 @@ RSpec.describe 'Complete lookup flow', type: :integration do
 
     context 'when Twilio API returns rate limit error' do
       it 'marks contact as failed and re-raises for retry' do
-        error = twilio_error(code: 20429, message: 'Rate limit exceeded', status_code: 429)
+        error = twilio_error(code: 20_429, message: 'Rate limit exceeded', status_code: 429)
 
         # Bypass circuit breaker to test direct error handling
         allow(CircuitBreakerService).to receive(:call).with(:twilio).and_raise(error)
 
         contact = create(:contact, :pending, raw_phone_number: '+14155551234')
 
-        expect {
+        expect do
           LookupRequestJob.new.perform(contact.id)
-        }.to raise_error(Twilio::REST::RestError)
+        end.to raise_error(Twilio::REST::RestError)
 
         contact.reload
         expect(contact.status).to eq('failed')

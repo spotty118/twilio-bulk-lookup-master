@@ -3,8 +3,7 @@
 # DashboardStats - Read-only model for accessing the dashboard_stats materialized view
 #
 # This model provides fast access to pre-aggregated dashboard statistics.
-# The underlying materialized view is automatically refreshed by database triggers
-# whenever contacts are created, updated, or deleted.
+# The underlying materialized view is refreshed asynchronously after contact changes.
 #
 # Usage:
 #   stats = DashboardStats.current
@@ -27,10 +26,14 @@ class DashboardStats < ApplicationRecord
     first || new(total_contacts: 0)
   end
 
-  # Manually refresh the materialized view (usually not needed due to auto-refresh)
-  # Use this if you need to force a refresh outside of normal triggers
+  # Manually refresh the materialized view.
+  # Uses a non-concurrent refresh if already inside a transaction.
   def self.refresh!
-    connection.execute('REFRESH MATERIALIZED VIEW CONCURRENTLY dashboard_stats;')
+    if connection.open_transactions.positive?
+      connection.execute('REFRESH MATERIALIZED VIEW dashboard_stats;')
+    else
+      connection.execute('REFRESH MATERIALIZED VIEW CONCURRENTLY dashboard_stats;')
+    end
   end
 
   # Get stats as a hash for easier use in controllers/views

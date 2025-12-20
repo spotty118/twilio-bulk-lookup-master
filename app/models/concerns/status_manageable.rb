@@ -72,7 +72,8 @@ module StatusManageable
     when 'processing'
       %w[completed failed].include?(new_status)
     when 'completed'
-      false # Terminal state
+      # Normally terminal, but allow transition to pending for reprocessing
+      new_status == 'pending'
     when 'failed'
       %w[pending processing].include?(new_status) # Allow retry
     else

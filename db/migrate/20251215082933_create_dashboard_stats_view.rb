@@ -78,40 +78,13 @@ class CreateDashboardStatsView < ActiveRecord::Migration[7.2]
       CREATE UNIQUE INDEX dashboard_stats_updated_at_idx ON dashboard_stats (updated_at);
     SQL
 
-    # Create function to refresh the materialized view
-    execute <<-SQL
-      CREATE OR REPLACE FUNCTION refresh_dashboard_stats()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        -- Refresh the materialized view concurrently (non-blocking)
-        -- This allows reads to continue while refreshing
-        REFRESH MATERIALIZED VIEW CONCURRENTLY dashboard_stats;
-        RETURN NULL;
-      END;
-      $$ LANGUAGE plpgsql;
-    SQL
-
-    # Create trigger to auto-refresh on contact changes
-    # Note: This refreshes on statement-level, not row-level
-    # For bulk operations, only one refresh happens per transaction
-    execute <<-SQL
-      CREATE TRIGGER trigger_dashboard_stats_refresh
-      AFTER INSERT OR UPDATE OR DELETE ON contacts
-      FOR EACH STATEMENT
-      EXECUTE FUNCTION refresh_dashboard_stats();
-    SQL
+    # Refresh is handled asynchronously after commits to avoid running inside write transactions.
 
     # Initial refresh
     execute 'REFRESH MATERIALIZED VIEW dashboard_stats;'
   end
 
   def down
-    # Drop trigger first
-    execute 'DROP TRIGGER IF EXISTS trigger_dashboard_stats_refresh ON contacts;'
-
-    # Drop function
-    execute 'DROP FUNCTION IF EXISTS refresh_dashboard_stats();'
-
     # Drop materialized view
     execute 'DROP MATERIALIZED VIEW IF EXISTS dashboard_stats;'
   end

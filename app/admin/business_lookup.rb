@@ -1,5 +1,5 @@
 ActiveAdmin.register_page "Business Lookup" do
-  menu priority: 3, label: "🔍 Business Lookup"
+  menu priority: 3, label: "Business Lookup"
 
   content title: "Business Lookup by Zipcode" do
     # Check if feature is enabled

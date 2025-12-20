@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -45,6 +45,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
       PIDFILE: /app/tmp/pids/server.pid
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: 2UrXQiOG7wXmsBD49BzWuSVHXAZAEvW9
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: 9HiSNJvv3Kmf6a24iRdLK2iCtuwzhg7w
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: OIucxo7FSc3fCWmyWGL9qQpXztKW6VkS
     depends_on:
       db:
         condition: service_healthy
@@ -61,6 +64,9 @@ services:
       DATABASE_URL: postgres://postgres:password@db:5432/bulk_lookup_development
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: 2UrXQiOG7wXmsBD49BzWuSVHXAZAEvW9
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: 9HiSNJvv3Kmf6a24iRdLK2iCtuwzhg7w
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: OIucxo7FSc3fCWmyWGL9qQpXztKW6VkS
     depends_on:
       db:
         condition: service_healthy

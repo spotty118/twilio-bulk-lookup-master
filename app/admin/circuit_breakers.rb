@@ -3,9 +3,7 @@
 ActiveAdmin.register_page 'Circuit Breakers' do
   menu parent: 'System', priority: 2, label: 'Circuit Breakers'
 
-  content title: 'Circuit Break
-
-er Dashboard' do
+  content title: 'Circuit Breaker Dashboard' do
     panel 'Circuit Breaker Status - External API Protection' do
       para 'Real-time monitoring of circuit breaker states for all external APIs. ' \
            'Circuit breakers prevent cascade failures by temporarily disabling failing services.'
@@ -63,23 +61,24 @@ er Dashboard' do
         column 'State' do |item|
           _, data = item
           state = data[:state]
-          color = data[:color]
+          _color = data[:color]
 
           case state
           when :closed
-            status_tag 'CLOSED', :ok, label: '✅ Closed (Healthy)'
+            status_tag '✅ Closed (Healthy)', class: 'ok'
           when :half_open
-            status_tag 'HALF-OPEN', :warning, label: '⚠️ Half-Open (Testing)'
+            status_tag '⚠️ Half-Open (Testing)', class: 'warning'
           when :open
-            status_tag 'OPEN', :error, label: '❌ Open (Failing)'
+            status_tag '❌ Open (Failing)', class: 'error'
           else
-            status_tag 'UNKNOWN', :default
+            status_tag 'UNKNOWN', class: 'default'
           end
         end
 
         column 'Failures' do |item|
           _, data = item
-          failures = data[:failures] || 0
+          failures_data = data[:failures] || []
+          failures = failures_data.is_a?(Array) ? failures_data.size : failures_data.to_i
           threshold = data[:threshold]
 
           if failures.zero?
@@ -101,10 +100,10 @@ er Dashboard' do
         end
 
         column 'Actions' do |item|
-          service_name, data = item
+          service_name, _data = item
 
           link_to 'Reset Circuit',
-                  reset_circuit_breaker_path(service: service_name),
+                  admin_circuit_breakers_reset_circuit_breaker_path(service: service_name),
                   method: :post,
                   class: 'button',
                   data: { confirm: "Reset circuit breaker for #{service_name}?" }

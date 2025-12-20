@@ -432,6 +432,9 @@ RSpec.describe WebhooksController, type: :controller do
   end
 
   describe 'POST #generic' do
+    let(:api_token) { SecureRandom.hex(32) }
+    let!(:admin_user) { AdminUser.create!(email: 'admin@test.com', password: 'password123', api_token: api_token) }
+
     let(:valid_params) do
       {
         source: 'custom_source',
@@ -439,6 +442,10 @@ RSpec.describe WebhooksController, type: :controller do
         external_id: 'EXT123',
         data: { key: 'value' }
       }
+    end
+
+    before do
+      request.headers['Authorization'] = "Bearer #{api_token}"
     end
 
     it 'creates generic webhook and returns success JSON' do

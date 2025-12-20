@@ -2,613 +2,164 @@ ActiveAdmin.register_page 'Dashboard' do
   menu priority: 1, label: proc { I18n.t('active_admin.dashboard') }
 
   content title: proc { I18n.t('active_admin.dashboard') } do
-    # Subscribe to turbo stream updates
-    div id: 'turbo-stream-target' do
-      turbo_stream_from 'dashboard_stats'
-    end
+    # Core stats (materialized view)
+    stats = DashboardStats.current
+    total_count = stats.total_contacts.to_i
+    pending_count = stats.pending_count.to_i
+    processing_count = stats.processing_count.to_i
+    completed_count = stats.completed_count.to_i
+    failed_count = stats.failed_count.to_i
 
-    # Render stats partial
-    render partial: 'admin/dashboard/stats'
+    # Device type stats
+    mobile_count = stats.mobile_count.to_i
+    landline_count = stats.landline_count.to_i
+    voip_count = stats.voip_count.to_i
 
-    # Recalculate stats for use in remaining sections
-    total_count = Contact.count
-    pending_count = Contact.pending.count
-    processing_count = Contact.processing.count
-    completed_count = Contact.completed.count
-    failed_count = Contact.failed.count
-    completion_percentage = total_count > 0 ? (completed_count.to_f / total_count * 100).round(1) : 0
+    # Top carriers
+    top_carriers = Contact.where.not(carrier_name: [nil, '']).group(:carrier_name).order('count_all DESC').limit(5).count
+
+    # High risk count (for breakdown panel)
+    high_risk = stats.high_risk_count.to_i
+
+    # Daily lookups (last 7 days)
+    daily_lookups = (0..6).map do |days_ago|
+      date = days_ago.days.ago.to_date
+      count = Contact.where(lookup_performed_at: date.beginning_of_day..date.end_of_day).count
+      { date: date.strftime('%b %d'), count: count }
+    end.reverse
+
+    # Business vs Consumer
+    business_count = stats.business_count.to_i
+    consumer_count = [total_count - business_count, 0].max
+
+    # Chart.js CDN
+    script src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
 
     # ========================================
-    # Processing Controls & Quick Actions
+    # Stats Overview (materialized view + live updates)
     # ========================================
-    columns do
-      column do
-        panel '🚀 Bulk Lookup Controls' do
-          if pending_count + failed_count > 0
-            button_to "▶ Start Processing (#{pending_count + failed_count} contacts)",
-                      '/lookup',
-                      method: :get,
-                      class: 'button primary',
-                      style: 'font-size: 16px; padding: 15px 30px; margin-bottom: 15px; width: 100%;'
-            para 'Processes all pending and failed contacts in the background.', style: 'color: #6c757d;'
-          else
-            para '✅ All contacts have been processed!',
-                 style: 'color: #11998e; font-weight: bold; font-size: 16px; text-align: center; padding: 20px;'
-          end
+    render partial: 'admin/dashboard/stats', locals: { stats: stats }
 
-          div style: 'display: flex; gap: 10px; margin-top: 15px;' do
-            link_to '📊 Monitor Jobs', '/sidekiq', target: '_blank', class: 'button', style: 'flex: 1;'
-            link_to '📞 View Contacts', admin_contacts_path, class: 'button', style: 'flex: 1;'
-            link_to '⚙️ Settings', admin_twilio_credentials_path, class: 'button', style: 'flex: 1;'
-          end
-        end
-
-        panel '💰 Cost Efficiency & ROI' do
-          total_cost = Contact.completed.where.not(api_cost: nil).sum(:api_cost) || 0.0
-          count = Contact.completed.count
-          avg_cost = count > 0 ? (total_cost / count) : 0.0
-
-          attributes_table_for nil do
-            row('Total API Cost') { number_to_currency(total_cost) }
-            row('Avg Cost / Contact') { number_to_currency(avg_cost, precision: 4) }
-
-            # ROI Estimate (Simulated: assuming $0.50 value per verified business lead)
-            business_count = Contact.businesses.count
-            value_generated = business_count * 0.50
-            roi = total_cost > 0 ? ((value_generated - total_cost) / total_cost * 100) : 0
-
-            row('Est. Value Generated') do
-              span number_to_currency(value_generated), style: 'color: #11998e; font-weight: bold;'
-            end
-
-            row('ROI Estimate') do
-              if roi > 0
-                status_tag "+#{roi.round(0)}%", class: 'completed'
-              else
-                status_tag 'Calculating...', class: 'pending'
-              end
-            end
-          end
+    # ========================================
+    # Charts Row - Two columns
+    # ========================================
+    div style: 'display: flex; gap: 20px; margin-bottom: 30px;' do
+      # Status Distribution
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Status Distribution', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'height: 250px; position: relative;' do
+          canvas id: 'statusChart'
         end
       end
 
-      column do
-        panel '📈 Processing Summary' do
-          attributes_table_for nil do
-            row('Status') do
-              if processing_count > 0
-                status_tag "Processing #{processing_count} contacts...", class: 'processing'
-              elsif pending_count > 0
-                status_tag "#{pending_count} contacts waiting", class: 'pending'
-              elsif failed_count > 0
-                status_tag "#{failed_count} failures need attention", class: 'failed'
-              else
-                status_tag 'All complete', class: 'completed'
-              end
-            end
-
-            row('Completion') { "#{completion_percentage}% (#{completed_count} of #{total_count})" }
-
-            if failed_count > 0
-              row('Failed') do
-                link_to "⚠️ View #{failed_count} Failed Contacts",
-                        admin_contacts_path(q: { status_eq: 'failed' }),
-                        style: 'color: #dc3545; font-weight: bold;'
-              end
-            end
-
-            if total_count > 0
-              avg_time = Contact.where.not(lookup_performed_at: nil)
-                                .average('EXTRACT(EPOCH FROM (lookup_performed_at - created_at))')
-              row('Avg Processing Time') { "#{avg_time.round(1)} seconds" } if avg_time
-            end
-          end
+      # Device Types
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Device Types', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'height: 250px; position: relative;' do
+          canvas id: 'deviceChart'
         end
       end
     end
 
     # ========================================
-    # Fraud Analytics
+    # Second Chart Row - Two columns
     # ========================================
-    columns do
-      column do
-        panel '🛡️ SMS Pumping Fraud Detection' do
-          high_risk_count = Contact.high_risk.count
-          medium_risk_count = Contact.medium_risk.count
-          low_risk_count = Contact.low_risk.count
-          blocked_count = Contact.blocked_numbers.count
-          total_assessed = high_risk_count + medium_risk_count + low_risk_count
-
-          if total_assessed > 0
-            attributes_table_for nil do
-              row('High Risk Numbers') do
-                if high_risk_count > 0
-                  link_to "🚨 #{high_risk_count} numbers",
-                          admin_contacts_path(scope: 'high_risk'),
-                          style: 'color: #dc3545; font-weight: bold; font-size: 16px;'
-                else
-                  status_tag '0 numbers', class: 'ok'
-                end
-              end
-
-              row('Medium Risk Numbers') do
-                if medium_risk_count > 0
-                  link_to "⚠️ #{medium_risk_count} numbers",
-                          admin_contacts_path(scope: 'medium_risk'),
-                          style: 'color: #f39c12; font-weight: bold;'
-                else
-                  status_tag '0 numbers', class: 'ok'
-                end
-              end
-
-              row('Low Risk Numbers') do
-                link_to "✅ #{low_risk_count} numbers",
-                        admin_contacts_path(scope: 'low_risk'),
-                        style: 'color: #11998e;'
-              end
-
-              row('Blocked Numbers') do
-                if blocked_count > 0
-                  link_to "🚫 #{blocked_count} blocked",
-                          admin_contacts_path(scope: 'blocked_numbers'),
-                          style: 'color: #721c24; font-weight: bold; font-size: 16px;'
-                else
-                  status_tag 'None blocked', class: 'ok'
-                end
-              end
-
-              row('Risk Distribution') do
-                high_pct = (high_risk_count.to_f / total_assessed * 100).round(1)
-                medium_pct = (medium_risk_count.to_f / total_assessed * 100).round(1)
-                low_pct = (low_risk_count.to_f / total_assessed * 100).round(1)
-
-                div style: 'margin-top: 10px;' do
-                  div style: 'display: flex; gap: 15px; margin-bottom: 5px;' do
-                    span "High: #{high_pct}%", style: 'color: #dc3545;'
-                    span "Medium: #{medium_pct}%", style: 'color: #f39c12;'
-                    span "Low: #{low_pct}%", style: 'color: #11998e;'
-                  end
-
-                  div class: 'progress-bar',
-                      style: 'height: 25px; display: flex; border-radius: 4px; overflow: hidden;' do
-                    if high_pct > 0
-                      div style: "width: #{high_pct}%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                        "#{high_pct}%" if high_pct > 10
-                      end
-                    end
-                    if medium_pct > 0
-                      div style: "width: #{medium_pct}%; background: #f39c12; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                        "#{medium_pct}%" if medium_pct > 10
-                      end
-                    end
-                    if low_pct > 0
-                      div style: "width: #{low_pct}%; background: #11998e; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                        "#{low_pct}%" if low_pct > 10
-                      end
-                    end
-                  end
-                end
-              end
-            end
-          else
-            para 'No fraud risk data available yet. Process contacts with SMS Pumping Risk detection enabled.',
-                 style: 'color: #6c757d; text-align: center; padding: 30px;'
-          end
+    div style: 'display: flex; gap: 20px; margin-bottom: 30px;' do
+      # Top Carriers
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Top Carriers', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'height: 250px; position: relative;' do
+          canvas id: 'carrierChart'
         end
       end
 
-      column do
-        panel '📊 Line Type Distribution' do
-          mobile_count = Contact.mobile.count
-          landline_count = Contact.landline.count
-          voip_count = Contact.voip.count
-          total_typed = mobile_count + landline_count + voip_count
-
-          if total_typed > 0
-            attributes_table_for nil do
-              row('Mobile') do
-                pct = (mobile_count.to_f / total_typed * 100).round(1)
-                "📱 #{mobile_count} (#{pct}%)"
-              end
-
-              row('Landline') do
-                pct = (landline_count.to_f / total_typed * 100).round(1)
-                "☎️ #{landline_count} (#{pct}%)"
-              end
-
-              row('VoIP') do
-                pct = (voip_count.to_f / total_typed * 100).round(1)
-                "💻 #{voip_count} (#{pct}%)"
-              end
-            end
-
-            div style: 'margin-top: 15px;' do
-              mobile_pct = (mobile_count.to_f / total_typed * 100).round(1)
-              landline_pct = (landline_count.to_f / total_typed * 100).round(1)
-              voip_pct = (voip_count.to_f / total_typed * 100).round(1)
-
-              div class: 'progress-bar', style: 'height: 25px; display: flex; border-radius: 4px; overflow: hidden;' do
-                if mobile_pct > 0
-                  div style: "width: #{mobile_pct}%; background: #667eea; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                    "Mobile #{mobile_pct}%" if mobile_pct > 15
-                  end
-                end
-                if landline_pct > 0
-                  div style: "width: #{landline_pct}%; background: #11998e; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                    "Landline #{landline_pct}%" if landline_pct > 15
-                  end
-                end
-                if voip_pct > 0
-                  div style: "width: #{voip_pct}%; background: #f093fb; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;" do
-                    "VoIP #{voip_pct}%" if voip_pct > 15
-                  end
-                end
-              end
-            end
-          else
-            para 'No line type data available. Enable Line Type Intelligence in lookups.',
-                 style: 'color: #6c757d; text-align: center; padding: 30px;'
-          end
+      # Lookups Over Time
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Lookups - Last 7 Days', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'height: 250px; position: relative;' do
+          canvas id: 'dailyChart'
         end
       end
     end
 
     # ========================================
-    # Business Intelligence Analytics
+    # Bottom Section - Actions and Status
     # ========================================
-    columns do
-      column do
-        panel '🏢 Business Intelligence Overview' do
-          total_businesses = Contact.businesses.count
-          total_consumers = Contact.consumers.count
-          enriched_count = Contact.business_enriched.count
-          needs_enrichment_count = Contact.needs_enrichment.count
-
-          if total_businesses > 0
-            attributes_table_for nil do
-              row('Total Businesses') do
-                link_to "#{total_businesses} business contacts",
-                        admin_contacts_path(scope: 'businesses'),
-                        style: 'font-weight: bold; font-size: 16px; color: #667eea;'
-              end
-
-              row('Consumers') do
-                link_to "#{total_consumers} consumer contacts",
-                        admin_contacts_path(scope: 'consumers'),
-                        style: 'color: #6c757d;'
-              end
-
-              row('Enriched') do
-                if enriched_count > 0
-                  enrichment_pct = (enriched_count.to_f / total_businesses * 100).round(1)
-                  link_to "✅ #{enriched_count} enriched (#{enrichment_pct}%)",
-                          admin_contacts_path(scope: 'business_enriched'),
-                          style: 'color: #11998e; font-weight: bold;'
-                else
-                  status_tag 'No businesses enriched yet', class: 'warning'
-                end
-              end
-
-              row('Needs Enrichment') do
-                if needs_enrichment_count > 0
-                  link_to "⏳ #{needs_enrichment_count} pending enrichment",
-                          admin_contacts_path(scope: 'needs_enrichment'),
-                          style: 'color: #f39c12; font-weight: bold;'
-                else
-                  status_tag 'All enriched', class: 'ok'
-                end
-              end
-            end
-
-            # Enrichment progress bar
-            if total_businesses > 0
-              enrichment_pct = (enriched_count.to_f / total_businesses * 100).round(1)
-              div style: 'margin-top: 15px;' do
-                para 'Enrichment Progress:', style: 'margin-bottom: 5px; font-weight: bold;'
-                div class: 'progress-bar', style: 'height: 25px; background: #e9ecef;' do
-                  div style: "width: #{enrichment_pct}%; background: #11998e; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;" do
-                    "#{enrichment_pct}%"
-                  end
-                end
-              end
-            end
-          else
-            para 'No business contacts identified yet. Process contacts with Caller Name (CNAM) enabled.',
-                 style: 'color: #6c757d; text-align: center; padding: 30px;'
+    div style: 'display: flex; gap: 20px; margin-bottom: 30px;' do
+      # Actions Panel
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Actions', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        if pending_count + failed_count > 0
+          div style: 'margin-bottom: 12px;' do
+            link_to "Process #{pending_count + failed_count} Contacts", '/lookup',
+                    style: 'display: block; width: 100%; padding: 12px; background: #2563eb; color: #fff; text-align: center; border-radius: 6px; text-decoration: none; font-weight: 500;'
           end
+        else
+          div 'All contacts processed', style: 'text-align: center; padding: 12px; color: #059669; font-weight: 500;'
+        end
+        div style: 'display: flex; gap: 10px;' do
+          link_to 'View Contacts', admin_contacts_path,
+                  style: 'flex: 1; padding: 10px; background: #f3f4f6; color: #374151; text-align: center; border-radius: 6px; text-decoration: none;'
+          link_to 'Monitor Jobs', '/sidekiq', target: '_blank',
+                  style: 'flex: 1; padding: 10px; background: #f3f4f6; color: #374151; text-align: center; border-radius: 6px; text-decoration: none;'
         end
       end
 
-      column do
-        panel '📊 Top Industries' do
-          industry_stats = Contact.businesses
-                                  .where.not(business_industry: nil)
-                                  .group(:business_industry)
-                                  .count
-                                  .sort_by { |_, count| -count }
-                                  .take(8)
-
-          if industry_stats.any?
-            total_with_industry = industry_stats.sum { |_, count| count }
-
-            table_for industry_stats do
-              column('Industry') { |industry, _count| industry }
-              column('Companies') { |_industry, count| count }
-              column('Percentage') do |_industry, count|
-                percentage = (count.to_f / total_with_industry * 100).round(1)
-                "#{percentage}%"
-              end
-              column('Visual') do |_industry, count|
-                percentage = (count.to_f / total_with_industry * 100).round(1)
-                div class: 'progress-bar', style: 'height: 20px; margin: 0; background: #e9ecef;' do
-                  div style: "width: #{percentage}%; background: #667eea; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;" do
-                    "#{percentage}%" if percentage > 15
-                  end
-                end
-              end
-            end
-          else
-            para 'No industry data available. Enable business enrichment to see industry breakdown.',
-                 style: 'color: #6c757d; text-align: center; padding: 30px;'
-          end
-        end
-      end
-    end
-
-    columns do
-      column do
-        panel '🏭 Company Size Distribution' do
-          size_stats = Contact.businesses
-                              .where.not(business_employee_range: nil)
-                              .group(:business_employee_range)
-                              .count
-
-          if size_stats.any?
-            # Order by size
-            size_order = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10000+']
-            ordered_stats = size_order.map { |size| [size, size_stats[size] || 0] }.select { |_, count| count > 0 }
-            total_with_size = ordered_stats.sum { |_, count| count }
-
-            table_for ordered_stats do
-              column('Company Size') do |size, _count|
-                case size
-                when '1-10' then 'Micro (1-10)'
-                when '11-50' then 'Small (11-50)'
-                when '51-200' then 'Medium (51-200)'
-                when '201-500', '501-1000' then "Large (#{size})"
-                else "Enterprise (#{size})"
-                end
-              end
-              column('Count') { |_size, count| count }
-              column('Percentage') do |_size, count|
-                percentage = (count.to_f / total_with_size * 100).round(1)
-                "#{percentage}%"
-              end
-            end
-          else
-            para 'No company size data available.', style: 'color: #6c757d; text-align: center; padding: 30px;'
-          end
-        end
-      end
-
-      column do
-        panel '💰 Revenue Distribution' do
-          revenue_stats = Contact.businesses
-                                 .where.not(business_revenue_range: nil)
-                                 .group(:business_revenue_range)
-                                 .count
-
-          if revenue_stats.any?
-            # Order by revenue
-            revenue_order = ['$0-$1M', '$1M-$10M', '$10M-$50M', '$50M-$100M', '$100M-$500M', '$500M-$1B', '$1B+']
-            ordered_stats = revenue_order.map do |range|
-              [range, revenue_stats[range] || 0]
-            end.select { |_, count| count > 0 }
-            total_with_revenue = ordered_stats.sum { |_, count| count }
-
-            table_for ordered_stats do
-              column('Revenue Range') { |range, _count| range }
-              column('Count') { |_range, count| count }
-              column('Percentage') do |_range, count|
-                percentage = (count.to_f / total_with_revenue * 100).round(1)
-                "#{percentage}%"
-              end
-            end
-          else
-            para 'No revenue data available.', style: 'color: #6c757d; text-align: center; padding: 30px;'
-          end
-        end
-      end
-    end
-
-    # ========================================
-    # Interactive Charts
-    # ========================================
-    columns do
-      column do
-        panel '📊 Status Distribution Over Time' do
-          # Prepare data for line chart (last 7 days)
-          days_ago = 7.days.ago.to_date
-          date_range = (days_ago..Date.today).to_a
-
-          chart_data = {
-            labels: date_range.map { |d| d.strftime('%b %d') },
-            datasets: [
-              {
-                label: 'Completed',
-                data: date_range.map { |d| Contact.completed.where('DATE(lookup_performed_at) = ?', d).count },
-                borderColor: '#11998e',
-                backgroundColor: 'rgba(17, 153, 142, 0.1)',
-                tension: 0.4
-              },
-              {
-                label: 'Failed',
-                data: date_range.map { |d| Contact.failed.where('DATE(lookup_performed_at) = ?', d).count },
-                borderColor: '#eb3349',
-                backgroundColor: 'rgba(235, 51, 73, 0.1)',
-                tension: 0.4
-              }
-            ]
-          }
-
-          div do
-            canvas id: 'status-timeline-chart', style: 'max-height: 300px;'
-          end
-
-          script type: 'text/javascript' do
-            raw <<-JAVASCRIPT
-              (function() {
-                if (typeof Chart === 'undefined') {
-                  var script = document.createElement('script');
-                  script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-                  script.onload = function() { initStatusChart(); };
-                  document.head.appendChild(script);
-                } else {
-                  initStatusChart();
-                }
-              #{'  '}
-                function initStatusChart() {
-                  var ctx = document.getElementById('status-timeline-chart');
-                  if (ctx && !ctx.chart) {
-                    ctx.chart = new Chart(ctx, {
-                      type: 'line',
-                      data: #{chart_data.to_json},
-                      options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { display: true, position: 'top' },
-                          title: { display: false }
-                        },
-                        scales: {
-                          y: { beginAtZero: true, ticks: { precision: 0 } }
-                        }
-                      }
-                    });
-                  }
-                }
-              })();
-            JAVASCRIPT
-          end
-        end
-      end
-
-      column do
-        panel '📱 Device Type Breakdown' do
-          # Prepare data for pie chart
-          device_data = Contact.completed.group(:device_type).count
-
-          if device_data.any?
-            chart_data = {
-              labels: device_data.keys.map { |k| k || 'Unknown' },
-              datasets: [{
-                data: device_data.values,
-                backgroundColor: ['#667eea', '#11998e', '#f093fb', '#5E6BFF', '#eb3349'],
-                borderWidth: 2,
-                borderColor: '#ffffff'
-              }]
-            }
-
-            div do
-              canvas id: 'device-type-chart', style: 'max-height: 300px;'
-            end
-
-            script type: 'text/javascript' do
-              raw <<-JAVASCRIPT
-                (function() {
-                  if (typeof Chart === 'undefined') {
-                    var script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-                    script.onload = function() { initDeviceChart(); };
-                    document.head.appendChild(script);
-                  } else {
-                    initDeviceChart();
-                  }
-                #{'  '}
-                  function initDeviceChart() {
-                    var ctx = document.getElementById('device-type-chart');
-                    if (ctx && !ctx.chart) {
-                      ctx.chart = new Chart(ctx, {
-                        type: 'pie',
-                        data: #{chart_data.to_json},
-                        options: {
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: { display: true, position: 'right' }
-                          }
-                        }
-                      });
-                    }
-                  }
-                })();
-              JAVASCRIPT
-            end
-          else
-            para 'No device type data available yet. Process contacts to see breakdown.',
-                 style: 'color: #6c757d; text-align: center; padding: 40px;'
-          end
-        end
-      end
-    end
-
-    # ========================================
-    # Device Type Breakdown
-    # ========================================
-    if completed_count > 0
-      columns do
-        column do
-          panel '📱 Device Type Distribution' do
-            device_stats = Contact.completed
-                                  .group(:device_type)
-                                  .count
-                                  .sort_by { |_, count| -count }
-
-            if device_stats.any?
-              table_for device_stats do
-                column('Device Type') do |device_type, _count|
-                  status_tag device_type || 'Unknown', class: device_type
-                end
-                column('Count') { |_device_type, count| count }
-                column('Percentage') do |_device_type, count|
-                  percentage = (count.to_f / completed_count * 100).round(1)
-                  "#{percentage}%"
-                end
-                column('Visual') do |_device_type, count|
-                  percentage = (count.to_f / completed_count * 100).round(1)
-                  div class: 'progress-bar', style: 'height: 20px; margin: 0;' do
-                    div class: 'progress-fill', style: "width: #{percentage}%; font-size: 11px;" do
-                      "#{percentage}%"
-                    end
-                  end
-                end
-              end
+      # System Status Panel
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'System Status', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'display: flex; flex-direction: column; gap: 12px;' do
+          # Current Status
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'Current', style: 'color: #6b7280;'
+            if processing_count > 0
+              span "Processing #{processing_count}", style: 'background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 4px; font-size: 13px;'
+            elsif pending_count > 0
+              span "#{pending_count} waiting", style: 'background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 4px; font-size: 13px;'
             else
-              para 'No device type data available yet.', class: 'blank_slate'
+              span 'Idle', style: 'background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 4px; font-size: 13px;'
+            end
+          end
+          # Queue
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'Queue', style: 'color: #6b7280;'
+            jobs = begin
+              Sidekiq::Stats.new.enqueued
+            rescue StandardError
+              0
+            end
+            span "#{jobs} jobs", style: 'color: #374151;'
+          end
+          # Twilio
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'Twilio', style: 'color: #6b7280;'
+            if TwilioCredential.current.present?
+              span 'Connected', style: 'background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 4px; font-size: 13px;'
+            else
+              span 'Not configured', style: 'background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 4px; font-size: 13px;'
             end
           end
         end
+      end
 
-        column do
-          panel '🏢 Top Carriers' do
-            carrier_stats = Contact.completed
-                                   .where.not(carrier_name: nil)
-                                   .group(:carrier_name)
-                                   .count
-                                   .sort_by { |_, count| -count }
-                                   .take(10)
-
-            if carrier_stats.any?
-              table_for carrier_stats do
-                column('Carrier') { |carrier, _count| carrier }
-                column('Count') { |_carrier, count| count }
-                column('Percentage') do |_carrier, count|
-                  percentage = (count.to_f / completed_count * 100).round(1)
-                  "#{percentage}%"
-                end
-              end
+      # Contact Breakdown Panel
+      div style: 'flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Contact Breakdown', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        div style: 'display: flex; flex-direction: column; gap: 12px;' do
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'Businesses', style: 'color: #6b7280;'
+            span business_count.to_s, style: 'font-weight: 600; color: #374151;'
+          end
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'Consumers', style: 'color: #6b7280;'
+            span consumer_count.to_s, style: 'font-weight: 600; color: #374151;'
+          end
+          div style: 'display: flex; justify-content: space-between; align-items: center;' do
+            span 'High Risk', style: 'color: #6b7280;'
+            if high_risk > 0
+              span high_risk.to_s, style: 'background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 600;'
             else
-              para 'No carrier data available yet.', class: 'blank_slate'
+              span '0', style: 'font-weight: 600; color: #374151;'
             end
           end
         end
@@ -618,97 +169,206 @@ ActiveAdmin.register_page 'Dashboard' do
     # ========================================
     # Recent Activity
     # ========================================
-    columns do
-      column do
-        panel '✅ Recent Successful Lookups (Last 10)' do
-          recent_success = Contact.completed.order(lookup_performed_at: :desc).limit(10)
-
-          if recent_success.any?
-            table_for recent_success do
-              column('Phone') { |contact| contact.formatted_phone_number || contact.raw_phone_number }
-              column('Carrier') { |contact| contact.carrier_name }
-              column('Type') do |contact|
-                status_tag contact.device_type if contact.device_type
-              end
-              column('Completed') { |contact| contact.lookup_performed_at&.strftime('%b %d, %H:%M') }
+    recent = Contact.completed.order(lookup_performed_at: :desc).limit(5)
+    if recent.any?
+      div style: 'background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' do
+        div 'Recent Lookups', style: 'font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px;'
+        table style: 'width: 100%; border-collapse: collapse;' do
+          thead do
+            tr style: 'border-bottom: 1px solid #e5e7eb;' do
+              th 'Phone', style: 'text-align: left; padding: 10px 8px; font-weight: 500; color: #6b7280;'
+              th 'Carrier', style: 'text-align: left; padding: 10px 8px; font-weight: 500; color: #6b7280;'
+              th 'Type', style: 'text-align: left; padding: 10px 8px; font-weight: 500; color: #6b7280;'
+              th 'Risk', style: 'text-align: left; padding: 10px 8px; font-weight: 500; color: #6b7280;'
+              th 'Time', style: 'text-align: left; padding: 10px 8px; font-weight: 500; color: #6b7280;'
             end
-          else
-            para "No completed lookups yet. Click 'Start Processing' to begin.", class: 'blank_slate'
           end
-        end
-      end
-
-      column do
-        panel '❌ Recent Failures (Last 10)' do
-          recent_failures = Contact.failed.order(updated_at: :desc).limit(10)
-
-          if recent_failures.any?
-            table_for recent_failures do
-              column('Phone') { |contact| contact.raw_phone_number }
-              column('Error') { |contact| truncate(contact.error_code, length: 40) }
-              column('Failed') { |contact| contact.lookup_performed_at&.strftime('%b %d, %H:%M') }
-              column('Actions') do |contact|
-                if contact.retriable?
-                  link_to 'Retry', retry_admin_contact_path(contact), method: :post, class: 'button'
-                else
-                  span 'Permanent', style: 'color: #dc3545;'
+          tbody do
+            recent.each do |c|
+              tr style: 'border-bottom: 1px solid #f3f4f6;' do
+                td c.formatted_phone_number || c.raw_phone_number, style: 'padding: 10px 8px; color: #374151;'
+                td c.carrier_name || '-', style: 'padding: 10px 8px; color: #374151;'
+                td style: 'padding: 10px 8px;' do
+                  if c.device_type
+                    span c.device_type, style: 'background: #e0e7ff; color: #4338ca; padding: 3px 8px; border-radius: 4px; font-size: 12px;'
+                  else
+                    span '-'
+                  end
                 end
+                td style: 'padding: 10px 8px;' do
+                  case c.sms_pumping_risk_level
+                  when 'high'
+                    span 'High', style: 'background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 12px;'
+                  when 'medium'
+                    span 'Med', style: 'background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 12px;'
+                  when 'low'
+                    span 'Low', style: 'background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 4px; font-size: 12px;'
+                  else
+                    span '-'
+                  end
+                end
+                td c.lookup_performed_at&.strftime('%b %d, %H:%M') || '-', style: 'padding: 10px 8px; color: #6b7280;'
               end
             end
-          else
-            para '✅ No failures recorded - great job!', class: 'blank_slate', style: 'color: #11998e;'
           end
         end
       end
     end
 
     # ========================================
-    # System Health & Info
+    # Chart.js Initialization
     # ========================================
-    columns do
-      column do
-        panel '💚 System Health' do
-          attributes_table_for nil do
-            row('Redis Connection') do
-              if Redis.new.ping == 'PONG'
-                status_tag 'Connected', class: 'completed'
-              else
-                status_tag 'Disconnected', class: 'failed'
-              end
-            rescue StandardError => e
-              status_tag "Error: #{e.message}", class: 'failed'
-            end
+    script do
+      raw <<-JS
+        document.addEventListener('DOMContentLoaded', function() {
+          const colors = {
+            primary: '#2563eb',
+            success: '#059669',
+            warning: '#d97706',
+            danger: '#dc2626',
+            info: '#6366f1',
+            gray: '#9ca3af'
+          };
 
-            row('Sidekiq Jobs') { link_to('Monitor Background Jobs →', '/sidekiq', target: '_blank') }
+          // Status Distribution Donut
+          const statusCtx = document.getElementById('statusChart');
+          if (statusCtx) {
+            new Chart(statusCtx, {
+              type: 'doughnut',
+              data: {
+                labels: ['Completed', 'Pending', 'Processing', 'Failed'],
+                datasets: [{
+                  data: [#{completed_count}, #{pending_count}, #{processing_count}, #{failed_count}],
+                  backgroundColor: [colors.success, colors.info, colors.primary, colors.danger],
+                  borderWidth: 0
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                  legend: {
+                    position: 'right',
+                    labels: { padding: 20, usePointStyle: true, font: { size: 13 } }
+                  }
+                }
+              }
+            });
+          }
 
-            row('Twilio Credentials') do
-              if TwilioCredential.current.present?
-                status_tag 'Configured', class: 'completed'
-              else
-                status_tag 'Not Configured', class: 'failed'
-              end
-            end
+          // Device Type Bar Chart
+          const deviceCtx = document.getElementById('deviceChart');
+          if (deviceCtx) {
+            new Chart(deviceCtx, {
+              type: 'bar',
+              data: {
+                labels: ['Mobile', 'Landline', 'VoIP'],
+                datasets: [{
+                  data: [#{mobile_count}, #{landline_count}, #{voip_count}],
+                  backgroundColor: [colors.primary, colors.info, colors.warning],
+                  borderRadius: 6,
+                  barThickness: 50
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { font: { size: 12 } }
+                  },
+                  x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 12 } }
+                  }
+                }
+              }
+            });
+          }
 
-            row('Database Size') { "#{Contact.count} contacts" }
-          end
-        end
-      end
+          // Top Carriers Bar Chart
+          const carrierCtx = document.getElementById('carrierChart');
+          if (carrierCtx) {
+            new Chart(carrierCtx, {
+              type: 'bar',
+              data: {
+                labels: #{top_carriers.keys.map { |c| c.to_s.truncate(20) }.to_json.html_safe},
+                datasets: [{
+                  data: #{top_carriers.values.to_json.html_safe},
+                  backgroundColor: ['#2563eb', '#059669', '#d97706', '#6366f1', '#dc2626'],
+                  borderRadius: 6,
+                  barThickness: 30
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                  legend: { display: false }
+                },
+                scales: {
+                  x: {
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { font: { size: 12 } }
+                  },
+                  y: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                  }
+                }
+              }
+            });
+          }
 
-      column do
-        panel 'ℹ️ System Information' do
-          attributes_table_for nil do
-            row('Rails Version') { Rails.version }
-            row('Ruby Version') { RUBY_VERSION }
-            row('Environment') { Rails.env.titleize }
-            row('Sidekiq Concurrency') do
-              config = YAML.load_file(Rails.root.join('config', 'sidekiq.yml'))
-              config.dig(Rails.env, 'concurrency') || config['concurrency'] || 'Default (5)'
-            rescue StandardError
-              'Not configured'
-            end
-          end
-        end
-      end
+          // Daily Lookups Line Chart
+          const dailyCtx = document.getElementById('dailyChart');
+          if (dailyCtx) {
+            new Chart(dailyCtx, {
+              type: 'line',
+              data: {
+                labels: #{daily_lookups.map { |d| d[:date] }.to_json.html_safe},
+                datasets: [{
+                  label: 'Lookups',
+                  data: #{daily_lookups.map { |d| d[:count] }.to_json.html_safe},
+                  borderColor: colors.primary,
+                  backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                  fill: true,
+                  tension: 0.4,
+                  pointBackgroundColor: colors.primary,
+                  pointRadius: 5,
+                  pointHoverRadius: 7
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { font: { size: 12 } }
+                  },
+                  x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 12 } }
+                  }
+                }
+              }
+            });
+          }
+        });
+      JS
     end
   end
 end

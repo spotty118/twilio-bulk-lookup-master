@@ -186,13 +186,19 @@ class VerizonCoverageService
 
     return nil unless lat && lon
 
-    response = HTTParty.get('https://broadbandmap.fcc.gov/api/public/map/basic/search',
-                            query: {
-                              latitude: lat,
-                              longitude: lon,
-                              technology: 'wireless'
-                            },
-                            timeout: 10)
+    # Use circuit breaker for FCC API consistency with other external calls
+    response = CircuitBreakerService.call(:fcc_broadband) do
+      HTTParty.get('https://broadbandmap.fcc.gov/api/public/map/basic/search',
+                   query: {
+                     latitude: lat,
+                     longitude: lon,
+                     technology: 'wireless'
+                   },
+                   timeout: 10)
+    end
+
+    # Handle circuit breaker fallback
+    return nil if response.is_a?(Hash) && response[:circuit_open]
 
     if response.success?
       parse_fcc_data(response.parsed_response)

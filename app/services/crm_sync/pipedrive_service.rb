@@ -13,6 +13,7 @@ module CrmSync
       return { success: false, error: 'Pipedrive sync not enabled' } unless @credentials&.enable_pipedrive_sync
       return { success: false, error: 'CRM sync disabled for this contact' } unless @contact.crm_sync_enabled
       return { success: false, error: 'No Pipedrive API key' } unless @credentials.pipedrive_api_key.present?
+      return { success: false, error: 'No Pipedrive company domain configured' } unless @credentials.pipedrive_company_domain.present?
 
       start_time = Time.current
 
@@ -72,7 +73,9 @@ module CrmSync
     private
 
     def base_url
-      company_domain = @credentials.pipedrive_company_domain
+      company_domain = @credentials&.pipedrive_company_domain
+      return nil if company_domain.blank?
+
       "https://#{company_domain}.pipedrive.com/api/v1"
     end
 

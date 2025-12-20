@@ -48,6 +48,8 @@ class RecalculateContactMetricsJob < ApplicationJob
     else
       Rails.logger.info("RecalculateContactMetricsJob: All batches completed " \
                         "(#{batch_index + 1} total batches)")
+      # Ensure dashboard stats reflect recalculated metrics
+      DashboardBroadcastJob.perform_later
     end
   end
 

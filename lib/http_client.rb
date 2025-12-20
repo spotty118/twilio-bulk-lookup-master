@@ -41,8 +41,9 @@ class HttpClient
   }.freeze
 
   # Connection pool settings
-  # Keep connections alive for reuse across requests
+  # Keep connections alive for reuse across requests (per-thread for safety)
   CONNECTION_POOL = Concurrent::Map.new
+  MAX_CONNECTIONS = 20 # Prevent unbounded pool growth
 
   # Circuit breaker state (distributed via Rails.cache/Redis)
   CIRCUIT_CACHE_PREFIX = 'circuit_breaker'.freeze
@@ -104,9 +105,10 @@ class HttpClient
     end
 
     # Get circuit state for monitoring/debugging
-    # Always returns a hash with :failures and :open keys
+    # Always returns a hash with :failures and :open keys when name is provided
+    # Returns nil when name is nil
     def circuit_state(name = nil)
-      return {} unless name
+      return nil unless name
 
       failures = Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:failures")
       open_state = Rails.cache.read("#{CIRCUIT_CACHE_PREFIX}:#{name}:open")
@@ -171,7 +173,35 @@ class HttpClient
 
       # Check for existing connection
       existing = CONNECTION_POOL[pool_key]
-      return existing if existing&.active?
+      if existing
+        return existing if existing.started?
+
+        # Close stale connection and remove from pool to prevent socket leak
+        begin
+          existing.finish
+        rescue StandardError
+          nil
+        end
+        CONNECTION_POOL.delete(pool_key)
+        Rails.logger.debug("[HttpClient] Removed stale connection to #{pool_key}")
+
+      end
+
+      # Evict oldest connections if at capacity
+      # Note: Concurrent::Map doesn't guarantee insertion order, so this is
+      # approximate LRU (picks an arbitrary connection to evict)
+      if CONNECTION_POOL.size >= MAX_CONNECTIONS
+        oldest_key = CONNECTION_POOL.keys.first
+        if oldest_key
+          oldest_conn = CONNECTION_POOL.delete(oldest_key)
+          begin
+            oldest_conn&.finish
+          rescue StandardError
+            nil
+          end
+          Rails.logger.debug("[HttpClient] Evicted connection to #{oldest_key} (pool at capacity)")
+        end
+      end
 
       # Create new connection with keep-alive
       http = Net::HTTP.new(uri.hostname, uri.port)
@@ -191,7 +221,7 @@ class HttpClient
     end
 
     def connection_pool_key(uri)
-      "#{uri.scheme}://#{uri.hostname}:#{uri.port}"
+      "#{uri.scheme}://#{uri.hostname}:#{uri.port}:#{Thread.current.object_id}"
     end
 
     # Build request with standard headers

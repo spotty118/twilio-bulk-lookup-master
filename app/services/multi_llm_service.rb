@@ -48,7 +48,7 @@ class MultiLlmService
   end
 
   # Generate outreach message
-  def generate_outreach_message(contact, message_type: 'intro', options: {})
+  def generate_outreach_message(contact, message_type: 'intro', **options)
     prompt = build_outreach_prompt(contact, message_type)
     generate(prompt, options.merge(max_tokens: 300))
   end
@@ -404,7 +404,7 @@ class MultiLlmService
           status: 'success',
           response_time_ms: ((Time.current - start_time) * 1000).to_i,
           http_status_code: 200,
-          credits_used: usage['total_tokens'],
+          credits_used: usage&.[]('total_tokens') || 0,
           response_data: { usage: usage }
         )
 

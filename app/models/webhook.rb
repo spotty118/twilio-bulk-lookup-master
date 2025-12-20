@@ -71,7 +71,7 @@ class Webhook < ApplicationRecord
 
   # Auto-process pending webhooks (called from background job)
   def self.process_pending!
-    pending.order(received_at: :asc).limit(100).find_each do |webhook|
+    pending.order(received_at: :asc).limit(100).each do |webhook|
       webhook.process!
     rescue StandardError => e
       Rails.logger.error "Failed to process webhook #{webhook.id}: #{e.message}"

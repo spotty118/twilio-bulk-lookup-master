@@ -118,8 +118,19 @@ RSpec.describe Contact, type: :model do
     context 'from completed' do
       let(:contact) { create(:contact, :completed) }
 
-      it 'prevents any status change (terminal state)' do
+      it 'allows transition to pending for reprocessing' do
         contact.status = 'pending'
+        expect(contact.save).to be true
+      end
+
+      it 'prevents transition to processing directly' do
+        contact.status = 'processing'
+        expect(contact.save).to be false
+        expect(contact.errors[:status]).to include(/Invalid status transition/)
+      end
+
+      it 'prevents transition to failed directly' do
+        contact.status = 'failed'
         expect(contact.save).to be false
         expect(contact.errors[:status]).to include(/Invalid status transition/)
       end

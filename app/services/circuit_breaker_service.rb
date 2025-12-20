@@ -43,6 +43,17 @@ class CircuitBreakerService
     attr_writer :redis_client
   end
 
+  # Memoized Stoplight data store to prevent creating new Redis connections on each call
+  # This is critical for preventing connection exhaustion under high load
+  def self.data_store
+    @data_store ||= redis_client ? Stoplight::DataStore::Redis.new(redis_client) : nil
+  end
+
+  # Allow tests to reset the data store
+  def self.reset_data_store!
+    @data_store = nil
+  end
+
   # Circuit breaker configuration for critical external APIs
   # Add new services here as needed
   SERVICES = {
@@ -92,6 +103,11 @@ class CircuitBreakerService
       threshold: 3,
       timeout: 30,
       description: 'TrueCaller Address Lookup'
+    },
+    fcc_broadband: {
+      threshold: 3,
+      timeout: 30,
+      description: 'FCC Broadband Map API'
     },
 
     # AI/LLM APIs
@@ -153,7 +169,7 @@ class CircuitBreakerService
             .with_fallback { |error| handle_circuit_open(service_name, error) }
 
     # Use Redis data store if available (for persistence across workers)
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
+    light = light.with_data_store(data_store) if data_store
 
     # Execute with circuit breaker protection
     light.run
@@ -173,7 +189,7 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
+    light = light.with_data_store(data_store) if data_store
 
     state = light.color
 
@@ -194,7 +210,7 @@ class CircuitBreakerService
     SERVICES.keys.each_with_object({}) do |service_name, states|
       light = Stoplight("#{service_name}_api") { nil }
 
-      light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
+      light = light.with_data_store(data_store) if data_store
 
       states[service_name] = {
         state: state(service_name),
@@ -217,7 +233,7 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
+    light = light.with_data_store(data_store) if data_store
 
     # Clear failures and unlock the circuit
     light.data_store.clear_failures(light)
@@ -236,7 +252,7 @@ class CircuitBreakerService
 
     light = Stoplight("#{service_name}_api") { nil }
 
-    light = light.with_data_store(Stoplight::DataStore::Redis.new(redis_client)) if redis_client
+    light = light.with_data_store(data_store) if data_store
 
     # Use Stoplight's lock mechanism to force circuit to red (open) state
     light.data_store.set_state(light, Stoplight::State::LOCKED_RED)

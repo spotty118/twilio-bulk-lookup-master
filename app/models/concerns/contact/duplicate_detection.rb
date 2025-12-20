@@ -80,7 +80,7 @@ module Contact::DuplicateDetection
 
     # Use update_columns to skip callbacks and avoid recursion
     update_columns(
-      data_quality_score: [score, 0].max,
+      data_quality_score: [[score, 0].max, 100].min,
       completeness_percentage: calculate_completeness,
       updated_at: Time.current
     )

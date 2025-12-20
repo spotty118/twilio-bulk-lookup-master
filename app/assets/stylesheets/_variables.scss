@@ -1,87 +1,82 @@
 // ========================================
 // Design System - CSS Variables
+// Modern Minimal Theme
 // ========================================
 
 :root {
-  // Color Palette - Primary
-  --color-primary: #5E6BFF;
-  --color-primary-light: #7d87ff;
-  --color-primary-dark: #4a54d1;
+  // Primary - Subtle blue-gray
+  --color-primary: #3b82f6;
+  --color-primary-light: #60a5fa;
+  --color-primary-dark: #2563eb;
 
-  // Color Palette - Success
-  --color-success: #11998e;
-  --color-success-light: #38b2ac;
-  --color-success-dark: #0d7a70;
+  // Status Colors - Muted, modern
+  --color-success: #22c55e;
+  --color-success-light: #4ade80;
+  --color-success-dark: #16a34a;
 
-  // Color Palette - Warning
-  --color-warning: #f39c12;
-  --color-warning-light: #f5b041;
-  --color-warning-dark: #d68910;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-warning-dark: #d97706;
 
-  // Color Palette - Danger
-  --color-danger: #eb3349;
-  --color-danger-light: #ef5b6d;
-  --color-danger-dark: #c92a3d;
+  --color-danger: #ef4444;
+  --color-danger-light: #f87171;
+  --color-danger-dark: #dc2626;
 
-  // Color Palette - Info
-  --color-info: #667eea;
-  --color-info-light: #8594f0;
-  --color-info-dark: #5263d1;
+  --color-info: #6366f1;
+  --color-info-light: #818cf8;
+  --color-info-dark: #4f46e5;
 
-  // Neutral Colors - Light Theme
-  --color-bg-primary: #f0f2f5;
+  // Neutral Colors - Clean, minimal
+  --color-bg-primary: #f8fafc;
   --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #e4e7ec;
+  --color-bg-tertiary: #f1f5f9;
 
-  --color-text-primary: #1a1d21;
-  --color-text-secondary: #6b7280;
-  --color-text-tertiary: #9ca3af;
+  // Text Colors
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94a3b8;
 
-  --color-border-primary: rgba(0, 0, 0, 0.08);
-  --color-border-secondary: rgba(0, 0, 0, 0.04);
+  --color-border-primary: #e2e8f0;
+  --color-border-secondary: #f1f5f9;
 
-  // Glassmorphism
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.25);
-  --glass-blur: 12px;
+  // Modern flat backgrounds (no glassmorphism)
+  --glass-bg: #ffffff;
+  --glass-border: #e2e8f0;
+  --glass-blur: 0;
 
-  // Premium Gradients
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  --gradient-danger: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-  --gradient-mesh: radial-gradient(at 40% 20%, rgba(102, 126, 234, 0.15) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(118, 75, 162, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(17, 153, 142, 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, rgba(235, 51, 73, 0.05) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(94, 107, 255, 0.12) 0px, transparent 50%);
+  // Simple header - solid color, no gradient
+  --gradient-primary: #1e293b;
+  --gradient-success: #22c55e;
+  --gradient-danger: #ef4444;
+  --gradient-mesh: none;
 
-  // Shadows
+  // Subtle shadows
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 12px 28px rgba(0, 0, 0, 0.12);
-  --shadow-card: 0 8px 32px rgba(31, 38, 135, 0.12);
-  --shadow-glow: 0 0 40px rgba(94, 107, 255, 0.15);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-glow: none;
 
-  // Spacing Scale
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-2xl: 48px;
-  --spacing-3xl: 64px;
-  --spacing-4xl: 96px;
+  // Spacing Scale - Compact for data-dense admin UI
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 10px;
+  --spacing-lg: 14px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 28px;
+  --spacing-3xl: 40px;
+  --spacing-4xl: 56px;
 
-  // Typography Scale
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
-  --text-lg: 18px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 32px;
-  --text-4xl: 40px;
+  // Typography Scale - Larger for readability
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-4xl: 48px;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -102,36 +97,29 @@
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// Dark Theme
+// Dark Theme - Clean minimal
 [data-theme="dark"] {
-  // Neutral Colors - Dark Theme
-  --color-bg-primary: #0f0f12;
-  --color-bg-secondary: #1a1a1f;
-  --color-bg-tertiary: #252529;
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #334155;
 
-  --color-text-primary: #f0f0f5;
-  --color-text-secondary: #a0a0aa;
-  --color-text-tertiary: #606068;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary: #64748b;
 
-  --color-border-primary: rgba(255, 255, 255, 0.12);
-  --color-border-secondary: rgba(255, 255, 255, 0.06);
+  --color-border-primary: #334155;
+  --color-border-secondary: #1e293b;
 
-  // Glassmorphism - Dark
-  --glass-bg: rgba(25, 25, 30, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: #1e293b;
+  --glass-border: #334155;
 
-  // Dark Gradient Mesh
-  --gradient-mesh: radial-gradient(at 40% 20%, rgba(102, 126, 234, 0.12) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(118, 75, 162, 0.08) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(17, 153, 142, 0.06) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, rgba(235, 51, 73, 0.04) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(94, 107, 255, 0.1) 0px, transparent 50%);
+  --gradient-primary: #0f172a;
+  --gradient-mesh: none;
 
-  // Shadows - Dark (stronger for depth)
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.6);
-  --shadow-xl: 0 16px 36px rgba(0, 0, 0, 0.7);
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 60px rgba(94, 107, 255, 0.2);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-glow: none;
 }

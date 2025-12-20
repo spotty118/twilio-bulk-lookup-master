@@ -99,7 +99,7 @@ class MessagingService
   # Send SMS with AI-generated content
   def send_ai_generated_sms(message_type: 'intro', options: {})
     llm_service = MultiLlmService.new
-    result = llm_service.generate_outreach_message(@contact, message_type: message_type, options: options)
+    result = llm_service.generate_outreach_message(@contact, message_type: message_type, **options)
 
     if result[:success]
       send_sms(result[:response], options)

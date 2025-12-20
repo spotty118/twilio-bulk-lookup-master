@@ -71,8 +71,12 @@ class ZipcodeLookup < ApplicationRecord
   end
 
   def success_rate
-    return 0 if businesses_found == 0
-    ((businesses_imported + businesses_updated).to_f / businesses_found * 100).round(1)
+    found = businesses_found.to_i
+    return 0 if found.zero?
+
+    imported = businesses_imported.to_i
+    updated = businesses_updated.to_i
+    ((imported + updated).to_f / found * 100).round(1)
   end
 
   def search_params_hash

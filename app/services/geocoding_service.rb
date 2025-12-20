@@ -166,7 +166,7 @@ class GeocodingService
       errors: []
     }
 
-    contacts.find_each do |contact|
+    contacts.each do |contact|
       service = new(contact)
       result = service.geocode!
 

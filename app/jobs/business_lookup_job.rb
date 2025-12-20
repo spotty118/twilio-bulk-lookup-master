@@ -3,6 +3,18 @@ class BusinessLookupJob < ApplicationJob
 
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
+  discard_on BusinessLookupService::ProviderError do |job, exception|
+    zipcode_lookup_id = job.arguments.first
+    zipcode_lookup = ZipcodeLookup.find_by(id: zipcode_lookup_id)
+
+    if zipcode_lookup
+      Rails.logger.error "[BusinessLookupJob] Provider error for zipcode #{zipcode_lookup.zipcode}: #{exception.message}"
+      zipcode_lookup.mark_failed!(exception)
+    else
+      Rails.logger.error "[BusinessLookupJob] Provider error for missing zipcode_lookup_id #{zipcode_lookup_id}: #{exception.message}"
+    end
+  end
+
   # Don't retry if zipcode lookup was deleted
   discard_on ActiveRecord::RecordNotFound do |job, exception|
     Rails.logger.error("[BusinessLookupJob] ZipcodeLookup not found: #{exception.message}")

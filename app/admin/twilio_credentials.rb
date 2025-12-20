@@ -144,6 +144,69 @@ ActiveAdmin.register TwilioCredential do
               input_html: { checked: false }
     end
 
+    f.inputs '📞 Real Phone Validation (RPV)', class: 'real-phone-validation' do
+      div style: 'background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;' do
+        h4 'Verify if phone numbers are connected or disconnected:', style: 'margin-top: 0;'
+        para 'Uses Twilio Marketplace Add-on to check real-time phone line status.', style: 'margin: 0;'
+      end
+
+      f.input :enable_real_phone_validation,
+              label: '📞 Enable Real Phone Validation',
+              hint: 'Check if phone lines are connected/disconnected in real-time. <strong>$0.06 per lookup.</strong> Enabled by default.',
+              input_html: { checked: true }
+
+      f.input :rpv_unique_name,
+              label: 'RPV Add-on Unique Name',
+              hint: 'The unique name you gave the RPV add-on when installing it in Twilio Console. Find this in Console → Add-ons → Installed Add-ons.',
+              placeholder: 'real_phone_validation_rpv_turbo',
+              input_html: {
+                style: 'font-family: monospace; font-size: 14px;',
+                value: f.object.rpv_unique_name || 'real_phone_validation_rpv_turbo'
+              }
+
+      div style: 'margin-top: 15px; padding: 10px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;' do
+        strong '📊 RPV Returns:'
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Line Status: connected, disconnected, pending, busy, unreachable'
+          li 'Is Cell: Y (yes), N (no), V (VoIP)'
+          li 'Carrier Name: The carrier handling the number'
+          li 'CNAM: Caller Name if available'
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;' do
+        strong '⚠️ Note: '
+        span 'This add-on must be installed in your Twilio Console Marketplace before use.'
+      end
+    end
+
+    f.inputs '🔄 IceHook Scout (Porting Data)', class: 'icehook-scout' do
+      div style: 'background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;' do
+        h4 'Check if phone numbers have been ported:', style: 'margin-top: 0;'
+        para 'Uses Twilio Marketplace Add-on to detect number porting and get carrier routing info.', style: 'margin: 0;'
+      end
+
+      f.input :enable_icehook_scout,
+              label: '🔄 Enable IceHook Scout',
+              hint: 'Check if numbers have been ported to a different carrier. Returns ported status, LRN, and operating company info.',
+              input_html: { checked: false }
+
+      div style: 'margin-top: 15px; padding: 10px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;' do
+        strong '📊 Scout Returns:'
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Ported: true/false - Has the number been ported?'
+          li 'Location Routing Number (LRN): The routing number for ported numbers'
+          li 'Operating Company: Current carrier handling the number (e.g., Verizon)'
+          li 'Operating Company Type: Type of carrier (RBOC, CLEC, etc.)'
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;' do
+        strong '⚠️ Note: '
+        span 'IceHook Scout must be installed in your Twilio Console Marketplace before use.'
+      end
+    end
+
     f.inputs 'Notes & Configuration' do
       f.input :notes,
               label: 'Configuration Notes',
@@ -383,6 +446,65 @@ ActiveAdmin.register TwilioCredential do
       end
     end
 
+    f.inputs '🌐 OpenRouter (Multi-Model AI)', class: 'openrouter' do
+      div style: 'background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;' do
+        h4 'Access 100+ AI models through one API:', style: 'margin-top: 0;'
+        para 'OpenRouter provides access to OpenAI, Anthropic, Google, Meta, and many more models.', style: 'margin: 0;'
+      end
+
+      f.input :enable_openrouter,
+              label: 'Enable OpenRouter',
+              hint: 'Use OpenRouter as an alternative AI provider (overrides OpenAI when selected)'
+
+      f.input :openrouter_api_key,
+              label: 'OpenRouter API Key',
+              hint: 'Get your API key at https://openrouter.ai/keys',
+              input_html: {
+                type: 'password',
+                style: 'font-family: monospace; font-size: 14px;',
+                autocomplete: 'new-password',
+                placeholder: 'sk-or-...'
+              }
+
+      f.input :openrouter_model,
+              label: 'OpenRouter Model',
+              hint: 'Enter any model ID from openrouter.ai/models (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o)',
+              input_html: {
+                style: 'font-family: monospace; font-size: 14px;',
+                placeholder: 'anthropic/claude-3.5-sonnet',
+                autocomplete: 'off'
+              }
+
+      div style: 'margin: 10px 0 15px 20%; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 13px;' do
+        strong 'Popular models: '
+        span 'anthropic/claude-3.5-sonnet • openai/gpt-4o • google/gemini-pro-1.5 • meta-llama/llama-3.1-70b-instruct', style: 'color: #666;'
+        div style: 'margin-top: 5px;' do
+          link_to 'Browse all models →', 'https://openrouter.ai/models', target: '_blank', style: 'color: #0066cc;'
+        end
+      end
+
+      f.input :preferred_llm_provider,
+              label: 'Preferred AI Provider',
+              as: :select,
+              collection: [
+                ['OpenAI (Direct)', 'openai'],
+                ['OpenRouter (Multi-Model)', 'openrouter'],
+                ['Anthropic (Direct)', 'anthropic'],
+                ['Google AI (Direct)', 'google']
+              ],
+              hint: 'Which AI provider to use by default for AI features'
+
+      div style: 'margin-top: 15px; padding: 10px; background: #d1ecf1; border-left: 4px solid #0c5460; border-radius: 4px;' do
+        strong '💡 Why OpenRouter? '
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Single API key for 100+ models'
+          li 'Easy model switching without code changes'
+          li 'Automatic fallbacks if a model is unavailable'
+          li 'Usage-based pricing across all providers'
+        end
+      end
+    end
+
     f.inputs '📍 Business Directory / Zipcode Lookup', class: 'business-directory' do
       div style: 'background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;' do
         h4 'Search for businesses by zipcode:', style: 'margin-top: 0;'
@@ -395,8 +517,8 @@ ActiveAdmin.register TwilioCredential do
 
       f.input :results_per_zipcode,
               label: 'Results Per Zipcode',
-              hint: 'Maximum number of businesses to fetch per zipcode (1-50 recommended)',
-              input_html: { min: 1, max: 100, value: 20 }
+              hint: 'Max businesses per zipcode. Yelp max: 240, Google max: 60. Combined: up to 300.',
+              input_html: { min: 1, max: 300 }
 
       f.input :auto_enrich_zipcode_results,
               label: 'Auto-Enrich Imported Businesses',
@@ -607,6 +729,66 @@ ActiveAdmin.register TwilioCredential do
         strong '💰 Cost Information: '
         para 'Each enabled data package incurs additional API costs per lookup. Review Twilio pricing before enabling.',
              style: 'margin: 5px 0 0 0;'
+      end
+    end
+
+    panel '📞 Real Phone Validation (RPV)' do
+      attributes_table_for twilio_credential do
+        row 'Real Phone Validation' do |cred|
+          if cred.enable_real_phone_validation
+            status_tag 'Enabled', class: 'ok'
+          else
+            status_tag 'Disabled', class: 'error'
+          end
+        end
+
+        row 'Add-on Unique Name' do |cred|
+          unique_name = cred.rpv_unique_name.presence || 'real_phone_validation_rpv_turbo'
+          code unique_name,
+               style: 'background: #f8f9fa; padding: 5px 10px; border-radius: 4px; font-family: monospace;'
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;' do
+        strong '📊 RPV Data Returned:'
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Line Status: connected, disconnected, pending, busy, unreachable'
+          li 'Is Cell: Y (yes), N (no), V (VoIP)'
+          li 'Carrier Name: The carrier handling the number'
+          li 'CNAM: Caller Name if available'
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;' do
+        strong '💰 Cost: '
+        span '$0.06 per lookup'
+      end
+    end
+
+    panel '🔄 IceHook Scout (Porting Data)' do
+      attributes_table_for twilio_credential do
+        row 'IceHook Scout' do |cred|
+          if cred.enable_icehook_scout
+            status_tag 'Enabled', class: 'ok'
+          else
+            status_tag 'Disabled', class: 'error'
+          end
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;' do
+        strong '📊 Scout Data Returned:'
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Ported: true/false - Has the number been ported to a different carrier?'
+          li 'Location Routing Number (LRN): The routing number for ported numbers'
+          li 'Operating Company: Current carrier handling the number (e.g., Verizon)'
+          li 'Operating Company Type: Type of carrier (RBOC, CLEC, etc.)'
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;' do
+        strong '⚠️ Note: '
+        span 'IceHook Scout must be installed in your Twilio Console Marketplace before use.'
       end
     end
 
@@ -870,6 +1052,69 @@ ActiveAdmin.register TwilioCredential do
                style: 'margin: 5px 0 0 0;'
           link_to 'Go to AI Assistant →', admin_ai_assistant_path, class: 'button primary',
                                                                    style: 'margin-top: 10px; display: inline-block;'
+        end
+      end
+    end
+
+    panel '🌐 OpenRouter Configuration' do
+      attributes_table_for twilio_credential do
+        row 'OpenRouter' do |cred|
+          if cred.enable_openrouter
+            status_tag 'Enabled', class: 'ok'
+          else
+            status_tag 'Disabled', class: 'error'
+          end
+        end
+
+        row 'OpenRouter API Key' do |cred|
+          if cred.openrouter_api_key.present?
+            div do
+              span 'sk-or-•••••••••••••••••••', style: 'font-family: monospace;'
+              status_tag 'Configured', class: 'ok', style: 'margin-left: 10px;'
+            end
+          else
+            span 'Not configured', style: 'color: #6c757d;'
+          end
+        end
+
+        row 'OpenRouter Model' do |cred|
+          if cred.openrouter_model.present?
+            status_tag cred.openrouter_model, class: 'default'
+          else
+            span 'Not selected', style: 'color: #6c757d;'
+          end
+        end
+
+        row 'Preferred AI Provider' do |cred|
+          provider = cred.preferred_llm_provider || 'openai'
+          case provider
+          when 'openrouter'
+            status_tag 'OpenRouter', class: 'ok'
+          when 'anthropic'
+            status_tag 'Anthropic', class: 'default'
+          when 'google'
+            status_tag 'Google AI', class: 'default'
+          else
+            status_tag 'OpenAI (Direct)', class: 'default'
+          end
+        end
+      end
+
+      div style: 'margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 4px solid #0c5460; border-radius: 4px;' do
+        strong '🌐 OpenRouter Benefits:'
+        ul style: 'margin: 10px 0 0 20px;' do
+          li 'Access 100+ AI models with a single API key'
+          li 'Switch between OpenAI, Anthropic, Google, Meta models'
+          li 'Automatic fallbacks when a model is unavailable'
+          li 'Usage-based pricing across all providers'
+        end
+      end
+
+      if twilio_credential.enable_openrouter && twilio_credential.openrouter_api_key.present?
+        div style: 'margin-top: 15px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;' do
+          strong '✅ OpenRouter Ready!'
+          para "Using model: #{twilio_credential.openrouter_model || 'Default'}",
+               style: 'margin: 5px 0 0 0;'
         end
       end
     end
@@ -1140,7 +1385,8 @@ ActiveAdmin.register TwilioCredential do
   # ========================================
   permit_params :account_sid, :auth_token, :enable_line_type_intelligence,
                 :enable_caller_name, :enable_sms_pumping_risk, :enable_sim_swap,
-                :enable_reassigned_number, :notes, :enable_business_enrichment,
+                :enable_reassigned_number, :enable_real_phone_validation, :rpv_unique_name,
+                :notes, :enable_business_enrichment,
                 :auto_enrich_businesses, :enrichment_confidence_threshold,
                 :clearbit_api_key, :numverify_api_key,
                 # Trust Hub verification
@@ -1152,10 +1398,16 @@ ActiveAdmin.register TwilioCredential do
                 :enable_duplicate_detection, :duplicate_confidence_threshold, :auto_merge_duplicates,
                 # AI configuration
                 :enable_ai_features, :openai_api_key, :ai_model, :ai_max_tokens,
+                # OpenRouter configuration
+                :enable_openrouter, :openrouter_api_key, :openrouter_model, :preferred_llm_provider,
                 # Business directory / zipcode lookup
                 :enable_zipcode_lookup, :google_places_api_key, :yelp_api_key,
                 :results_per_zipcode, :auto_enrich_zipcode_results,
                 # Address enrichment & Verizon coverage
                 :enable_address_enrichment, :enable_verizon_coverage_check,
-                :whitepages_api_key, :truecaller_api_key, :auto_check_verizon_coverage
+                :whitepages_api_key, :truecaller_api_key, :auto_check_verizon_coverage,
+                # Verizon FWA API credentials
+                :verizon_api_key, :verizon_api_secret, :verizon_account_name,
+                # IceHook Scout (porting data)
+                :enable_icehook_scout
 end

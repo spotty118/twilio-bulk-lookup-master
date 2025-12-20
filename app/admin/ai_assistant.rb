@@ -1,5 +1,5 @@
 ActiveAdmin.register_page "AI Assistant" do
-  menu priority: 4, label: "🤖 AI Assistant"
+  menu priority: 4, label: "AI Assistant"
 
   content do
     credentials = TwilioCredential.current
@@ -9,7 +9,8 @@ ActiveAdmin.register_page "AI Assistant" do
         div style: "text-align: center; padding: 40px;" do
           para "AI features are not enabled or OpenAI API key is missing.", style: "color: #dc3545; font-size: 16px; margin-bottom: 20px;"
           para "Enable AI features and add your OpenAI API key in settings.", style: "color: #6c757d;"
-          link_to "Go to Settings", edit_admin_twilio_credential_path(credentials || 1), class: "button primary", style: "margin-top: 20px;"
+          settings_path = credentials ? edit_admin_twilio_credential_path(credentials) : new_admin_twilio_credential_path
+          link_to "Go to Settings", settings_path, class: "button primary", style: "margin-top: 20px;"
         end
       end
       next
@@ -63,11 +64,11 @@ ActiveAdmin.register_page "AI Assistant" do
                   contacts = Contact.all
 
                   # Fields that support partial matching with ILIKE
-                  ILIKE_FIELDS = %w[business_name business_city business_state business_country].freeze
+                  ilike_fields = %w[business_name business_city business_state business_country].freeze
 
                   result[:filters].each do |field, value|
                     # Type-safe query building using Arel with runtime column validation
-                    if ILIKE_FIELDS.include?(field) && Contact.column_names.include?(field)
+                    if ilike_fields.include?(field) && Contact.column_names.include?(field)
                       # Arel provides SQL injection protection via parameterized queries
                       contacts = contacts.where(Contact.arel_table[field].matches("%#{value}%"))
                     elsif %w[business_industry business_type business_employee_range business_revenue_range line_type sms_pumping_risk_level status].include?(field)
@@ -206,6 +207,12 @@ ActiveAdmin.register_page "AI Assistant" do
 
     response = AiAssistantService.query(prompt, context: context)
 
-    redirect_to admin_ai_assistant_path(ai_response: response)
+    if response.is_a?(Hash) && response[:error].present?
+      redirect_to admin_ai_assistant_path, alert: response[:error]
+    elsif response.present?
+      redirect_to admin_ai_assistant_path(ai_response: response)
+    else
+      redirect_to admin_ai_assistant_path, alert: "AI request failed. Please try again."
+    end
   end
 end

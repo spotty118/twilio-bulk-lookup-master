@@ -24,14 +24,18 @@ module Api
           raw_phone_number: params[:phone_number]
         )
 
-        # Reset status to pending for new or failed contacts
-        contact.status = 'pending' if contact.new_record? || contact.status == 'failed'
+        # Reset failed contacts to a clean pending state
+        saved = if contact.persisted? && contact.status == 'failed'
+                  contact.reset_for_reprocessing!
+                else
+                  contact.status = 'pending' if contact.new_record?
+                  contact.save
+                end
 
-        if contact.save
+        if saved
           # Trigger processing immediately
           if contact.status == 'pending'
             LookupRequestJob.perform_later(contact.id)
-            contact.mark_processing!
           end
 
           render json: { contact: contact_json(contact) }, status: :created

@@ -2,7 +2,7 @@ class EnrichmentCoordinatorJob < ApplicationJob
   queue_as :default
 
   # Don't retry on permanent failures
-  discard_on ActiveRecord::RecordNotFound do |job, exception|
+  discard_on ActiveRecord::RecordNotFound do |_job, exception|
     Rails.logger.error("Contact not found for enrichment coordination: #{exception.message}")
   end
 
@@ -79,6 +79,11 @@ class EnrichmentCoordinatorJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.error("Unexpected error coordinating enrichment for contact #{contact_id}: #{e.class} - #{e.message}")
     Rails.logger.error(e.backtrace.join("\n"))
+    # Track error for monitoring/alerting
+    ErrorTrackingService.capture(
+      e,
+      context: { contact_id: contact_id, job: 'EnrichmentCoordinatorJob' }
+    )
     # Don't raise - coordinator failures shouldn't fail the entire enrichment pipeline
   end
 end

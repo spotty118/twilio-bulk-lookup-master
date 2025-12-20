@@ -62,8 +62,8 @@ Rails.application.configure do
     # Frames: allow from self (for ActiveAdmin embeds)
     policy.frame_src :self
 
-    # Connections: allow AJAX requests to same origin
-    policy.connect_src :self
+    # Connections: allow AJAX requests and CDN connections
+    policy.connect_src :self, :https
 
     # Base URI: restrict base tag to same origin
     policy.base_uri :self
@@ -83,7 +83,8 @@ Rails.application.configure do
   config.content_security_policy_nonce_generator = lambda { |request|
     request.session.id.to_s
   }
-  config.content_security_policy_nonce_directives = %w[script-src style-src]
+  # Disable nonce directives - ActiveAdmin uses inline scripts/styles that cannot have nonces added
+  config.content_security_policy_nonce_directives = %w[]
 
   # CSP is now enforced after validation
   # Set to true temporarily if debugging CSP violations

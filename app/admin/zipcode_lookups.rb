@@ -65,7 +65,7 @@ ActiveAdmin.register ZipcodeLookup do
     end
 
     column "Imported", :businesses_imported do |lookup|
-      if lookup.businesses_imported > 0
+      if lookup.businesses_imported.to_i > 0
         strong lookup.businesses_imported, style: "color: #28a745;"
       else
         lookup.businesses_imported
@@ -73,7 +73,7 @@ ActiveAdmin.register ZipcodeLookup do
     end
 
     column "Updated", :businesses_updated do |lookup|
-      if lookup.businesses_updated > 0
+      if lookup.businesses_updated.to_i > 0
         strong lookup.businesses_updated, style: "color: #667eea;"
       else
         lookup.businesses_updated
@@ -95,7 +95,7 @@ ActiveAdmin.register ZipcodeLookup do
     end
 
     actions defaults: true do |lookup|
-      if lookup.status == 'completed' && lookup.businesses_found > 0
+      if lookup.status == 'completed' && lookup.businesses_found.to_i > 0
         link_to "View Contacts",
                admin_contacts_path(q: { business_postal_code_eq: lookup.zipcode }),
                class: "member_link"
@@ -163,8 +163,8 @@ ActiveAdmin.register ZipcodeLookup do
         row "New Businesses Imported" do |lookup|
           div do
             strong lookup.businesses_imported, style: "font-size: 20px; color: #28a745;"
-            if lookup.businesses_found > 0
-              pct = (lookup.businesses_imported.to_f / lookup.businesses_found * 100).round(1)
+            if lookup.businesses_found.to_i > 0
+              pct = (lookup.businesses_imported.to_f / lookup.businesses_found.to_i * 100).round(1)
               span " (#{pct}%)", style: "color: #6c757d; margin-left: 10px;"
             end
           end
@@ -173,8 +173,8 @@ ActiveAdmin.register ZipcodeLookup do
         row "Existing Businesses Updated" do |lookup|
           div do
             strong lookup.businesses_updated, style: "font-size: 20px; color: #667eea;"
-            if lookup.businesses_found > 0
-              pct = (lookup.businesses_updated.to_f / lookup.businesses_found * 100).round(1)
+            if lookup.businesses_found.to_i > 0
+              pct = (lookup.businesses_updated.to_f / lookup.businesses_found.to_i * 100).round(1)
               span " (#{pct}%)", style: "color: #6c757d; margin-left: 10px;"
             end
           end
@@ -185,7 +185,7 @@ ActiveAdmin.register ZipcodeLookup do
         end
 
         row "Success Rate" do |lookup|
-          if lookup.businesses_found > 0
+          if lookup.businesses_found.to_i > 0
             rate = lookup.success_rate
             color = rate >= 80 ? "#28a745" : (rate >= 50 ? "#ffc107" : "#dc3545")
             span "#{rate}%", style: "font-weight: bold; color: #{color}; font-size: 18px;"
@@ -195,7 +195,7 @@ ActiveAdmin.register ZipcodeLookup do
         end
       end
 
-      if zipcode_lookup.status == 'completed' && zipcode_lookup.businesses_found > 0
+      if zipcode_lookup.status == 'completed' && zipcode_lookup.businesses_found.to_i > 0
         div style: "margin-top: 20px;" do
           link_to "📞 View Imported Contacts in this Zipcode",
                  admin_contacts_path(q: { business_postal_code_eq: zipcode_lookup.zipcode }),

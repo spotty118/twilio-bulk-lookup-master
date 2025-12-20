@@ -47,42 +47,54 @@ class BusinessLookupService
   def fetch_businesses_from_providers(limit)
     businesses = []
     provider_errors = []
-    any_provider_succeeded = false
+    providers_used = []
 
-    # Try Google Places first
-    if @credentials&.google_places_api_key.present?
-      begin
-        businesses = try_google_places(limit)
-        any_provider_succeeded = true
-        @zipcode_lookup&.update(provider: 'google_places')
-        return businesses if businesses.any?
-      rescue ProviderError => e
-        provider_errors << "Google Places: #{e.message}"
-        Rails.logger.warn "[BusinessLookupService] Google Places failed: #{e.message}"
-      end
-    end
-
-    # Fallback to Yelp
+    # Yelp can fetch up to 1000 - use it as primary source for large requests
     if @credentials&.yelp_api_key.present?
       begin
-        businesses = try_yelp(limit)
-        any_provider_succeeded = true
-        @zipcode_lookup&.update(provider: 'yelp')
-        return businesses if businesses.any?
+        yelp_results = try_yelp(limit)
+        providers_used << 'yelp'
+        Rails.logger.info "[BusinessLookupService] Yelp returned #{yelp_results.size} businesses"
+        businesses.concat(yelp_results)
       rescue ProviderError => e
         provider_errors << "Yelp: #{e.message}"
         Rails.logger.warn "[BusinessLookupService] Yelp failed: #{e.message}"
       end
     end
 
-    return [] if any_provider_succeeded
+    # Supplement with Google Places if we need more results (Google caps at 60)
+    remaining_needed = limit - businesses.size
+    if remaining_needed > 0 && @credentials&.google_places_api_key.present?
+      begin
+        google_limit = [remaining_needed, 60].min
+        google_results = try_google_places(google_limit)
+        providers_used << 'google_places'
+        Rails.logger.info "[BusinessLookupService] Google returned #{google_results.size} businesses"
 
-    if provider_errors.any?
-      raise ProviderError, provider_errors.join(' | ')
+        # Dedupe by phone number before combining
+        existing_phones = businesses.map { |b| b[:phone] }.compact.to_set
+        google_results.each do |biz|
+          next if biz[:phone].present? && existing_phones.include?(biz[:phone])
+
+          businesses << biz
+          existing_phones << biz[:phone] if biz[:phone].present?
+        end
+      rescue ProviderError => e
+        provider_errors << "Google Places: #{e.message}"
+        Rails.logger.warn "[BusinessLookupService] Google Places failed: #{e.message}"
+      end
     end
 
-    Rails.logger.warn "[BusinessLookupService] No business directory API configured"
-    raise ProviderError, "No business directory API configured. Configure Google Places or Yelp in Twilio Settings."
+    # Update provider tracking
+    if providers_used.any?
+      @zipcode_lookup&.update(provider: providers_used.join('+'))
+      return businesses.take(limit)
+    end
+
+    raise ProviderError, provider_errors.join(' | ') if provider_errors.any?
+
+    Rails.logger.warn '[BusinessLookupService] No business directory API configured'
+    raise ProviderError, 'No business directory API configured. Configure Google Places or Yelp in Twilio Settings.'
   end
 
   # ========================================
@@ -91,39 +103,64 @@ class BusinessLookupService
 
   def try_google_places(limit)
     try_google_places_legacy(limit)
-  rescue ProviderError => legacy_error
+  rescue ProviderError => e
     begin
       try_google_places_new(limit)
     rescue ProviderError => new_error
-      raise ProviderError, "#{legacy_error.message} | Places API (New): #{new_error.message}"
+      raise ProviderError, "#{e.message} | Places API (New): #{new_error.message}"
     end
   end
 
   def try_google_places_legacy(limit)
     api_key = @credentials.google_places_api_key
+    all_results = []
+    next_page_token = nil
 
-    # Use Text Search to find businesses in zipcode
-    # Note: Google Places doesn't search by zipcode directly, so we search by location
-    uri = URI('https://maps.googleapis.com/maps/api/place/textsearch/json')
-    params = {
-      query: "businesses in #{@zipcode}",
-      key: api_key
-    }
-    uri.query = URI.encode_www_form(params)
+    # Google Places returns 20 results per page, use pagination to get more
+    loop do
+      uri = URI('https://maps.googleapis.com/maps/api/place/textsearch/json')
+      params = {
+        query: "businesses in #{@zipcode}",
+        key: api_key
+      }
+      params[:pagetoken] = next_page_token if next_page_token
+      uri.query = URI.encode_www_form(params)
 
-    response = HttpClient.get(uri, circuit_name: 'google-places-api')
-    raise ProviderError, "HTTP #{response.code}" unless response.code == '200'
+      response = HttpClient.get(uri, circuit_name: 'google-places-api')
+      raise ProviderError, "HTTP #{response.code}" unless response.code == '200'
 
-    data = JSON.parse(response.body)
-    status = data['status']
-    unless status == 'OK'
-      return [] if status == 'ZERO_RESULTS'
+      data = JSON.parse(response.body)
+      status = data['status']
 
-      error_msg = data['error_message'].presence || status
-      raise ProviderError, "#{status} - #{error_msg}. Check that Places API is enabled, billing is active, and API key restrictions allow server requests."
+      # Handle pagination delay - Google requires ~2 second wait between page requests
+      if status == 'INVALID_REQUEST' && next_page_token
+        sleep(2)
+        response = HttpClient.get(uri, circuit_name: 'google-places-api')
+        raise ProviderError, "HTTP #{response.code}" unless response.code == '200'
+        data = JSON.parse(response.body)
+        status = data['status']
+      end
+
+      unless status == 'OK'
+        break if status == 'ZERO_RESULTS'
+
+        error_msg = data['error_message'].presence || status
+        raise ProviderError,
+              "#{status} - #{error_msg}. Check that Places API is enabled, billing is active, and API key restrictions allow server requests."
+      end
+
+      all_results.concat(data['results'])
+
+      # Check if we have enough results or no more pages
+      break if all_results.size >= limit
+      break unless data['next_page_token'].present?
+
+      next_page_token = data['next_page_token']
+      # Google requires a short delay before using next_page_token
+      sleep(2)
     end
 
-    results = data['results'].take(limit)
+    results = all_results.take(limit)
 
     # Batch fetch place details to reduce N+1 API calls
     # Only fetch details for places that have a place_id
@@ -133,7 +170,6 @@ class BusinessLookupService
     results.map do |place|
       parse_google_place(place, details_cache)
     end.compact
-
   rescue HttpClient::TimeoutError => e
     raise ProviderError, "Timeout - #{e.message}"
   rescue HttpClient::CircuitOpenError => e
@@ -235,30 +271,41 @@ class BusinessLookupService
     return {} if place_ids.empty?
 
     details_cache = {}
-    
-    # Google Places API doesn't support true batch requests, but we can
-    # use threading to parallelize requests (limited to 5 concurrent)
-    # This reduces total wait time significantly compared to sequential calls
-    place_ids.each_slice(5) do |batch|
-      threads = batch.map do |place_id|
-        Thread.new do
+    thread_pool = Concurrent::FixedThreadPool.new(5)
+
+    begin
+      # Use bounded thread pool to prevent memory exhaustion under load
+      # Maximum 5 concurrent threads for API calls
+      # Google Places API doesn't support true batch requests, but we can
+      # use a thread pool to parallelize requests safely
+      # This reduces total wait time significantly compared to sequential calls
+      futures = place_ids.map do |place_id|
+        Concurrent::Future.execute(executor: thread_pool) do
           details = fetch_google_place_details(place_id)
           [place_id, details] if details
+        rescue StandardError => e
+          # Log and continue - don't let one failure crash the batch
+          Rails.logger.warn("[BusinessLookupService] Thread error fetching place #{place_id}: #{e.message}")
+          nil
         end
       end
 
-      threads.each do |thread|
-        result = thread.value
+      # Wait for all futures to complete and collect results
+      futures.each do |future|
+        result = future.value(10) # 10 second timeout per request
         details_cache[result[0]] = result[1] if result
       end
-    end
 
-    details_cache
-  rescue ProviderError
-    raise
-  rescue StandardError => e
-    Rails.logger.warn "[BusinessLookupService] Batch fetch error: #{e.message}, falling back to individual fetches"
-    {}
+      details_cache
+    rescue ProviderError
+      raise
+    rescue StandardError => e
+      Rails.logger.warn "[BusinessLookupService] Batch fetch error: #{e.message}, falling back to individual fetches"
+      {}
+    ensure
+      thread_pool.shutdown
+      thread_pool.wait_for_termination(5)
+    end
   end
 
   def fetch_google_place_details(place_id)
@@ -297,37 +344,61 @@ class BusinessLookupService
 
   def try_yelp(limit)
     api_key = @credentials.yelp_api_key
+    all_businesses = []
+    offset = 0
+    page_size = 50 # Yelp max per request
 
-    uri = URI('https://api.yelp.com/v3/businesses/search')
-    params = {
-      location: @zipcode,
-      limit: [limit, 50].min # Yelp max is 50
-    }
-    uri.query = URI.encode_www_form(params)
+    # Yelp Fusion API constraint: limit + offset must be <= 240
+    # So max results per search is 240 (not 1000 as some docs suggest)
+    max_yelp_results = 240
 
-    response = HttpClient.get(uri, circuit_name: 'yelp-api') do |request|
-      request['Authorization'] = "Bearer #{api_key}"
-    end
+    loop do
+      # Calculate actual page size ensuring offset + limit <= 240
+      actual_page_size = [page_size, max_yelp_results - offset].min
+      break if actual_page_size <= 0
 
-    unless response.code == '200'
-      begin
-        data = JSON.parse(response.body)
-        error_desc = data.dig('error', 'description') || data.dig('error', 'code')
-      rescue JSON::ParserError
-        error_desc = nil
+      uri = URI('https://api.yelp.com/v3/businesses/search')
+      params = {
+        location: @zipcode,
+        limit: actual_page_size,
+        offset: offset
+      }
+      uri.query = URI.encode_www_form(params)
+
+      response = HttpClient.get(uri, circuit_name: 'yelp-api') do |request|
+        request['Authorization'] = "Bearer #{api_key}"
       end
-      message = "HTTP #{response.code}"
-      message = "#{message} - #{error_desc}" if error_desc.present?
-      raise ProviderError, message
+
+      unless response.code == '200'
+        begin
+          data = JSON.parse(response.body)
+          error_desc = data.dig('error', 'description') || data.dig('error', 'code')
+        rescue JSON::ParserError
+          error_desc = nil
+        end
+        message = "HTTP #{response.code}"
+        message = "#{message} - #{error_desc}" if error_desc.present?
+        raise ProviderError, message
+      end
+
+      data = JSON.parse(response.body)
+      businesses = data['businesses'] || []
+      total_available = data['total'] || 0
+
+      all_businesses.concat(businesses)
+
+      # Check if we have enough results or no more pages
+      break if all_businesses.size >= limit
+      break if businesses.empty?
+      break if offset + actual_page_size >= total_available
+      break if offset + actual_page_size >= max_yelp_results # Yelp API limit
+
+      offset += actual_page_size
     end
 
-    data = JSON.parse(response.body)
-    businesses = data['businesses'] || []
-
-    businesses.map do |biz|
+    all_businesses.take(limit).map do |biz|
       parse_yelp_business(biz)
     end.compact
-
   rescue HttpClient::TimeoutError => e
     raise ProviderError, "Timeout - #{e.message}"
   rescue HttpClient::CircuitOpenError => e
@@ -392,7 +463,6 @@ class BusinessLookupService
         Rails.logger.warn "[BusinessLookupService] Failed to import: #{business_data[:name]}"
       end
     end
-
   rescue StandardError => e
     Rails.logger.error "[BusinessLookupService] Error processing business #{business_data[:name]}: #{e.message}"
     @stats[:skipped] += 1
@@ -407,16 +477,16 @@ class BusinessLookupService
     end
 
     # Try by business name + zipcode (good match)
-    if business_data[:name].present?
-      # Use fingerprinting for better matching
-      name_fingerprint = create_name_fingerprint(business_data[:name])
+    return unless business_data[:name].present?
 
-      Contact.where(
-        "name_fingerprint = ? AND business_postal_code = ?",
-        name_fingerprint,
-        @zipcode
-      ).first
-    end
+    # Use fingerprinting for better matching
+    name_fingerprint = create_name_fingerprint(business_data[:name])
+
+    Contact.where(
+      'name_fingerprint = ? AND business_postal_code = ?',
+      name_fingerprint,
+      @zipcode
+    ).first
   end
 
   def create_contact(business_data)
@@ -461,16 +531,28 @@ class BusinessLookupService
     updates = {}
 
     updates[:business_name] = business_data[:name] if business_data[:name].present? && contact.business_name.blank?
-    updates[:business_type] = business_data[:business_type] if business_data[:business_type].present? && contact.business_type.blank?
-    updates[:business_address] = business_data[:address] if business_data[:address].present? && contact.business_address.blank?
+    if business_data[:business_type].present? && contact.business_type.blank?
+      updates[:business_type] =
+        business_data[:business_type]
+    end
+    if business_data[:address].present? && contact.business_address.blank?
+      updates[:business_address] =
+        business_data[:address]
+    end
 
     address_data = parse_address(business_data[:address])
     updates[:business_city] = address_data[:city] if address_data[:city].present? && contact.business_city.blank?
     updates[:business_state] = address_data[:state] if address_data[:state].present? && contact.business_state.blank?
     updates[:business_postal_code] = address_data[:zipcode] || @zipcode if contact.business_postal_code.blank?
 
-    updates[:business_website] = extract_domain(business_data[:website]) if business_data[:website].present? && contact.business_website.blank?
-    updates[:raw_phone_number] = normalize_phone(business_data[:phone]) if business_data[:phone].present? && contact.raw_phone_number.blank?
+    if business_data[:website].present? && contact.business_website.blank?
+      updates[:business_website] =
+        extract_domain(business_data[:website])
+    end
+    if business_data[:phone].present? && contact.raw_phone_number.blank?
+      updates[:raw_phone_number] =
+        normalize_phone(business_data[:phone])
+    end
 
     # Mark as business if not already
     updates[:is_business] = true unless contact.is_business

@@ -1,11 +1,14 @@
 <div id="dashboard_stats">
+  <%= turbo_stream_from "dashboard_stats" %>
   <%
-    # Calculate all stats once
-    total_count = Contact.count
-    pending_count = Contact.pending.count
-    processing_count = Contact.processing.count
-    completed_count = Contact.completed.count
-    failed_count = Contact.failed.count
+    # Load pre-aggregated stats for faster dashboard rendering
+    stats = local_assigns.fetch(:stats, DashboardStats.current)
+
+    total_count = stats.total_contacts.to_i
+    pending_count = stats.pending_count.to_i
+    processing_count = stats.processing_count.to_i
+    completed_count = stats.completed_count.to_i
+    failed_count = stats.failed_count.to_i
 
     completion_percentage = total_count > 0 ? (completed_count.to_f / total_count * 100).round(1) : 0
   %>

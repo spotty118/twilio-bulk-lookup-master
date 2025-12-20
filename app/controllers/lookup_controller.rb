@@ -20,7 +20,7 @@ class LookupController < ApplicationController
     queued_count = 0
     total_pending = contacts_to_process.count
 
-    contacts_to_process.limit(MAX_BATCH_SIZE).find_each do |contact|
+    contacts_to_process.limit(MAX_BATCH_SIZE).each do |contact|
       # Skip if already processing or completed
       next if contact.status == 'processing' || contact.status == 'completed'
 
