@@ -89,6 +89,11 @@ class CircuitBreakerService
             'timeout' => 30,
             'description' => 'FCC Broadband Map API',
         ],
+        'google_geocoding' => [
+            'threshold' => 3,
+            'timeout' => 30,
+            'description' => 'Google Geocoding API',
+        ],
 
         // AI/LLM APIs
         'openai' => [
