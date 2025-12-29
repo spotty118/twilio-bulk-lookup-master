@@ -1,3 +1,53 @@
+## [2.1.3] - 2025-12-21
+
+### Added
+- PHANTOM Protocol v6 with enhanced security features
+- PHANTOM Protocol v5 debugging skill
+- Yelp as primary business lookup provider
+- OpenRouter as alternative AI provider
+- Schema validations to Contact model
+- RequestLogger middleware for application performance monitoring
+- Content Security Policy (CSP) enforcement
+- Health check readiness probe
+- HTTP client connection pooling
+
+### Changed
+- PHANTOM Protocol security patches for critical vulnerabilities
+- Premium enterprise UI overhaul with theme toggle and animations
+- Interactive JavaScript enhancements and utility animations
+- Enhanced HTTP client infrastructure
+
+### Fixed
+- Critical PHANTOM Protocol vulnerabilities
+- N+1 query performance issues
+- Email enrichment logic
+- Nil check handling in database operations
+
+## [2.1.2] - 2025-12-21
+
+### Added
+- PHANTOM Protocol v6 upgrade with enhanced debugging capabilities
+- PHANTOM Protocol v5 skill for advanced debugging
+- Yelp as primary business lookup provider
+- OpenRouter as alternative AI provider
+- Schema validations to Contact model
+- RequestLogger middleware for application performance monitoring
+- Content Security Policy (CSP) for enhanced security
+- Maintenance Rake tasks for operations
+
+### Changed
+- PHANTOM Protocol security fixes for critical vulnerabilities
+- Enhanced HTTP client with connection pooling
+- Enhanced health checks with readiness probe
+- Premium enterprise UI overhaul with theme toggle and animations
+- Frontend utility animations and UI polish
+- Interactive JavaScript enhancements
+
+### Fixed
+- N+1 query performance issues
+- Email enrichment logic
+- Nil check edge cases
+
 # Changelog
 
 All notable changes to the Twilio Bulk Lookup application are documented in this file.

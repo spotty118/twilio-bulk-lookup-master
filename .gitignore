@@ -48,3 +48,10 @@ brakeman_report.json
 .env
 .env.local
 .env.*.local
+
+# Auto Claude data directory
+.auto-claude/
+
+# Claude Code local files
+.worktrees/
+.claude_settings.json
